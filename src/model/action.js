@@ -4,6 +4,7 @@ import { formatTime } from "@/lib/formatTime";
 import { istCurrentTime } from "@/lib/istCurrentTime";
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
+import { createUser } from "./user";
 
 const ASSIGN_TASKS = 20;
 const MAX_HISTORY = 10;
@@ -27,7 +28,12 @@ export const getUserDetails = async (username) => {
       },
     });
     if (userData === null) {
-      return null;
+      let formData = new FormData();
+      formData.append("name", username);
+      formData.append("email", username);
+      formData.append("group_id", 0);
+      formData.append("role", "TRANSCRIBER");
+      return await createUser(formData);
     }
     return userData;
   } catch (error) {
