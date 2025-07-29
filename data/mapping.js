@@ -8,7 +8,7 @@ const mappingObj = {
     department: "ocr",
   },
   "tenkus47@gmail.com": {
-    url: "https://stt.pecha.tools/?session=lhatsoyeshi@gmail.com",
+    url: "https://pecha-tools-for-stt.onrender.com/?session=lhatsoyeshi@gmail.com",
     department: "stt",
   },
 
