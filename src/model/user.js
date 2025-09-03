@@ -38,9 +38,10 @@ export const getAllUser = async () => {
 };
 
 export const createUser = async (formData) => {
-  const name = formData.get("name");
-  const email = formData.get("email");
+  const name = formData.get("name")?.trim();
+  const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
+  console.log("crateUser:", { groupId })
   const role = formData.get("role");
   try {
     // check if username  and email already exists
@@ -111,10 +112,11 @@ export const deleteUser = async (id) => {
 };
 
 export const editUser = async (id, formData) => {
-  const name = formData.get("name");
-  const email = formData.get("email");
+  const name = formData.get("name")?.trim();
+  const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
   const role = formData.get("role");
+
   try {
     // check if username  and email already exists
     const userId = parseInt(id); // Ensure id is converted to an integer

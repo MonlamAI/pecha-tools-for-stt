@@ -5,7 +5,7 @@ import { istCurrentTime } from "@/lib/istCurrentTime";
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { createUser } from "./user";
-
+import { getOrCreateUser } from "@/service/user-service";
 const ASSIGN_TASKS = 20;
 const MAX_HISTORY = 10;
 //get user detail if exist
@@ -43,18 +43,22 @@ export const getUserDetails = async (username) => {
 };
 
 // get task based on username
-export const getUserTask = async (username) => {
-  let userTasks;
-  const userData = await getUserDetails(username);
-  if (userData === null) {
-    return {
-      error:
-        "No user found. Please try again with the correct username or email..",
-    };
-  }
+export const getUserTask = async ({ user }) => {
+  // const userData = await getUserDetails(username);
+  // const userData = await getOrCreateUser(username);
+  // if (userData === null) {
+  //   return {
+  //     error: "No user found. Please try again with the correct username or email..",
+  //   };
+  // }
   // if user is found, get the task based on user role
+
   const { id: userId, group_id: groupId, role } = userData;
-  userTasks = await getTasks(groupId, userId, role);
+  const userTasks = await getTasks(groupId, userId, role);
+  // const tasks = await getTasksNEW({ userId, groupId, role })
+  // const tasksCount = await getNumberOfAssignedTaskNEW({ userId, groupId, role })
+  console.log({ userData, userTasks });
+
   const userHistory = await getUserHistory(userId, groupId, role);
   return { userTasks, userData, userHistory };
 };
@@ -84,6 +88,8 @@ export const getNumberOfAssignedTask = async (userId, role, groupId) => {
       [taskField]: null,
     },
   });
+
+  console.log("count", count);
   return count;
 };
 

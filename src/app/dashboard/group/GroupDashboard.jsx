@@ -8,6 +8,7 @@ import EditGroupModal from "./EditGroupModal";
 import { deleteGroup } from "@/model/group";
 
 const GroupDashboard = ({ groupList, departments }) => {
+  console.log({ groupList, departments })
   const [selectedRow, setSelectedRow] = useState(null);
 
   const handleRemoveGroup = async (row) => {

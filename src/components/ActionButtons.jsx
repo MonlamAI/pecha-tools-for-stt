@@ -43,7 +43,13 @@ const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
             id="submit-button"
             type="button"
             className="focus:outline-none text-white bg-[#4fd364] font-medium text-md p-4 sm:p-9"
-            onClick={() => updateTaskAndIndex("submit", transcript, tasks[0])}
+            onClick={() =>
+              updateTaskAndIndex({
+                action: "submit",
+                transcript,
+                task: tasks[0],
+              })
+            }
           >
             <div className="flex flex-col items-center gap-1">
               <BsCheckLg width="5rem" />
@@ -57,7 +63,13 @@ const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
               id="reject-button"
               type="button"
               className="focus:outline-none text-white bg-[#f74c4a] font-medium text-md p-4 sm:p-9"
-              onClick={() => updateTaskAndIndex("reject", transcript, tasks[0])}
+              onClick={() =>
+                updateTaskAndIndex({
+                  action: "reject",
+                  transcript,
+                  task: tasks[0],
+                })
+              }
             >
               <div className="flex flex-col items-center gap-1">
                 <BsXLg />
@@ -71,7 +83,13 @@ const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
             id="save-button"
             type="button"
             className="focus:outline-none text-white bg-yellow-500 font-medium text-md p-4 sm:p-9"
-            onClick={() => updateTaskAndIndex("save", transcript, tasks[0])}
+            onClick={() =>
+              updateTaskAndIndex({
+                action: "save",
+                transcript,
+                task: tasks[0],
+              })
+            }
           >
             <div className="flex flex-col items-center gap-1">
               <BsArrowReturnLeft />
@@ -84,7 +102,13 @@ const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
             id="trash-button"
             type="button"
             className="focus:outline-none text-white bg-[#b9b9b9] font-medium text-md p-4 sm:p-9"
-            onClick={() => updateTaskAndIndex("trash", transcript, tasks[0])}
+            onClick={() =>
+              updateTaskAndIndex({
+                action: "trash",
+                transcript,
+                task: tasks[0],
+              })
+            }
           >
             <div className="flex flex-col items-center gap-1">
               <BsTrash />

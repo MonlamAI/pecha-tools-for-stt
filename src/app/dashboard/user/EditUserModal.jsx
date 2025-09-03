@@ -13,10 +13,12 @@ const EditUserModal = ({ groups, selectedRow }) => {
   const [error, setError] = useState("");
 
   const handleInputChange = (event) => {
-    const inputValue = event.target.value;
+    const inputValue = event.target.value?.trim();
     setUsername(inputValue);
     // Use a regex to check for valid username format (no spaces or slashes)
-    if (/^[A-Za-z0-9_-]*$/.test(inputValue)) {
+    // if (/^[A-Za-z0-9_-]*$/.test(inputValue)) {  // no email id accepted for username
+    if (/^[A-Za-z0-9_.@-]*$/.test(inputValue)) {
+      // email id accepted for username
       setError("");
     } else {
       setError(

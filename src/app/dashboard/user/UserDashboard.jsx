@@ -8,6 +8,8 @@ import { deleteUser } from "@/model/user";
 import EditUserModal from "./EditUserModal";
 
 const UserDashboard = ({ users, groups }) => {
+
+  console.log('UserDashboard:', { users, groups })
   const [selectedRow, setSelectedRow] = useState(null);
 
   const handleRemoveUser = async (user) => {

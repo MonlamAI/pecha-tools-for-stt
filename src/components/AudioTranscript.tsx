@@ -2,8 +2,8 @@
 import {
   assignMoreTasks,
   getNumberOfAssignedTask,
-  getTasks,
-  updateTask,
+  // getTasks,
+  // updateTask,
 } from "@/model/action";
 import React, { useState, useRef, useEffect } from "react";
 import { AudioPlayer } from "./AudioPlayer";
@@ -11,14 +11,36 @@ import ActionButtons from "./ActionButtons";
 import { UserProgressStats } from "@/model/task";
 import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
-import AppContext from "../components/AppContext";
+import AppContext from "./AppContext";
 import { sendDiscordAlert } from "@/lib/webhookutils";
 import { getTranscribingcount } from "@/model/group";
+import { getUserProgressStats } from "@/service/user-service";
+import { getTranscribingCount } from "@/service/group-service";
+import { TASK_ASSIGN } from "@/constants/config";
+import {
+  assignTasksToUser,
+  getNumberOfPendingTasks,
+  getTasks,
+  TaskActionType,
+  updateTask,
+} from "@/service/task-service";
+import { Task, User } from "@prisma/client";
 
-const AudioTranscript = ({ tasks, userDetail, language, userHistory }) => {
+type AudioTranscriptType = {
+  tasks: Task[];
+  userDetail: User;
+  language: any;
+  userHistory: Task[];
+};
+const AudioTranscript = ({
+  tasks,
+  userDetail,
+  language,
+  userHistory,
+}: AudioTranscriptType) => {
   const [languageSelected, setLanguageSelected] = useState("bo");
   const lang = language[languageSelected];
-  const [taskList, setTaskList] = useState(tasks);
+  const [taskList, setTaskList] = useState<any>(tasks);
   const [transcript, setTranscript] = useState("");
   const [userTaskStats, setUserTaskStats] = useState({
     completedTaskCount: 0,
@@ -28,14 +50,14 @@ const AudioTranscript = ({ tasks, userDetail, language, userHistory }) => {
   const audioRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const { id: userId, group_id: groupId, role } = userDetail;
-  const currentTimeRef = useRef(null);
-  const THRESHOLD = 3000;
-  function getLastTaskIndex() {
-    return taskList.length != 0 ? taskList?.length - 1 : 0;
-  }
+  const currentTimeRef: any = useRef(null);
+  // const THRESHOLD = 3000;
+
   useEffect(() => {
-    getUserProgress();
+    // console.log({ tasks, userDetail, language, userHistory })
+    setUserProgress();
     // Assign a value to currentTimeRef.current
+    console.log({ taskList });
     currentTimeRef.current = new Date().toISOString();
     if (taskList?.length) {
       setIsLoading(false);
@@ -62,9 +84,11 @@ const AudioTranscript = ({ tasks, userDetail, language, userHistory }) => {
     }
   }, [taskList]);
 
-  const getUserProgress = async () => {
+  const setUserProgress = async () => {
     const { completedTaskCount, totalTaskCount, totalTaskPassed } =
-      await UserProgressStats(userId, role, groupId);
+      await getUserProgressStats({ userId, role, groupId });
+    // const { completedTaskCount, totalTaskCount, totalTaskPassed } =
+    //   await UserProgressStats(userId, role, groupId);
     setUserTaskStats({
       completedTaskCount,
       totalTaskCount,
@@ -72,24 +96,40 @@ const AudioTranscript = ({ tasks, userDetail, language, userHistory }) => {
     });
   };
 
-  const updateTaskAndIndex = async (action, transcript, task) => {
+  const updateTaskAndIndex = async ({
+    action,
+    transcript,
+    task,
+  }: {
+    action: TaskActionType;
+    transcript: string;
+    task: any;
+  }) => {
+    console.log("updateTaskAndIndex()");
     try {
       const { id, group_id } = task;
       // console.log('Debug - Processing task update for group:', group_id);
-      const taskCounts = await getTranscribingcount(group_id);
+      // debugger;
+      // const taskCounts = await getTranscribingcount(group_id);
+      const taskCounts = await getTranscribingCount({ groupId: group_id });
       const count = taskCounts?._count?.tasks ?? 0;
       const groupName = taskCounts?.name ?? "Unknown Group";
-      if (count == THRESHOLD) {
+      console.log(TASK_ASSIGN.THRESHOLD);
+      if (count <= TASK_ASSIGN.THRESHOLD) {
         try {
           // console.log("Debug - Preparing to send alert:", { groupName, count });
-          await sendDiscordAlert(groupName, count , THRESHOLD);
+          await sendDiscordAlert({
+            groupName,
+            taskCount: count,
+            threshold: TASK_ASSIGN.THRESHOLD,
+          });
           // console.log(`Alert sent successfully for group ${groupName}`);
         } catch (error) {
           console.error(`Failed to send alert for ${groupName}:`, error);
         }
       }
       // update the task in the database
-      const { msg, updatedTask } = await updateTask(
+      const { error, msg, updatedTask } = await updateTask(
         action,
         id,
         transcript,
@@ -98,11 +138,11 @@ const AudioTranscript = ({ tasks, userDetail, language, userHistory }) => {
         currentTimeRef.current
       );
 
-      if (msg?.error) {
-        toast.error(msg.error);
+      if (error) {
+        toast.error(error);
         return;
       }
-      toast.success(msg.success);
+      toast.success(msg?.success || "");
 
       // Update task list optimally based on action
       handleTaskListUpdate(action, id);
@@ -112,23 +152,36 @@ const AudioTranscript = ({ tasks, userDetail, language, userHistory }) => {
     }
   };
 
-  const ASSIGN_BUFFER = 6;
-  const TASK_LEFT_LIMIT = 10;
+  // const ASSIGN_BUFFER = 6;
+  // const TASK_LEFT_LIMIT = 10;
 
-  const handleTaskListUpdate = async (action, id) => {
+  function getLastTaskIndex() {
+    return taskList.length != 0 ? taskList?.length - 1 : 0;
+  }
+  const handleTaskListUpdate = async (action: TaskActionType, id: number) => {
     if (action === "submit") {
       currentTimeRef.current = new Date().toISOString();
     }
     const lastTaskIndex = getLastTaskIndex();
-    if (lastTaskIndex < TASK_LEFT_LIMIT) {
-      const assignCount = await getNumberOfAssignedTask(userId, role, groupId);
-      if (assignCount < ASSIGN_BUFFER) assignMoreTasks(groupId, userId, role);
+    if (lastTaskIndex < TASK_ASSIGN.TASK_LEFT_LIMIT) {
+      const assignCount = await getNumberOfPendingTasks({
+        userId,
+        role,
+        groupId,
+      });
+      // const assignCount = await getNumberOfAssignedTask(userId, role, groupId);
+      if (assignCount < TASK_ASSIGN.ASSIGN_BUFFER) {
+        console.log("assignTasksToUser():", { groupId, userId, role });
+        // assignTasksToUser({ groupId, userId, role });
+        // assignMoreTasks(groupId, userId, role);
+      }
     }
     if (lastTaskIndex !== 0) {
-      setTaskList((prev) => prev.filter((task) => task.id !== id));
+      setTaskList((prev: any) => prev.filter((task: Task) => task.id !== id));
     } else {
       try {
-        const moreTask = await getTasks(groupId, userId, role);
+        const moreTask = await getTasks({ groupId, userId, role });
+        // const moreTask = await getTasks(groupId, userId, role);
         setTaskList(moreTask);
       } catch (error) {
         console.error("Failed to fetch more tasks:", error);
@@ -168,8 +221,7 @@ const AudioTranscript = ({ tasks, userDetail, language, userHistory }) => {
                 <span>{taskList[0]?.reviewer?.name}</span>
                 {role === "TRANSCRIBER" && taskList[0]?.reviewer?.name ? (
                   <span className="text-red-500">
-                    {" "}
-                    (Rejected by {taskList[0]?.reviewer?.name})
+                    Rejected by {taskList[0]?.reviewer?.name}
                   </span>
                 ) : (
                   ""
@@ -186,7 +238,7 @@ const AudioTranscript = ({ tasks, userDetail, language, userHistory }) => {
                   placeholder="Type here..."
                   rows={6}
                   id="transcript"
-                ></textarea>
+                />
                 <div className="ml-auto text-xs">
                   <span>
                     <strong className="uppercase">{lang.file} : </strong>

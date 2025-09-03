@@ -2,33 +2,33 @@
 
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
-export const getTranscribingcount=async(group_id)=>{
+export const getTranscribingcount = async (group_id) => {
   try {
-   const taskCount = await prisma.group.findUnique({
-           where: {
-             id: group_id
-           },
-           select: {
-             name: true, 
-             _count: {
-               select: {
-                 tasks: {
-                   where: {
-                     state: "transcribing",
-                     NOT: {
-                       transcriber_id: null
-                     }
-                   }
-                 }
-               }
-             }
-           }
-         });
-        //  console.log('Debug - Task Count Result:', JSON.stringify(taskCount, null, 2));
-         return taskCount
+    const taskCount = await prisma.group.findUnique({
+      where: {
+        id: group_id
+      },
+      select: {
+        name: true,
+        _count: {
+          select: {
+            tasks: {
+              where: {
+                state: "transcribing",
+                NOT: {
+                  transcriber_id: null
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+    //  console.log('Debug - Task Count Result:', JSON.stringify(taskCount, null, 2));
+    return taskCount
   } catch (error) {
     console.error("Error fetching transcribing count:", error);
-    throw error; 
+    throw error;
   }
 }
 
@@ -53,7 +53,7 @@ export const getAllGroup = async () => {
 };
 
 export const createGroup = async (formData) => {
-  const groupName = formData.get("name");
+  const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {
     const newGroup = await prisma.group.create({
@@ -86,7 +86,7 @@ export const deleteGroup = async (id) => {
 };
 
 export const editGroup = async (id, formData) => {
-  const groupName = formData.get("name");
+  const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {
     const group = await prisma.group.update({
@@ -113,7 +113,7 @@ export const getAllGroupTaskStats = async (groupList) => {
     by: ["state", "group_id"],
     where: {
       NOT: {
-        state: "transcribing", 
+        state: "transcribing",
       }
     },
     _count: {
@@ -134,8 +134,8 @@ export const getAllGroupTaskStats = async (groupList) => {
   const taskTranscribingCount = await prisma.task.groupBy({
     by: ["group_id"],
     where: {
-      state: "transcribing", 
-      NOT:{
+      state: "transcribing",
+      NOT: {
         transcriber_id: null
       }
     },

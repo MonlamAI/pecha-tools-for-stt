@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 const Group = async () => {
   const groupList = await getAllGroup();
   const departments = await getAllDepartment();
-  //console.log("departments", departments, groupList);
+
+  console.log("group page:", { departments, groupList });
 
   return (
     <>

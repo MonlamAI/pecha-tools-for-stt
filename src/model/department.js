@@ -26,7 +26,7 @@ export const getAllDepartment = async () => {
 };
 
 export const createDepartment = async (formData) => {
-  const departmentName = formData.get("name");
+  const departmentName = formData.get("name")?.trim();
   try {
     const newDepartment = await prisma.department.create({
       data: {
@@ -57,7 +57,7 @@ export const deleteDepartment = async (id) => {
 };
 
 export const editDepartment = async (id, formData) => {
-  const departmentName = formData.get("name");
+  const departmentName = formData.get("name")?.trim();
   try {
     const group = await prisma.department.update({
       where: {
