@@ -28,6 +28,11 @@ export const getAllDepartment = async () => {
 export const createDepartment = async (prevState, formData) => {
   const departmentName = formData.get("name")?.trim();
   try {
+    // guard: prevent duplicate department names
+    const exists = await prisma.department.findFirst({ where: { name: departmentName } });
+    if (exists) {
+      return { error: "Department already exists" };
+    }
     const newDepartment = await prisma.department.create({
       data: {
         name: departmentName,
@@ -37,6 +42,9 @@ export const createDepartment = async (prevState, formData) => {
     return { success: "Department created successfully", department: newDepartment };
   } catch (error) {
     console.error("Error creating a department:", error);
+    if (error?.code === "P2002") {
+      return { error: "Department already exists" };
+    }
     return { error: "Failed to create department. Please try again." };
   }
 };
@@ -59,6 +67,11 @@ export const deleteDepartment = async (id) => {
 export const editDepartment = async (id, formData) => {
   const departmentName = formData.get("name")?.trim();
   try {
+    // guard: prevent duplicate on rename
+    const exists = await prisma.department.findFirst({ where: { name: departmentName, NOT: { id } } });
+    if (exists) {
+      return { error: "Department already exists" };
+    }
     const department = await prisma.department.update({
       where: {
         id,
@@ -71,6 +84,9 @@ export const editDepartment = async (id, formData) => {
     return { success: "Department updated successfully", department };
   } catch (error) {
     console.error("Error updating a department:", error);
+    if (error?.code === "P2002") {
+      return { error: "Department already exists" };
+    }
     return { error: "Failed to update department. Please try again." };
   }
 };

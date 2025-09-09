@@ -45,13 +45,13 @@ export const createUser = async (_prevState, formData) => {
   const role = formData.get("role");
   try {
     // check if username  and email already exists
-    const userByName = await prisma.user.findUnique({
+    const userByName = await prisma.user.findFirst({
       where: {
         name: name,
       },
     });
 
-    const userByEmail = await prisma.user.findUnique({
+    const userByEmail = await prisma.user.findFirst({
       where: {
         email: email,
       },
@@ -92,6 +92,9 @@ export const createUser = async (_prevState, formData) => {
     }
   } catch (error) {
     console.error("Error adding a user", error);
+    if (error?.code === "P2002") {
+      return { error: "Duplicate username or email" };
+    }
     return { error: "Failed to create user. Please try again." };
   }
 };
@@ -146,7 +149,7 @@ export const editUser = async (id, formData) => {
   try {
     // check if username  and email already exists
     const userId = parseInt(id); // Ensure id is converted to an integer
-    const userByName = await prisma.user.findUnique({
+    const userByName = await prisma.user.findFirst({
       where: {
         name: name,
         NOT: {
@@ -155,7 +158,7 @@ export const editUser = async (id, formData) => {
       },
     });
 
-    const userByEmail = await prisma.user.findUnique({
+    const userByEmail = await prisma.user.findFirst({
       where: {
         email: email,
         NOT: {
@@ -201,6 +204,9 @@ export const editUser = async (id, formData) => {
     }
   } catch (error) {
     console.error("Error updating a user details", error);
+    if (error?.code === "P2002") {
+      return { error: "Duplicate username or email" };
+    }
     return { error: "Failed to update user. Please try again." };
   }
 };

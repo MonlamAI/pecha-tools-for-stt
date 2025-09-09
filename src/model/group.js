@@ -56,6 +56,13 @@ export const createGroup = async (prevState, formData) => {
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {
+    // guard: prevent duplicate group names within the same department
+    const exists = await prisma.group.findFirst({
+      where: { name: groupName, department_id: parseInt(departmentId) },
+    });
+    if (exists) {
+      return { error: "Group with this name already exists in the department" };
+    }
     const newGroup = await prisma.group.create({
       data: {
         name: groupName,
@@ -66,6 +73,9 @@ export const createGroup = async (prevState, formData) => {
     return { success: "Group created successfully", group: newGroup };
   } catch (error) {
     console.error("Error creating a group:", error);
+    if (error?.code === "P2002") {
+      return { error: "Group with this name already exists in the department" };
+    }
     return { error: "Failed to create group. Please try again." };
   }
 };
@@ -89,6 +99,17 @@ export const editGroup = async (id, formData) => {
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {
+    // guard: prevent duplicate on rename/move
+    const exists = await prisma.group.findFirst({
+      where: {
+        name: groupName,
+        department_id: parseInt(departmentId),
+        NOT: { id },
+      },
+    });
+    if (exists) {
+      return { error: "Group with this name already exists in the department" };
+    }
     const group = await prisma.group.update({
       where: {
         id,
@@ -102,6 +123,9 @@ export const editGroup = async (id, formData) => {
     return { success: "Group updated successfully", group };
   } catch (error) {
     console.error("Error updating a group:", error);
+    if (error?.code === "P2002") {
+      return { error: "Group with this name already exists in the department" };
+    }
     return { error: "Failed to update group. Please try again." };
   }
 };
