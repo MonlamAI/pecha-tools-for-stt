@@ -1,37 +1,63 @@
 "use client";
-import {
-  assignMoreTasks,
-  getNumberOfAssignedTask,
-  // getTasks,
-  // updateTask,
-} from "@/model/action";
 import React, { useState, useRef, useEffect } from "react";
 import { AudioPlayer } from "./AudioPlayer";
 import ActionButtons from "./ActionButtons";
-import { UserProgressStats } from "@/model/task";
 import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
 import AppContext from "./AppContext";
-import { sendDiscordAlert } from "@/lib/webhookutils";
-import { getTranscribingcount } from "@/model/group";
-import { getUserProgressStats } from "@/service/user-service";
-import { getTranscribingCount } from "@/service/group-service";
-import { TASK_ASSIGN } from "@/constants/config";
-import {
-  assignTasksToUser,
-  getNumberOfPendingTasks,
-  getTasks,
-  TaskActionType,
-  updateTask,
-} from "@/service/task-service";
-import { Task, User } from "@prisma/client";
+import type { Task, User } from "@prisma/client";
 
+// Types
 type AudioTranscriptType = {
   tasks: Task[];
   userDetail: User;
   language: any;
   userHistory: Task[];
 };
+
+async function fetchUserProgress({
+  userId,
+  groupId,
+  role,
+}: {
+  userId: number;
+  groupId: number;
+  role: string;
+}) {
+  const res = await fetch(
+    `/api/user/progress?userId=${userId}&groupId=${groupId}&role=${role}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error("Failed to fetch user progress");
+  return res.json();
+}
+
+async function fetchTaskList({
+  userId,
+  groupId,
+  role,
+}: {
+  userId: number;
+  groupId: number;
+  role: string;
+}) {
+  const res = await fetch(
+    `/api/task/list?userId=${userId}&groupId=${groupId}&role=${role}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error("Failed to fetch tasks");
+  return res.json();
+}
+
+async function postTaskUpdate(body: any) {
+  const res = await fetch("/api/task/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res;
+}
+
 const AudioTranscript = ({
   tasks,
   userDetail,
@@ -46,18 +72,14 @@ const AudioTranscript = ({
     completedTaskCount: 0,
     totalTaskCount: 0,
     totalTaskPassed: 0,
-  }); // {completedTaskCount, totalTaskCount, totalTaskPassed}
+  });
   const audioRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { id: userId, group_id: groupId, role } = userDetail;
+  const { id: userId, group_id: groupId, role } = userDetail as any;
   const currentTimeRef: any = useRef(null);
-  // const THRESHOLD = 3000;
 
   useEffect(() => {
-    // console.log({ tasks, userDetail, language, userHistory })
     setUserProgress();
-    // Assign a value to currentTimeRef.current
-    console.log({ taskList });
     currentTimeRef.current = new Date().toISOString();
     if (taskList?.length) {
       setIsLoading(false);
@@ -69,7 +91,7 @@ const AudioTranscript = ({
           break;
         case "REVIEWER":
           taskList[0].reviewed_transcript != null &&
-          taskList[0].reviewed_transcript != ""
+            taskList[0].reviewed_transcript != ""
             ? setTranscript(taskList[0]?.reviewed_transcript)
             : setTranscript(taskList[0]?.transcript);
           break;
@@ -85,17 +107,16 @@ const AudioTranscript = ({
   }, [taskList]);
 
   const setUserProgress = async () => {
-    const { completedTaskCount, totalTaskCount, totalTaskPassed } =
-      await getUserProgressStats({ userId, role, groupId });
-    // const { completedTaskCount, totalTaskCount, totalTaskPassed } =
-    //   await UserProgressStats(userId, role, groupId);
-    setUserTaskStats({
-      completedTaskCount,
-      totalTaskCount,
-      totalTaskPassed,
-    });
+    try {
+      const { completedTaskCount, totalTaskCount, totalTaskPassed } =
+        await fetchUserProgress({ userId, role, groupId });
+      setUserTaskStats({ completedTaskCount, totalTaskCount, totalTaskPassed });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  type TaskActionType = "submit" | "reject" | "save" | "trash" | "assign";
   const updateTaskAndIndex = async ({
     action,
     transcript,
@@ -105,90 +126,55 @@ const AudioTranscript = ({
     transcript: string;
     task: any;
   }) => {
-    console.log("updateTaskAndIndex()");
     try {
-      const { id, group_id } = task;
-      // console.log('Debug - Processing task update for group:', group_id);
-      // debugger;
-      // const taskCounts = await getTranscribingcount(group_id);
-      const taskCounts = await getTranscribingCount({ groupId: group_id });
-      const count = taskCounts?._count?.tasks ?? 0;
-      const groupName = taskCounts?.name ?? "Unknown Group";
-      console.log(TASK_ASSIGN.THRESHOLD);
-      if (count <= TASK_ASSIGN.THRESHOLD) {
-        try {
-          // console.log("Debug - Preparing to send alert:", { groupName, count });
-          await sendDiscordAlert({
-            groupName,
-            taskCount: count,
-            threshold: TASK_ASSIGN.THRESHOLD,
-          });
-          // console.log(`Alert sent successfully for group ${groupName}`);
-        } catch (error) {
-          console.error(`Failed to send alert for ${groupName}:`, error);
-        }
-      }
-      // update the task in the database
-      const { error, msg, updatedTask } = await updateTask(
+      const res = await postTaskUpdate({
         action,
-        id,
+        id: task.id,
         transcript,
         task,
         role,
-        currentTimeRef.current
-      );
-
-      if (error) {
-        toast.error(error);
+        currentTime: currentTimeRef.current,
+      });
+      const result = await res.json();
+      if (!res.ok || result?.error) {
+        toast.error(result?.error || "Failed to update task");
         return;
       }
-      toast.success(msg?.success || "");
+      toast.success(result?.msg?.success || "");
 
-      // Update task list optimally based on action
-      handleTaskListUpdate(action, id);
+      // await setUserProgress();
+      handleTaskListUpdate(action, task.id);
     } catch (error) {
       console.error("Failed to update task:", error);
-      throw new Error("Failed to update task");
+      toast.error("Failed to update task");
     }
   };
-
-  // const ASSIGN_BUFFER = 6;
-  // const TASK_LEFT_LIMIT = 10;
 
   function getLastTaskIndex() {
     return taskList.length != 0 ? taskList?.length - 1 : 0;
   }
   const handleTaskListUpdate = async (action: TaskActionType, id: number) => {
+    // if (action === "save") {
+    //   return; // keep current task on save
+    // }
     if (action === "submit") {
       currentTimeRef.current = new Date().toISOString();
     }
     const lastTaskIndex = getLastTaskIndex();
-    if (lastTaskIndex < TASK_ASSIGN.TASK_LEFT_LIMIT) {
-      const assignCount = await getNumberOfPendingTasks({
-        userId,
-        role,
-        groupId,
-      });
-      // const assignCount = await getNumberOfAssignedTask(userId, role, groupId);
-      if (assignCount < TASK_ASSIGN.ASSIGN_BUFFER) {
-        console.log("assignTasksToUser():", { groupId, userId, role });
-        // assignTasksToUser({ groupId, userId, role });
-        // assignMoreTasks(groupId, userId, role);
-      }
-    }
+
     if (lastTaskIndex !== 0) {
       setTaskList((prev: any) => prev.filter((task: Task) => task.id !== id));
-    } else {
-      try {
-        const moreTask = await getTasks({ groupId, userId, role });
-        // const moreTask = await getTasks(groupId, userId, role);
-        setTaskList(moreTask);
-      } catch (error) {
-        console.error("Failed to fetch more tasks:", error);
-        toast.error("Failed to load more tasks.");
-      } finally {
-        setIsLoading(false); // Ensure loading is always stopped after the operation
-      }
+      return;
+    }
+
+    try {
+      const moreTask = await fetchTaskList({ groupId, userId, role });
+      setTaskList(moreTask);
+    } catch (error) {
+      console.error("Failed to fetch more tasks:", error);
+      toast.error("Failed to load more tasks.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -242,7 +228,7 @@ const AudioTranscript = ({
                 <div className="ml-auto text-xs">
                   <span>
                     <strong className="uppercase">{lang.file} : </strong>
-                    {(taskList[0]?.url).split("/").pop()}
+                    {taskList[0]?.url.split("/").pop()}
                   </span>
                 </div>
               </div>

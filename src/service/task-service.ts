@@ -6,7 +6,7 @@ import { formatTime } from "@/lib/formatTime";
 import { istCurrentTime } from "@/lib/istCurrentTime";
 import { TASK_RULES } from "@/constants/taskRules";
 import type { Prisma, Role, Task } from "@prisma/client";
-import { ASSIGN_TASKS } from "@/constants/config";
+import { ASSIGN_TASKS, USER_FETCH_TASKS } from "@/constants/config";
 import { getNumberOfAssignedTask } from "@/model/action";
 
 // count user’s assigned but pending tasks
@@ -67,21 +67,22 @@ export const getTasks = async ({
     role,
     groupId,
   });
-  console.log("getTasks:", { userId, groupId, pendingTaskCount });
+  // console.log("getTasks:", { userId, groupId, pendingTaskCount });
   // return []
 
   if (pendingTaskCount === 0) {
     // await assignMoreTasks(groupId, userId, role);
-    console.log("assignTasksToUser:", { groupId, userId, role });
+    // console.log("assignTasksToUser:", { groupId, userId, role });
     await assignTasksToUser({ groupId, userId, role });
   }
 
   const { workingState, idField } = TASK_RULES[role];
 
+  // console.log({ groupId, userId, role, workingState, idField })
   return await prisma.task.findMany({
     where: { group_id: groupId, state: workingState, [idField]: userId },
     orderBy: { id: "asc" },
-    take: ASSIGN_TASKS,
+    take: USER_FETCH_TASKS,
     select: {
       id: true,
       group_id: true,
@@ -118,7 +119,6 @@ export const assignTasksToUser = async ({
         [idField]: null,
       },
       orderBy: { id: "asc" },
-      // take: 1,
       take: ASSIGN_TASKS,
       select: {
         id: true,
@@ -135,7 +135,7 @@ export const assignTasksToUser = async ({
       },
     });
 
-    // console.log('unassignedTasks:', unassignedTasks.length)
+    // console.log('unassignedTasks:', unassignedTasks.length, { groupId, userId, role, workingState, idField, })
     if (unassignedTasks.length > 0) {
       await tx.task.updateMany({
         where: { id: { in: unassignedTasks.map((t) => t.id) } },
@@ -185,8 +185,8 @@ export const updateTask = async (
   currentTime: string
 ) => {
   const rules = TASK_RULES[role];
-  debugger;
-  const changedState = changeTaskState({ task, role, action });
+  const changedState = await changeTaskState({ task, role, action });
+  // console.log({ rules, changedState, action, id, transcript, task, role, currentTime })
   let duration: string | null = null;
 
   if (["submitted", "accepted", "finalised"].includes(changedState.state)) {
@@ -249,6 +249,7 @@ export const updateTask = async (
     data,
   });
 
+  // console.log('updateTask', { updatedTask, data, id })
   if (updatedTask) {
     revalidatePath("/");
     return { msg: taskToastMsg(action), updatedTask };
@@ -278,8 +279,8 @@ export const revertTaskState = async (id: number, state: string) => {
     state === "submitted"
       ? "transcribing"
       : state === "accepted"
-      ? "submitted"
-      : "accepted";
+        ? "submitted"
+        : "accepted";
 
   return prisma.task.update({
     where: { id },

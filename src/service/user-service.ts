@@ -3,9 +3,7 @@
 import prisma from "@/service/db";
 import { TASK_RULES } from "@/constants/taskRules";
 import type { Role } from "@prisma/client";
-import { createUser } from "@/model/user";
 import { MAX_HISTORY } from "@/constants/config";
-import { getUserTask } from "@/model/action";
 import { getCompletedTaskCount, getTasks } from "./task-service";
 
 export async function fetchUserDataBySession(session: string) {
@@ -14,7 +12,6 @@ export async function fetchUserDataBySession(session: string) {
   }
 
   const userData = await getOrCreateUser({ username: session });
-  console.log({ userData });
   if (userData === null) {
     return {
       error:
@@ -28,7 +25,7 @@ export async function fetchUserDataBySession(session: string) {
     };
   }
 
-  console.log("fetchUserDataBySession:", { userData });
+  // console.log("fetchUserDataBySession:", { userData });
   const userTasks = await getTasks({
     userId: userData.id,
     groupId: userData.group_id,
@@ -43,10 +40,6 @@ export async function fetchUserDataBySession(session: string) {
   });
   if (!userHistory) return { error: "No history found." };
 
-  // const result = await getUserTask({ user: userData });
-  // if (result?.error) {
-  //     return { error: result.error };
-  // }
 
   return {
     userDetail: userData,
@@ -77,7 +70,7 @@ export async function getOrCreateUser({ username }: { username: string }) {
 
   if (!user) {
     user = await prisma.user.create({
-      data: { username, email: username, group_id: 0, role: "TRANSCRIBER" },
+      data: { name: username, email: username, group_id: 0, role: "TRANSCRIBER" },
       select: {
         id: true,
         name: true,

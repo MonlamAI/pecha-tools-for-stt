@@ -12,7 +12,7 @@ import toast from "react-hot-toast";
 
 
 const UserDashboard = ({ users, groups, searchParams }) => {
-  console.log("UserDashboard:", { users, groups });
+  // console.log("UserDashboard:", { users, groups });
   const [selectedRow, setSelectedRow] = useState(null);
   const router = useRouter();
 

@@ -11,6 +11,7 @@ export async function sendDiscordAlert({
   taskCount: number;
   threshold: number;
 }) {
+  console.log('sendDiscordAlert', { groupName, taskCount, threshold })
   if (!DISCORD_WEBHOOK_URL) {
     return { error: "Discord webhook URL not configured" };
   }

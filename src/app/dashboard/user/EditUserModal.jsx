@@ -7,7 +7,7 @@ import Select from "@/components/Select";
 import toast from "react-hot-toast";
 
 const EditUserModal = ({ groups, selectedRow }) => {
-  console.log("EditUserModal: ", { groups, selectedRow });
+  // console.log("EditUserModal: ", { groups, selectedRow });
   const ref = useRef(null);
   const [groupId, setGroupId] = useState("");
   const [role, setRole] = useState("");

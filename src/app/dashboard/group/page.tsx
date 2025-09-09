@@ -8,7 +8,7 @@ const Group = async () => {
   const groupList = await getAllGroup();
   const departments = await getAllDepartment();
 
-  console.log("group page:", { departments, groupList });
+  // console.log("group page:", { departments, groupList });
 
   // return <pre>{JSON.stringify({ groupList, departments }, null, 2)}</pre>;
   return (

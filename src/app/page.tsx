@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { getUserTask } from "../model/action";
 import AudioTranscript from "@/components/AudioTranscript";
 import RightSidebar from "@/components/RightSidebar";
 import languagesObject from "../../data/language";
-import prisma from "@/service/db";
 import { fetchUserDataBySession } from "@/service/user-service";
 
 /*
@@ -18,35 +16,7 @@ export default async function Home({ searchParams }: { searchParams: any }) {
   const { error, userTasks, userDetail, userHistory } =
     await fetchUserDataBySession(session);
 
-  // let userTasks;
-  // let userDetail;
-  // let errMsg;
-  // let userHistory;
-
-  // const users = await prisma.User.findMany({
-  //   include: {
-  //     group: true,                // include the Group each user belongs to
-  //     transcriber_task: true,     // tasks where they're transcriber
-  //     reviewer_task: true,        // tasks where they're reviewer
-  //     final_reviewer_task: true,  // tasks where they're final reviewer
-  //   }
-  // });
-  // console.log('useeffect:', users);
-  // prisma.user.findMany().then((result: any) => {
-  //   console.log({ result })
-  // })
-
-  // if (session && session !== "") {
-  //   const result = await getUserTask(session);
-  //   if (result?.error) {
-  //     errMsg = result?.error;
-  //   } else {
-  //     userTasks = result?.userTasks;
-  //     userDetail = result?.userData;
-  //     userHistory = result?.userHistory;
-  //   }
-  // }
-
+  // console.log({ error, userTasks, userDetail, userHistory })
   const routes = [
     { name: "Dashboard", path: "/dashboard" },
     { name: "Report", path: "/report" },
@@ -54,11 +24,6 @@ export default async function Home({ searchParams }: { searchParams: any }) {
     { name: "Upload", path: "/task" },
   ];
 
-  // return (
-  //   <pre>
-  //     {JSON.stringify({ error, userTasks, userDetail, userHistory }, null, 2)}
-  //   </pre>
-  // );
   return (
     <div className="flex flex-col justify-center items-center overflow-y-auto">
       {session === undefined || session === "" ? (

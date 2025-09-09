@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 const Department = async () => {
   const departmentList = await getAllDepartment();
-  console.log({ departmentList })
+  // console.log({ departmentList })
 
   return (
     <>

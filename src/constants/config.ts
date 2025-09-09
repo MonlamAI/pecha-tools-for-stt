@@ -1,6 +1,6 @@
 // How many tasks to assign per batch
-// export const ASSIGN_TASKS = 20;
-export const ASSIGN_TASKS = 1;
+export const USER_FETCH_TASKS = 20;
+export const ASSIGN_TASKS = 20;
 
 // How many completed tasks to show in user history
 export const MAX_HISTORY = 10;
