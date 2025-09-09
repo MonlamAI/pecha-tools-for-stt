@@ -51,20 +51,20 @@ const DepartmentDashboard = ({ departmentList }) => {
                   <td className="px-6 py-4">{row.name}</td>
                   <td className="px-6 py-4">{row._count.groups || 0}</td>
                   <td className="flex items-center px-6 py-4 space-x-3">
-                    <a
-                      href="#"
+                    <button
+                      type="button"
                       className="font-medium text-info hover:underline"
                       onClick={() => handleEditDepartment(row)}
                     >
                       Edit
-                    </a>
-                    <a
-                      href="#"
+                    </button>
+                    <button
+                      type="button"
                       className="font-medium text-error hover:underline"
                       onClick={() => handleRemoveDepartment(row)}
                     >
                       Remove
-                    </a>
+                    </button>
                   </td>
                 </tr>
               ))}

@@ -6,7 +6,7 @@ export const getTranscribingcount = async (group_id) => {
   try {
     const taskCount = await prisma.group.findUnique({
       where: {
-        id: group_id
+        id: group_id,
       },
       select: {
         name: true,
@@ -16,21 +16,21 @@ export const getTranscribingcount = async (group_id) => {
               where: {
                 state: "transcribing",
                 NOT: {
-                  transcriber_id: null
-                }
-              }
-            }
-          }
-        }
-      }
+                  transcriber_id: null,
+                },
+              },
+            },
+          },
+        },
+      },
     });
     //  console.log('Debug - Task Count Result:', JSON.stringify(taskCount, null, 2));
-    return taskCount
+    return taskCount;
   } catch (error) {
     console.error("Error fetching transcribing count:", error);
-    throw error;
+    return { error: "Failed to fetch transcribing count. Please try again." };
   }
-}
+};
 
 export const getAllGroup = async () => {
   try {
@@ -48,11 +48,11 @@ export const getAllGroup = async () => {
     return allGroup;
   } catch (error) {
     console.error("Error getting all group:", error);
-    throw new Error(error);
+    return { error: "Failed to fetch groups. Please try again." };
   }
 };
 
-export const createGroup = async (formData) => {
+export const createGroup = async (prevState, formData) => {
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {
@@ -63,10 +63,10 @@ export const createGroup = async (formData) => {
       },
     });
     revalidatePath("/dashboard/group");
-    return newGroup;
+    return { success: "Group created successfully", group: newGroup };
   } catch (error) {
-    //console.log("Error creating a group", error);
-    throw new Error(error);
+    console.error("Error creating a group:", error);
+    return { error: "Failed to create group. Please try again." };
   }
 };
 
@@ -78,10 +78,10 @@ export const deleteGroup = async (id) => {
       },
     });
     revalidatePath("/dashboard/group");
-    return group;
+    return { success: "Group deleted successfully" };
   } catch (error) {
-    //console.log("Error deleting a group", error);
-    throw new Error(error);
+    console.error("Error deleting a group:", error);
+    return { error: "Failed to delete group. Please try again." };
   }
 };
 
@@ -99,10 +99,10 @@ export const editGroup = async (id, formData) => {
       },
     });
     revalidatePath("/dashboard/group");
-    return group;
+    return { success: "Group updated successfully", group };
   } catch (error) {
-    //console.log("Error updating a group", error);
-    throw new Error(error);
+    console.error("Error updating a group:", error);
+    return { error: "Failed to update group. Please try again." };
   }
 };
 
@@ -114,7 +114,7 @@ export const getAllGroupTaskStats = async (groupList) => {
     where: {
       NOT: {
         state: "transcribing",
-      }
+      },
     },
     _count: {
       _all: true,
@@ -136,12 +136,12 @@ export const getAllGroupTaskStats = async (groupList) => {
     where: {
       state: "transcribing",
       NOT: {
-        transcriber_id: null
-      }
+        transcriber_id: null,
+      },
     },
     _count: {
       _all: true,
-    }
+    },
   });
 
   taskImportedCount.map((task) => {
@@ -198,7 +198,7 @@ export const getAllGroupTaskStats = async (groupList) => {
       groupStatsList.push(groupStats);
     } catch (error) {
       console.error("Error getting all groups task stats:", error);
-      throw new Error(error);
+      return { error: "Failed to fetch group task statistics. Please try again." };
     }
   }
   const groupedByDepartment = groupByDepartmentId(groupStatsList);

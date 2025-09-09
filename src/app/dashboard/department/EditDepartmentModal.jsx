@@ -1,14 +1,38 @@
 "use client";
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
+import { useFormState } from "react-dom";
 import { editDepartment } from "@/model/department";
+import toast from "react-hot-toast";
 
 const EditDepartmentModal = ({ selectedRow }) => {
   const ref = useRef(null);
 
+  // Create a wrapper function for editDepartment with the selectedRow ID
+  const editDepartmentWithId = (prevState, formData) => {
+    if (selectedRow?.id) {
+      return editDepartment(selectedRow.id, formData);
+    }
+    return { error: "No department selected" };
+  };
+
+  // Initialize useFormState with the wrapper function
+  const [state, formAction] = useFormState(editDepartmentWithId, null);
+
+  // Handle Server Action results
+  useEffect(() => {
+    if (state?.error) {
+      toast.error(state.error);
+    } else if (state?.success) {
+      toast.success(state.success);
+      window.edit_modal.close();
+    }
+  }, [state]);
+
   return (
     <>
       <dialog id="edit_modal" className="modal ">
-        <form ref={ref} method="dialog" className="modal-box w-4/5 max-w-2xl  ">
+        <form ref={ref} action={formAction} className="modal-box w-4/5 max-w-2xl  ">
+          <input type="hidden" name="id" value={selectedRow?.id} readOnly />
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-lg">Edit Department</h3>
             <button
@@ -72,14 +96,6 @@ const EditDepartmentModal = ({ selectedRow }) => {
           </div>
           <button
             type="submit"
-            formAction={async (formData) => {
-              ref.current?.reset();
-              const editedDepartment = await editDepartment(
-                selectedRow?.id,
-                formData
-              );
-              window.edit_modal.close();
-            }}
             className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"
           >
             update

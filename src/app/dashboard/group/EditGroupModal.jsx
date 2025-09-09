@@ -1,30 +1,54 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
+import { useFormState } from "react-dom";
 import { editGroup } from "@/model/group";
 import Select from "@/components/Select";
+import toast from "react-hot-toast";
 
 const EditGroupModal = ({ selectedRow, departments }) => {
   const ref = useRef(null);
   const [departmentId, setDepartmentId] = useState("");
+
+  // Create a wrapper function for editGroup with the selectedRow ID
+  const editGroupWithId = (prevState, formData) => {
+    if (selectedRow?.id) {
+      return editGroup(selectedRow.id, formData);
+    }
+    return { error: "No group selected" };
+  };
+
+  // Initialize useFormState with the wrapper function
+  const [state, formAction] = useFormState(editGroupWithId, null);
+
+  // Handle Server Action results
+  useEffect(() => {
+    if (state?.error) {
+      toast.error(state.error);
+    } else if (state?.success) {
+      toast.success(state.success);
+      window.edit_modal.close();
+    }
+  }, [state]);
 
   const handleDepartmentChange = async (event) => {
     setDepartmentId(event.target.value);
   };
 
   useEffect(() => {
-    let isMounted = true;
+    // let isMounted = true;
     if (selectedRow?.Department !== null) {
       setDepartmentId(selectedRow?.Department?.id);
     }
-    return () => {
-      isMounted = false;
-    };
+    // return () => {
+    //   isMounted = false;
+    // };
   }, [selectedRow]);
 
   return (
     <>
       <dialog id="edit_modal" className="modal ">
-        <form ref={ref} method="dialog" className="modal-box w-4/5 max-w-2xl  ">
+        <form ref={ref} action={formAction} className="modal-box w-4/5 max-w-2xl  ">
+          <input type="hidden" name="id" value={selectedRow?.id} readOnly />
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-lg">Edit Group</h3>
             <button
@@ -111,11 +135,6 @@ const EditGroupModal = ({ selectedRow, departments }) => {
           </div>
           <button
             type="submit"
-            formAction={async (formData) => {
-              ref.current?.reset();
-              const edited_Group = await editGroup(selectedRow?.id, formData);
-              window.edit_modal.close();
-            }}
             className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"
           >
             update

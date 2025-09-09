@@ -14,7 +14,7 @@ export const getAllTask = async (limit, skip) => {
     return tasks;
   } catch (error) {
     console.error("Error getting all the tasks:", error);
-    throw new Error("Failed to fetch all tasks.");
+    return { error: "Failed to fetch all tasks. Please try again." };
   }
 };
 
@@ -25,7 +25,7 @@ export const getTotalTaskCount = async () => {
     return totalTask;
   } catch (error) {
     console.error("Error fetching the count of lists:", error);
-    throw new Error("Failed to fetch the count of all tasks.");
+    return { error: "Failed to fetch task count. Please try again." };
   }
 };
 
@@ -81,7 +81,7 @@ export const getUserSpecificTasksCount = async (id, dates) => {
     select: { role: true },
   });
 
-  if (!user) throw new Error(`User with ID ${id} not found.`);
+  if (!user) return { error: `User with ID ${id} not found.` };
 
   // Define the base condition for task counting based on the user's role
   let baseWhereCondition = {
@@ -116,7 +116,7 @@ export const getUserSpecificTasksCount = async (id, dates) => {
     return userTaskCount;
   } catch (error) {
     console.error(`Error fetching tasks count for user with ID ${id}:`, error);
-    throw new Error("Failed to fetch user-specific tasks count.");
+    return { error: "Failed to fetch user-specific tasks count. Please try again." };
   }
 };
 
@@ -129,7 +129,7 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
     select: { role: true },
   });
 
-  if (!user) throw new Error(`User with ID ${id} not found.`);
+  if (!user) return { error: `User with ID ${id} not found.` };
 
   let whereCondition = {
     [`${user.role.toLowerCase()}_id`]: parseInt(id),
@@ -193,7 +193,7 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
     return tasksWithSyllableCounts;
   } catch (error) {
     console.error(`Error fetching tasks for user with ID ${id}:`, error);
-    throw new Error(`Failed to fetch tasks for user with role ${user.role}.`);
+    return { error: `Failed to fetch tasks for user with role ${user.role}. Please try again.` };
   }
 };
 
@@ -220,9 +220,9 @@ export const getCompletedTaskCount = async (id, role, groupId) => {
       `Error fetching completed tasks for user with ID ${id}:`,
       error
     );
-    throw new Error(
-      `Failed to fetch completed tasks for user with role ${role}.`
-    );
+    return {
+      error: `Failed to fetch completed tasks for user with role ${role}. Please try again.`
+    };
   }
 };
 
@@ -280,7 +280,7 @@ export const getReviewerTaskCount = async (id, dates, reviewerObj) => {
     };
   } catch (error) {
     console.error(`Error fetching reviewer task counts:`, error);
-    throw new Error(`Failed to fetch reviewer task counts. ${error.message}`);
+    return { error: `Failed to fetch reviewer task counts. Please try again.` };
   }
 };
 
@@ -323,7 +323,7 @@ export const getFinalReviewerTaskCount = async (
     return finalReviewerObj;
   } catch (error) {
     console.error(`Error fetching final reviewer stats:`, error);
-    throw new Error("Failed to fetch final reviewer stats.");
+    return { error: "Failed to fetch final reviewer stats. Please try again." };
   }
 };
 
@@ -363,7 +363,7 @@ export const getTranscriberTaskList = async (id, dates) => {
     }
   } catch (error) {
     console.error("Error fetching transcriber task list:", error);
-    throw new Error("Failed to fetch transcriber task list.");
+    return { error: "Failed to fetch transcriber task list. Please try again." };
   }
 };
 
@@ -402,7 +402,7 @@ export const getReviewerTaskList = async (id, dates) => {
       return filteredTasks;
     }
   } catch (error) {
-    throw new Error(error);
+    return { error: "Operation failed. Please try again." };
   }
 };
 
@@ -431,7 +431,7 @@ export const UserProgressStats = async (id, role, groupId) => {
     });
     return { completedTaskCount, totalTaskCount, totalTaskPassed };
   } catch (error) {
-    throw new Error(error);
+    return { error: "Operation failed. Please try again." };
   }
 };
 
@@ -477,7 +477,7 @@ export const getTaskWithRevertedState = async (task, role) => {
     return updatedTask;
   } catch (error) {
     console.error("Error getting reverted state task:", error);
-    throw new Error(error);
+    return { error: "Operation failed. Please try again." };
   }
 };
 
@@ -550,8 +550,8 @@ export const getUserSubmittedAndReviewedSecs = async (id, dates, groupId) => {
     return { submittedSecs, reviewedSecs, trashedSecs };
   } catch (error) {
     console.error(`Error aggregating user submitted seconds:`, error);
-    throw new Error(
-      `Failed to aggregate user submitted seconds. ${error.message}`
-    );
+    return {
+      error: "Failed to aggregate user submitted seconds. Please try again."
+    };
   }
 };

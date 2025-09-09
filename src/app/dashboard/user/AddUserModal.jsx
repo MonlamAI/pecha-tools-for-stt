@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { createUser } from "@/model/user";
 import Select from "@/components/Select";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 const AddUserModal = ({ groups }) => {
   const ref = useRef(null);
@@ -11,6 +13,8 @@ const AddUserModal = ({ groups }) => {
   const [role, setRole] = useState("");
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
+
+  // Redirect-based feedback is handled in parent via searchParams toasts
 
   const handleInputChange = (event) => {
     const inputValue = event.target.value?.trim();
@@ -49,10 +53,27 @@ const AddUserModal = ({ groups }) => {
     },
   ];
 
+  // wire useFormState
+  const [state, formAction] = useFormState(createUser, null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state?.error) toast.error(state.error);
+    if (state?.success) {
+      toast.success(state.success);
+      ref.current?.reset();
+      setUsername("");
+      setGroupId("");
+      setRole("");
+      router.refresh();
+      window.add_modal.close();
+    }
+  }, [state, router]);
+
   return (
     <>
       <dialog id="add_modal" className="modal">
-        <form ref={ref} method="dialog" className="modal-box w-4/5 max-w-2xl">
+        <form ref={ref} action={formAction} className="modal-box w-4/5 max-w-2xl">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-lg">Create User</h3>
             <button
@@ -122,17 +143,6 @@ const AddUserModal = ({ groups }) => {
           <button
             type="submit"
             disabled={error}
-            formAction={async (formData) => {
-              ref.current?.reset();
-              //console.log("formData", formData.get("email"), formData.get("name"), formData.get("group_id"), formData.get("role"));
-              const newUsesr = await createUser(formData);
-              if (newUsesr?.error) {
-                toast.error(newUsesr.error);
-              } else {
-                toast.success(newUsesr.success);
-              }
-              window.add_modal.close();
-            }}
             className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"
           >
             create

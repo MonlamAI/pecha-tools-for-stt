@@ -3,12 +3,12 @@ services:
     name: stt-tool
     env: node
     plan: standard
-    buildCommand: npm ci --production=false && npm run build && npm prune --production
-    startCommand: npx prisma migrate deploy && npm run start
+    buildCommand: npm ci --production=false && npx prisma generate && npx prisma migrate deploy && npm run build && npm prune --production
+    startCommand: npm run start
     autoDeploy: false
     envVars:
       - key: NODE_VERSION
-        value: ~16.14.2
+        value: 18.20.3  # Use Node 18 LTS
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL

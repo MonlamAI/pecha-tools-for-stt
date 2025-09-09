@@ -1,16 +1,33 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
-import { editUser } from "@/model/user";
+import { editUserByForm } from "@/model/user";
+import { useFormState } from "react-dom";
+import { useRouter } from "next/navigation";
 import Select from "@/components/Select";
 import toast from "react-hot-toast";
 
 const EditUserModal = ({ groups, selectedRow }) => {
+  console.log("EditUserModal: ", { groups, selectedRow });
   const ref = useRef(null);
   const [groupId, setGroupId] = useState("");
   const [role, setRole] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
+
+  const router = useRouter();
+  const [state, formAction] = useFormState(editUserByForm, null);
+
+  useEffect(() => {
+    if (state?.error) toast.error(state.error);
+    if (state?.success) {
+      toast.success(state.success);
+      ref.current?.reset();
+      router.refresh();
+      window.edit_modal.close();
+    }
+  }, [state, router]);
+
 
   const handleInputChange = (event) => {
     const inputValue = event.target.value?.trim();
@@ -74,7 +91,8 @@ const EditUserModal = ({ groups, selectedRow }) => {
             <h1 className="font-bold text-3xl">loading...</h1>
           </div>
         ) : (
-          <form ref={ref} method="dialog" className="modal-box w-4/5 max-w-2xl">
+          <form ref={ref} action={formAction} className="modal-box w-4/5 max-w-2xl">
+            <input type="hidden" name="id" value={selectedRow?.id} readOnly />
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-lg">Edit User</h3>
               <button
@@ -161,17 +179,6 @@ const EditUserModal = ({ groups, selectedRow }) => {
             <button
               type="submit"
               disabled={error}
-              formAction={async (formData) => {
-                ref.current?.reset();
-                //console.log("formData", formData.get("email"), formData.get("name"), formData.get("group_id"), formData.get("role"));
-                const newUsesr = await editUser(selectedRow?.id, formData);
-                if (newUsesr?.error) {
-                  toast.error(newUsesr.error);
-                } else {
-                  toast.success(newUsesr.success);
-                }
-                window.edit_modal.close();
-              }}
               className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"
             >
               update

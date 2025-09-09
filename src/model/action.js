@@ -38,7 +38,7 @@ export const getUserDetails = async (username) => {
     return userData;
   } catch (error) {
     console.error("Failed to retrieve user details:", error);
-    throw new Error("Error fetching user details.");
+    return { error: "Error fetching user details. Please try again." };
   }
 };
 
@@ -114,7 +114,7 @@ export const getTasks = async (groupId, userId, role) => {
   const { state, taskField } = roleParams[role];
 
   if (!state || !taskField) {
-    throw new Error(`Invalid role provided: ${role}`);
+    return { error: `Invalid role provided: ${role}` };
   }
 
   try {
@@ -144,9 +144,9 @@ export const getTasks = async (groupId, userId, role) => {
     console.error(
       `Failed to retrieve or assign tasks for role ${role}: ${error.message}`
     );
-    throw new Error(
-      `Failed to retrieve or assign tasks for role ${role}: ${error.message}`
-    );
+    return {
+      error: `Failed to retrieve or assign tasks for role ${role}. Please try again.`
+    };
   }
 };
 
@@ -166,7 +166,7 @@ export const assignMoreTasks = async (groupId, userId, role) => {
   const { state, taskField } = roleParams[role];
 
   if (!state || !taskField) {
-    throw new Error(`Invalid role provided: ${role}`);
+    return { error: `Invalid role provided: ${role}` };
   }
   try {
     let unassignedTasks = await prisma.task.findMany({
@@ -208,9 +208,9 @@ export const assignMoreTasks = async (groupId, userId, role) => {
     console.error(
       `Failed to retrieve or assign tasks for role ${role}: ${error.message}`
     );
-    throw new Error(
-      `Failed to retrieve or assign tasks for role ${role}: ${error.message}`
-    );
+    return {
+      error: `Failed to retrieve or assign tasks for role ${role}. Please try again.`
+    };
   }
 };
 
@@ -298,7 +298,7 @@ export const updateTask = async (
         }
       } catch (error) {
         console.error("Error updating TRANSCRIBER task", error);
-        throw new Error("Error updating TRANSCRIBER task");
+        return { error: "Failed to update TRANSCRIBER task. Please try again." };
       }
       break;
     case "REVIEWER":
@@ -333,7 +333,7 @@ export const updateTask = async (
         }
       } catch (error) {
         console.error("Error updating REVIEWER task", error);
-        throw new Error("Error updating REVIEWER task");
+        return { error: "Failed to update REVIEWER task. Please try again." };
       }
       break;
     case "FINAL_REVIEWER":
@@ -368,7 +368,7 @@ export const updateTask = async (
         }
       } catch (error) {
         console.error("Error updating FINAL_REVIEWER task", error);
-        throw new Error("Error updating FINAL_REVIEWER task");
+        return { error: "Failed to update FINAL_REVIEWER task. Please try again." };
       }
       break;
     default:
@@ -432,7 +432,7 @@ export const revertTaskState = async (id, state) => {
     }
   } catch (error) {
     console.error("Error reverting task state", error);
-    throw new Error("Error reverting task state");
+    return { error: "Failed to revert task state. Please try again." };
   }
 };
 
@@ -477,6 +477,6 @@ export const getUserHistory = async (userId, groupId, role) => {
     return userHistory;
   } catch (error) {
     console.error("Failed to retrieve user history:", error);
-    throw new Error("Failed fetching user history.");
+    return { error: "Failed to fetch user history. Please try again." };
   }
 };

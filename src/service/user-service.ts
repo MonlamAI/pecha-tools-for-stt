@@ -14,6 +14,7 @@ export async function fetchUserDataBySession(session: string) {
   }
 
   const userData = await getOrCreateUser({ username: session });
+  console.log({ userData });
   if (userData === null) {
     return {
       error:
@@ -56,8 +57,8 @@ export async function fetchUserDataBySession(session: string) {
 
 export async function getOrCreateUser({ username }: { username: string }) {
   // only allow from certain domain? uncomment below
-  if (!username) throw new Error("username not found");
-  // if (!username.endsWith("@yourdomain.com")) throw new Error("Unauthorized user");
+  if (!username) return { error: "Username not found. Please try again." };
+  // if (!username.endsWith("@yourdomain.com")) return { error: "Unauthorized user" };
 
   let user = await prisma.user.findUnique({
     where: { name: username },
@@ -163,6 +164,6 @@ export const getUserProgressStats = async ({
     return { completedTaskCount, totalTaskCount, totalTaskPassed };
   } catch (error) {
     console.error(`Failed to fetch progress stats for user ${userId}:`, error);
-    throw new Error(`Failed to fetch progress stats for role ${role}.`);
+    return { error: `Failed to fetch progress stats for role ${role}. Please try again.` };
   }
 };

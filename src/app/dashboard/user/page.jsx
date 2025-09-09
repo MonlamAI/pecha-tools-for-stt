@@ -4,13 +4,17 @@ import { getAllUser } from "@/model/user";
 import { getAllGroup } from "@/model/group";
 export const dynamic = "force-dynamic";
 
-const User = async () => {
+const User = async ({ searchParams }) => {
   const users = await getAllUser();
   const groups = await getAllGroup();
 
   return (
     <>
-      <UserDashboard users={users} groups={groups} />
+      <UserDashboard
+        users={users}
+        groups={groups}
+        searchParams={searchParams}
+      />
     </>
   );
 };

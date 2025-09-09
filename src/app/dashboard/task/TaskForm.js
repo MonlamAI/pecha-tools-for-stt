@@ -1,6 +1,7 @@
 "use client";
 import { createTasksFromCSV } from "@/model/task";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useFormState } from "react-dom";
 import Papa from "papaparse";
 import Select from "@/components/Select";
 import toast from "react-hot-toast";
@@ -9,6 +10,38 @@ const TaskForm = ({ groups }) => {
   const ref = useRef(null);
   const [selectedFile, setSelectedFile] = useState([]);
   const [selectedOption, setSelectedOption] = useState("");
+
+  // Create a wrapper function for task creation
+  const createTasksWrapper = async (formData) => {
+    if (selectedFile.length > 1000) {
+      return { error: "Please select a file with less than 1000 rows" };
+    }
+    const taskJson = JSON.stringify(selectedFile);
+    formData.append("tasks", taskJson);
+    const tasksCreated = await createTasksFromCSV(formData);
+
+    if (tasksCreated?.count > 0) {
+      return { success: "Tasks created successfully", count: tasksCreated.count };
+    } else {
+      return { error: "Error creating tasks" };
+    }
+  };
+
+  // Initialize useFormState
+  const [state, formAction] = useFormState(createTasksWrapper, null);
+
+  // Handle Server Action results
+  useEffect(() => {
+    if (state?.error) {
+      toast.error(state.error);
+    } else if (state?.success) {
+      toast.success(state.success);
+      // Reset form and clear selected file
+      ref.current?.reset();
+      setSelectedFile([]);
+      setSelectedOption("");
+    }
+  }, [state]);
 
   const handleOptionChange = async (event) => {
     setSelectedOption(event.target.value);
@@ -26,27 +59,12 @@ const TaskForm = ({ groups }) => {
     });
   };
 
-  const uploadTask = async (formData) => {
-    if (selectedFile.length > 1000) {
-      toast.error("Please select a file with less than 1000 rows");
-      return;
-    }
-    const taskJson = JSON.stringify(selectedFile);
-    formData.append("tasks", taskJson);
-    const tasksCreated = await createTasksFromCSV(formData);
-    // if tasksCreated is not empty, then toast success message
-    // else toast error message
-    if (tasksCreated?.count > 0) {
-      toast.success("Tasks created successfully");
-    } else {
-      toast.error("Error creating tasks");
-    }
-  };
 
   return (
     <>
       <form
         ref={ref}
+        action={formAction}
         className="flex flex-col md:flex-row justify-center items-center md:items-end pt-10 space-y-5 space-x-0 md:space-y-0 md:space-x-10"
       >
         <Select
@@ -75,11 +93,6 @@ const TaskForm = ({ groups }) => {
         <button
           type="submit"
           className="btn btn-accent"
-          formAction={async (formData) => {
-            ref.current?.reset();
-            //console.log("formData", formData.get("group_id"), formData.get("file_name"));
-            uploadTask(formData);
-          }}
         >
           Upload
         </button>

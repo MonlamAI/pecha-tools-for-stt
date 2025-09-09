@@ -37,11 +37,11 @@ export const getAllUser = async () => {
   }
 };
 
-export const createUser = async (formData) => {
+export const createUser = async (_prevState, formData) => {
   const name = formData.get("name")?.trim();
   const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
-  console.log("crateUser:", { groupId })
+  console.log("crateUser:", { groupId });
   const role = formData.get("role");
   try {
     // check if username  and email already exists
@@ -91,24 +91,50 @@ export const createUser = async (formData) => {
       };
     }
   } catch (error) {
-    //console.log("Error adding a user", error);
-    throw new Error(error);
+    console.error("Error adding a user", error);
+    return { error: "Failed to create user. Please try again." };
   }
 };
 
 export const deleteUser = async (id) => {
   try {
-    const user = await prisma.user.delete({
+    // Prevent delete if user is referenced in tasks
+    const taskCount = await prisma.task.count({
       where: {
-        id,
+        OR: [
+          { transcriber_id: id },
+          { reviewer_id: id },
+          { final_reviewer_id: id },
+        ],
       },
     });
+
+    if (taskCount > 0) {
+      return {
+        error:
+          `Cannot delete user. They have ${taskCount} associated task(s). Please reassign or complete these tasks first.`,
+      };
+    }
+
+    await prisma.user.delete({
+      where: { id },
+    });
     revalidatePath("/dashboard/user");
-    return user;
+    return { success: "User deleted successfully" };
   } catch (error) {
-    //console.log("Error deleting a user", error);
-    throw new Error(error);
+    console.error("Error deleting a user", error);
+    return { error: "Failed to delete user. Please try again." };
   }
+};
+
+// useFormState wrapper: delete user from FormData (expects name="id")
+export const deleteUserByForm = async (_prevState, formData) => {
+  const idRaw = formData.get("id");
+  const id = typeof idRaw === "string" ? parseInt(idRaw) : Number(idRaw);
+  if (!id || Number.isNaN(id)) {
+    return { error: "Invalid user id" };
+  }
+  return await deleteUser(id);
 };
 
 export const editUser = async (id, formData) => {
@@ -174,9 +200,19 @@ export const editUser = async (id, formData) => {
       };
     }
   } catch (error) {
-    //console.log("Error updating a user details", error);
-    throw new Error(error);
+    console.error("Error updating a user details", error);
+    return { error: "Failed to update user. Please try again." };
   }
+};
+
+// useFormState wrapper: edit user from FormData (expects name="id")
+export const editUserByForm = async (_prevState, formData) => {
+  const idRaw = formData.get("id");
+  const id = typeof idRaw === "string" ? parseInt(idRaw) : Number(idRaw);
+  if (!id || Number.isNaN(id)) {
+    return { error: "Invalid user id" };
+  }
+  return await editUser(id, formData);
 };
 
 export const getUsersByGroup = async (groupId) => {

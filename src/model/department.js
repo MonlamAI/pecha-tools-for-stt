@@ -15,17 +15,17 @@ export const getAllDepartment = async () => {
             id: true,
             name: true,
           },
-        }
+        },
       },
     });
     return allDepartment;
   } catch (error) {
     console.error("Error getting all Department:", error);
-    throw new Error(error);
+    return { error: "Failed to fetch departments. Please try again." };
   }
 };
 
-export const createDepartment = async (formData) => {
+export const createDepartment = async (prevState, formData) => {
   const departmentName = formData.get("name")?.trim();
   try {
     const newDepartment = await prisma.department.create({
@@ -34,10 +34,10 @@ export const createDepartment = async (formData) => {
       },
     });
     revalidatePath("/dashboard/department");
-    return newDepartment;
+    return { success: "Department created successfully", department: newDepartment };
   } catch (error) {
-    //console.log("Error creating a department", error);
-    throw new Error(error);
+    console.error("Error creating a department:", error);
+    return { error: "Failed to create department. Please try again." };
   }
 };
 
@@ -49,17 +49,17 @@ export const deleteDepartment = async (id) => {
       },
     });
     revalidatePath("/dashboard/department");
-    return department;
+    return { success: "Department deleted successfully" };
   } catch (error) {
-    //console.log("Error deleting a department", error);
-    throw new Error(error);
+    console.error("Error deleting a department:", error);
+    return { error: "Failed to delete department. Please try again." };
   }
 };
 
 export const editDepartment = async (id, formData) => {
   const departmentName = formData.get("name")?.trim();
   try {
-    const group = await prisma.department.update({
+    const department = await prisma.department.update({
       where: {
         id,
       },
@@ -68,9 +68,9 @@ export const editDepartment = async (id, formData) => {
       },
     });
     revalidatePath("/dashboard/department");
-    return group;
+    return { success: "Department updated successfully", department };
   } catch (error) {
-    //console.log("Error updating a department", error);
-    throw new Error(error);
+    console.error("Error updating a department:", error);
+    return { error: "Failed to update department. Please try again." };
   }
 };

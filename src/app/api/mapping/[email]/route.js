@@ -1,13 +1,15 @@
+export const runtime = "nodejs";
+
 import prisma from "@/service/db";
 import { NextResponse } from "next/server";
 
-import { mapping } from "/data/mapping";
+import { mapping } from "@/../../data/mapping";
 
 export async function GET(request, { params }) {
   if (mapping.has(params.email)) {
     return NextResponse.json(mapping.get(params.email));
   } else {
-    var user = await prisma.User.findFirst({
+    var user = await prisma.user.findFirst({
       where: {
         email: params.email,
       },

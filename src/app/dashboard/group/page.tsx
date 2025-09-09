@@ -10,6 +10,7 @@ const Group = async () => {
 
   console.log("group page:", { departments, groupList });
 
+  // return <pre>{JSON.stringify({ groupList, departments }, null, 2)}</pre>;
   return (
     <>
       <GroupDashboard groupList={groupList} departments={departments} />

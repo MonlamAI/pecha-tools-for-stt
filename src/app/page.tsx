@@ -54,7 +54,11 @@ export default async function Home({ searchParams }: { searchParams: any }) {
     { name: "Upload", path: "/task" },
   ];
 
-  // return <pre>{JSON.stringify({ error, userTasks, userDetail, userHistory }, null, 2)}</pre>
+  // return (
+  //   <pre>
+  //     {JSON.stringify({ error, userTasks, userDetail, userHistory }, null, 2)}
+  //   </pre>
+  // );
   return (
     <div className="flex flex-col justify-center items-center overflow-y-auto">
       {session === undefined || session === "" ? (
