@@ -1,4 +1,10 @@
 // How many tasks to assign per batch
+// development
+// export const USER_FETCH_TASKS = 20;
+// export const ASSIGN_TASKS = 1;
+
+
+
 export const USER_FETCH_TASKS = 20;
 export const ASSIGN_TASKS = 20;
 

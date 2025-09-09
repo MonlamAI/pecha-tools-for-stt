@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useFormState } from "react-dom";
 import { createDepartment } from "@/model/department";
 import toast from "react-hot-toast";
 
 const AddDepartmentModal = () => {
   const ref = useRef(null);
+  const router = useRouter();
 
   // Initialize useFormState with createDepartment
   const [state, formAction] = useFormState(createDepartment, null);
@@ -19,6 +21,7 @@ const AddDepartmentModal = () => {
       toast.success(state.success);
       // Reset form and close modal
       ref.current?.reset();
+      router.refresh();
       window.add_modal.close();
     }
   }, [state]);

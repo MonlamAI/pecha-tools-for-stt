@@ -1,11 +1,13 @@
 "use client";
 import React, { useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useFormState } from "react-dom";
 import { editDepartment } from "@/model/department";
 import toast from "react-hot-toast";
 
 const EditDepartmentModal = ({ selectedRow }) => {
   const ref = useRef(null);
+  const router = useRouter();
 
   // Create a wrapper function for editDepartment with the selectedRow ID
   const editDepartmentWithId = (prevState, formData) => {
@@ -24,6 +26,7 @@ const EditDepartmentModal = ({ selectedRow }) => {
       toast.error(state.error);
     } else if (state?.success) {
       toast.success(state.success);
+      router.refresh();
       window.edit_modal.close();
     }
   }, [state]);

@@ -1,5 +1,6 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useFormState } from "react-dom";
 import { editGroup } from "@/model/group";
 import Select from "@/components/Select";
@@ -8,6 +9,7 @@ import toast from "react-hot-toast";
 const EditGroupModal = ({ selectedRow, departments }) => {
   const ref = useRef(null);
   const [departmentId, setDepartmentId] = useState("");
+  const router = useRouter();
 
   // Create a wrapper function for editGroup with the selectedRow ID
   const editGroupWithId = (prevState, formData) => {
@@ -26,6 +28,7 @@ const EditGroupModal = ({ selectedRow, departments }) => {
       toast.error(state.error);
     } else if (state?.success) {
       toast.success(state.success);
+      router.refresh();
       window.edit_modal.close();
     }
   }, [state]);

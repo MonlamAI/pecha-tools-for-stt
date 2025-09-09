@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useFormState } from "react-dom";
 import { createGroup } from "@/model/group";
 import Select from "@/components/Select";
@@ -9,6 +10,7 @@ import toast from "react-hot-toast";
 const AddGroupModal = ({ departments }) => {
   const [departmentId, setDepartmentId] = useState("");
   const ref = useRef(null);
+  const router = useRouter();
 
   // Initialize useFormState with createGroup
   const [state, formAction] = useFormState(createGroup, null);
@@ -22,6 +24,7 @@ const AddGroupModal = ({ departments }) => {
       // Reset form and close modal
       ref.current?.reset();
       setDepartmentId("");
+      router.refresh();
       window.add_modal.close();
     }
   }, [state]);
