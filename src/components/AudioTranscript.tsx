@@ -59,6 +59,23 @@ async function postTaskUpdate(body: any) {
   return res;
 }
 
+async function fetchUserHistoryApi({
+  userId,
+  groupId,
+  role,
+}: {
+  userId: number;
+  groupId: number;
+  role: string;
+}) {
+  const res = await fetch(
+    `/api/user/history?userId=${userId}&groupId=${groupId}&role=${role}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error("Failed to fetch user history");
+  return res.json();
+}
+
 const AudioTranscript = ({
   tasks,
   userDetail,
@@ -160,14 +177,11 @@ const AudioTranscript = ({
       // refresh user progress after updates
       await setUserProgress();
 
-      // update history reactively when the new state belongs to role's history
-      const updatedTask: Task | undefined = (result as any)?.updatedTask;
-      if (updatedTask && isHistoryState(role as string, (updatedTask as any).state)) {
-        setHistoryList((prev) => {
-          const next = [updatedTask, ...prev];
-          return next.slice(0, MAX_HISTORY);
-        });
-      }
+      // refetch authoritative history to avoid duplicates and keep correct order
+      try {
+        const latestHistory = await fetchUserHistoryApi({ userId, groupId, role });
+        setHistoryList(latestHistory);
+      } catch {}
       handleTaskListUpdate(action, task.id);
     } catch (error) {
       console.error("Failed to update task:", error);
@@ -215,6 +229,12 @@ const AudioTranscript = ({
         role={role}
         setTaskList={setTaskList}
         userHistory={historyList}
+        onHistoryChanged={async () => {
+          try {
+            const latestHistory = await fetchUserHistoryApi({ userId, groupId, role });
+            setHistoryList(latestHistory);
+          } catch {}
+        }}
       >
         {/* Page content here */}
         {isLoading ? (

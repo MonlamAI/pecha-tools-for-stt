@@ -15,6 +15,7 @@ const Sidebar = ({
   role,
   setTaskList,
   userHistory,
+  onHistoryChanged,
 }) => {
   const { completedTaskCount, totalTaskCount, totalTaskPassed } = userTaskStats;
   const value = useContext(AppContext);
@@ -30,6 +31,9 @@ const Sidebar = ({
       const newTask = await res.json();
       if (!res.ok || newTask?.error) return;
       setTaskList([newTask, ...taskList]);
+      if (onHistoryChanged) {
+        try { await onHistoryChanged(); } catch {}
+      }
     } catch (e) {
       // noop
     }
@@ -170,7 +174,17 @@ const Sidebar = ({
                   </p>
                   <div
                     className="tooltip tooltip-left"
-                    data-tip={`${task.state}`}
+                    data-tip={
+                      task.state === "trashed"
+                        ? lang.trash
+                        : task.state === "finalised"
+                        ? lang.final_reviewed
+                        : task.state === "accepted"
+                        ? lang.reviewed
+                        : task.state === "submitted"
+                        ? lang.submitted
+                        : lang.save
+                    }
                   >
                     {(task.state === "submitted" ||
                       task.state === "accepted" ||

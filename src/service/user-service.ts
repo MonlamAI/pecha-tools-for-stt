@@ -21,7 +21,7 @@ export async function fetchUserDataBySession(session: string) {
 
   if (userData.group_id === 0) {
     return {
-      error: "No group found. Please contract admain for assigning a group",
+      error: "No group found. Please contact admin for assigning a group",
     };
   }
 
