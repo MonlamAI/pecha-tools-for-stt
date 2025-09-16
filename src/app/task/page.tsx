@@ -1,3 +1,5 @@
+export const revalidate = 0; // or: export const dynamic = "force-dynamic";
+
 import { getAllGroup } from "@/model/group";
 import Uploadcsv from "./Uploadcsv";
 
