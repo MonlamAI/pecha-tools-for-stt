@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
 import AppContext from "./AppContext";
 import type { Task, User } from "@prisma/client";
+import { MAX_HISTORY } from "@/constants/config";
 
 // Types
 type AudioTranscriptType = {
@@ -68,6 +69,7 @@ const AudioTranscript = ({
   const lang = language[languageSelected];
   const [taskList, setTaskList] = useState<any>(tasks);
   const [transcript, setTranscript] = useState("");
+  const [historyList, setHistoryList] = useState<Task[]>(userHistory || []);
   const [userTaskStats, setUserTaskStats] = useState({
     completedTaskCount: 0,
     totalTaskCount: 0,
@@ -117,6 +119,19 @@ const AudioTranscript = ({
   };
 
   type TaskActionType = "submit" | "reject" | "save" | "trash" | "assign";
+
+  function isHistoryState(role: string, state: string): boolean {
+    switch (role) {
+      case "TRANSCRIBER":
+        return state === "submitted" || state === "trashed";
+      case "REVIEWER":
+        return state === "accepted" || state === "trashed";
+      case "FINAL_REVIEWER":
+        return state === "finalised";
+      default:
+        return false;
+    }
+  }
   const updateTaskAndIndex = async ({
     action,
     transcript,
@@ -142,7 +157,17 @@ const AudioTranscript = ({
       }
       toast.success(result?.msg?.success || "");
 
-      // await setUserProgress();
+      // refresh user progress after updates
+      await setUserProgress();
+
+      // update history reactively when the new state belongs to role's history
+      const updatedTask: Task | undefined = (result as any)?.updatedTask;
+      if (updatedTask && isHistoryState(role as string, (updatedTask as any).state)) {
+        setHistoryList((prev) => {
+          const next = [updatedTask, ...prev];
+          return next.slice(0, MAX_HISTORY);
+        });
+      }
       handleTaskListUpdate(action, task.id);
     } catch (error) {
       console.error("Failed to update task:", error);
@@ -154,8 +179,9 @@ const AudioTranscript = ({
     return taskList.length != 0 ? taskList?.length - 1 : 0;
   }
   const handleTaskListUpdate = async (action: TaskActionType, id: number) => {
+    // // keep current task on save; only advance on submit/reject/trash
     // if (action === "save") {
-    //   return; // keep current task on save
+    //   return;
     // }
     if (action === "submit") {
       currentTimeRef.current = new Date().toISOString();
@@ -188,7 +214,7 @@ const AudioTranscript = ({
         taskList={taskList}
         role={role}
         setTaskList={setTaskList}
-        userHistory={userHistory}
+        userHistory={historyList}
       >
         {/* Page content here */}
         {isLoading ? (

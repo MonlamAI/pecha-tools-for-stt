@@ -58,15 +58,96 @@ export async function getTranscribingCount({ groupId }: { groupId: number }) {
 //   return group;
 // }
 
-// export async function getAllGroupTaskStats(groupList: any[]) {
-//   const taskStatsMain = await prisma.task.groupBy({
-//     by: ["state", "group_id"],
-//     _count: { _all: true },
-//   });
+export async function getAllGroupTaskStats(groupList: any[]) {
+  if (!groupList || groupList.length === 0) return [];
 
-//   const groupStatsList = groupList.map((group) =>
-//     mapTaskStats(group, taskStatsMain)
-//   );
+  try {
+    // Optimized concurrent queries using Promise.all pattern
+    const groupPromises = groupList.map(async (group) => {
+      const [importedTasks, transcribingTasks, submittedTasks, acceptedTasks, finalisedTasks, trashedTasks] = await Promise.all([
+        // Tasks in "transcribing" state with no transcriber (imported)
+        prisma.task.count({
+          where: {
+            group_id: group.id,
+            state: "transcribing",
+            transcriber_id: null,
+          },
+        }),
 
-//   return groupByDepartmentId(groupStatsList);
-// }
+        // Tasks in "transcribing" state with transcriber assigned
+        prisma.task.count({
+          where: {
+            group_id: group.id,
+            state: "transcribing",
+            transcriber_id: { not: null },
+          },
+        }),
+
+        // Tasks in other states
+        prisma.task.count({
+          where: {
+            group_id: group.id,
+            state: "submitted",
+          },
+        }),
+
+        prisma.task.count({
+          where: {
+            group_id: group.id,
+            state: "accepted",
+          },
+        }),
+
+        prisma.task.count({
+          where: {
+            group_id: group.id,
+            state: "finalised",
+          },
+        }),
+
+        prisma.task.count({
+          where: {
+            group_id: group.id,
+            state: "trashed",
+          },
+        }),
+      ]);
+
+      return {
+        id: group.id,
+        name: group.name,
+        department_id: group.department_id,
+        departmentName: group.Department?.name,
+        taskImportedCount: importedTasks,
+        taskTranscribingCount: transcribingTasks,
+        taskSubmittedCount: submittedTasks,
+        taskAcceptedCount: acceptedTasks,
+        taskFinalisedCount: finalisedTasks,
+        taskTrashedCount: trashedTasks,
+      };
+    });
+
+    const groupStatsList = await Promise.all(groupPromises);
+    return groupByDepartmentId(groupStatsList);
+  } catch (error) {
+    console.error("Error getting all groups task stats:", error);
+    return { error: "Failed to fetch group task statistics. Please try again." };
+  }
+}
+
+// Helper function for grouping by department
+function groupByDepartmentId(arr: any[]) {
+  const grouped: { [key: number]: any[] } = {};
+
+  arr.forEach((obj) => {
+    const { department_id } = obj;
+
+    if (!grouped[department_id]) {
+      grouped[department_id] = [];
+    }
+
+    grouped[department_id].push(obj);
+  });
+
+  return Object.values(grouped);
+}

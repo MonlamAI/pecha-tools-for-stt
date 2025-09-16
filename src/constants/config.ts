@@ -22,3 +22,10 @@ export const TASK_ASSIGN = {
   TASK_LEFT_LIMIT: 10,
   THRESHOLD: 3000,
 };
+
+// Stats configuration following your established pattern
+export const STATS_CONFIG = {
+  CACHE_TIME: 300, // 5 minutes like your pattern
+  IMPORT_THRESHOLD: 500,
+  CONCURRENT_QUERIES: 6, // For Promise.all optimization
+};

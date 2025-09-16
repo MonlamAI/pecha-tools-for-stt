@@ -1,7 +1,8 @@
 import React from "react";
+import { STATS_CONFIG } from "@/constants/config";
 
 const GroupImportStats = ({ groupStat }) => {
-  const importedThreshold = 500;
+  const importedThreshold = STATS_CONFIG.IMPORT_THRESHOLD;
 
   // Function to generate a random color based on a seed (unique ID)
   const generateRandomColor = (seed) => {
