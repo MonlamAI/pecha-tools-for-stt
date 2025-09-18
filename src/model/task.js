@@ -3,6 +3,7 @@
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
+import { utcToIst } from "@/lib/istCurrentTime";
 
 // get all tasks basd on the search params
 export const getAllTask = async (limit, skip) => {
@@ -83,28 +84,36 @@ export const getUserSpecificTasksCount = async (id, dates) => {
 
   if (!user) return { error: `User with ID ${id} not found.` };
 
+  // Define the state based on user role
+  let stateFilter;
+  if (user.role === "TRANSCRIBER") {
+    stateFilter = { in: ["submitted", "accepted", "finalised"] };
+  } else if (user.role === "REVIEWER") {
+    stateFilter = { in: ["accepted", "finalised"] };
+  } else {
+    stateFilter = { in: ["finalised"] }; // FINAL_REVIEWER case
+  }
+
   // Define the base condition for task counting based on the user's role
   let baseWhereCondition = {
     [`${user.role.toLowerCase()}_id`]: parseInt(id),
-    state:
-      user.role === "TRANSCRIBER"
-        ? { in: ["submitted", "accepted", "finalised"] }
-        : user.role === "REVIEWER"
-        ? { in: ["accepted", "finalised"] }
-        : { in: ["finalised"] }, // Defaults to FINAL_REVIEWER case
+    state: stateFilter,
   };
 
+  let dateFieldName;
+  if (user.role === "TRANSCRIBER") {
+    dateFieldName = "submitted_at";
+  } else if (user.role === "REVIEWER") {
+    dateFieldName = "reviewed_at";
+  } else {
+    dateFieldName = "finalised_reviewed_at";
+  }
   // Extend the base condition with date filters if both fromDate and toDate are provided
   if (fromDate && toDate) {
-    const dateFieldName =
-      user.role === "TRANSCRIBER"
-        ? "submitted_at"
-        : user.role === "REVIEWER"
-        ? "reviewed_at"
-        : "finalised_reviewed_at"; // Applies to REVIEWER and FINAL_REVIEWER
+    // Applies to REVIEWER and FINAL_REVIEWER
     baseWhereCondition[dateFieldName] = {
-      gte: new Date(fromDate),
-      lte: new Date(toDate),
+      gte: utcToIst(new Date(fromDate)),
+      lte: utcToIst(new Date(toDate)),
     };
   }
 
@@ -112,7 +121,6 @@ export const getUserSpecificTasksCount = async (id, dates) => {
     const userTaskCount = await prisma.task.count({
       where: baseWhereCondition,
     });
-
     return userTaskCount;
   } catch (error) {
     console.error(`Error fetching tasks count for user with ID ${id}:`, error);
@@ -226,7 +234,7 @@ export const getCompletedTaskCount = async (id, role, groupId) => {
   }
 };
 
-export const getReviewerTaskCount = async (id, dates, reviewerObj) => {
+export const getReviewerTaskCount = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
   const reviewerId = parseInt(id);
 
@@ -236,8 +244,8 @@ export const getReviewerTaskCount = async (id, dates, reviewerObj) => {
     reviewed_at:
       fromDate && toDate
         ? {
-            gte: new Date(fromDate).toISOString(),
-            lte: new Date(toDate).toISOString(),
+            gte: utcToIst(new Date(fromDate)),
+            lte: utcToIst(new Date(toDate)),
           }
         : undefined,
   };
@@ -299,8 +307,8 @@ export const getFinalReviewerTaskCount = async (
     finalised_reviewed_at:
       fromDate && toDate
         ? {
-            gte: new Date(fromDate).toISOString(),
-            lte: new Date(toDate).toISOString(),
+            gte: utcToIst(new Date(fromDate)),
+            lte: utcToIst(new Date(toDate)),
           }
         : undefined,
   };
@@ -335,11 +343,12 @@ export const getTranscriberTaskList = async (id, dates) => {
         where: {
           transcriber_id: id,
           reviewed_at: {
-            gte: new Date(fromDate),
-            lte: new Date(toDate),
+            gte: utcToIst(new Date(fromDate)),
+            lte: utcToIst(new Date(toDate)),
           },
         },
         select: {
+          inference_transcript: true,
           transcript: true,
           reviewed_transcript: true,
           state: true,
@@ -353,6 +362,7 @@ export const getTranscriberTaskList = async (id, dates) => {
           transcriber_id: id,
         },
         select: {
+          inference_transcript: true,
           transcript: true,
           reviewed_transcript: true,
           state: true,
@@ -375,8 +385,8 @@ export const getReviewerTaskList = async (id, dates) => {
         where: {
           reviewer_id: id,
           reviewed_at: {
-            gte: new Date(fromDate),
-            lte: new Date(toDate),
+            gte: utcToIst(new Date(fromDate)),
+            lte: utcToIst(new Date(toDate)),
           },
         },
         select: {
@@ -496,8 +506,8 @@ export const getUserSubmittedAndReviewedSecs = async (id, dates, groupId) => {
         ...(fromDate &&
           toDate && {
             submitted_at: {
-              gte: new Date(fromDate),
-              lte: new Date(toDate),
+              gte: utcToIst(new Date(fromDate)),
+              lte: utcToIst(new Date(toDate)),
             },
           }),
         state: { in: ["submitted", "accepted", "finalised"] },
