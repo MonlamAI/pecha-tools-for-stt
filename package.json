@@ -1,5 +1,7 @@
 {
   "name": "pecha-tool-stt",
+  "description": "This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).",
+  "main": "next.config.js",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,10 +12,6 @@
   },
   "dependencies": {
     "@prisma/client": "^5.2.0",
-    "@types/papaparse": "^5.3.15",
-    "@types/react": "18.3.1",
-    "@types/react-dom": "18.3.1",
-    "autoprefixer": "10.4.15",
     "chart.js": "^4.4.0",
     "csv-parser": "^3.0.0",
     "daisyui": "^3.7.3",
@@ -24,25 +22,31 @@
     "next": "^14.2.5",
     "next-themes": "^0.4.4",
     "papaparse": "^5.4.1",
-    "postcss": "^8.4.38",
     "react": "18.3.1",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "18.3.1",
     "react-hot-toast": "^2.4.1",
     "react-icons": "^4.11.0",
     "sonner": "^1.7.0",
-    "tailwindcss": "3.3.3",
     "webhook-discord": "^3.7.8"
   },
-  "description": "This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).",
-  "main": "next.config.js",
   "devDependencies": {
     "@types/node": "^20.5.9",
+    "@types/papaparse": "^5.3.15",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.15",
+    "postcss": "^8.4.38",
     "prisma": "^5.6.0",
+    "tailwindcss": "^3.3.3",
     "ts-node": "^10.9.1",
     "typescript": "^5.5.4"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "engines": {
+    "node": "20.x"
+  },
+  "packageManager": "npm@10.9.3"
 }
