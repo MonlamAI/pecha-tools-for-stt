@@ -16,14 +16,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en"
+    // suppressHydrationWarning
+    >
       <body className="min-h-screen w-full bg-base-100 overflow-x-hidden">
         <ThemeProvider>
-        <main className="flex flex-col min-h-screen">
-        {children}
-        </main>
-        <Toaster position="top-center" reverseOrder={false} />
-        <TaskToaster position="top-right" richColors closeButton />
+          <main className="flex flex-col min-h-screen">
+            {children}
+          </main>
+          <Toaster position="top-center" reverseOrder={false} />
+          <TaskToaster position="top-right" richColors closeButton />
         </ThemeProvider>
       </body>
     </html>

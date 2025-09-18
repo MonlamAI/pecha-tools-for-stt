@@ -1,20 +1,41 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useFormState } from "react-dom";
 import { createGroup } from "@/model/group";
 import Select from "@/components/Select";
+import toast from "react-hot-toast";
 
 const AddGroupModal = ({ departments }) => {
   const [departmentId, setDepartmentId] = useState("");
+  const ref = useRef(null);
+  const router = useRouter();
+
+  // Initialize useFormState with createGroup
+  const [state, formAction] = useFormState(createGroup, null);
+
+  // Handle Server Action results
+  useEffect(() => {
+    if (state?.error) {
+      toast.error(state.error);
+    } else if (state?.success) {
+      toast.success(state.success);
+      // Reset form and close modal
+      ref.current?.reset();
+      setDepartmentId("");
+      router.refresh();
+      window.add_modal.close();
+    }
+  }, [state]);
 
   const handleDepartmentChange = async (event) => {
     setDepartmentId(event.target.value);
   };
-  const ref = useRef(null);
   return (
     <>
       <dialog id="add_modal" className="modal">
-        <form ref={ref} method="dialog" className="modal-box">
+        <form ref={ref} action={formAction} className="modal-box">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-lg">Create Group</h3>
             <button
@@ -54,11 +75,6 @@ const AddGroupModal = ({ departments }) => {
           </div>
           <button
             type="submit"
-            formAction={async (formData) => {
-              ref.current?.reset();
-              const newGroup = await createGroup(formData);
-              window.add_modal.close();
-            }}
             className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"
           >
             create

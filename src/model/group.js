@@ -2,35 +2,35 @@
 
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
-export const getTranscribingcount=async(group_id)=>{
+export const getTranscribingcount = async (group_id) => {
   try {
-   const taskCount = await prisma.group.findUnique({
-           where: {
-             id: group_id
-           },
-           select: {
-             name: true, 
-             _count: {
-               select: {
-                 tasks: {
-                   where: {
-                     state: "transcribing",
-                     NOT: {
-                       transcriber_id: null
-                     }
-                   }
-                 }
-               }
-             }
-           }
-         });
-        //  console.log('Debug - Task Count Result:', JSON.stringify(taskCount, null, 2));
-         return taskCount
+    const taskCount = await prisma.group.findUnique({
+      where: {
+        id: group_id,
+      },
+      select: {
+        name: true,
+        _count: {
+          select: {
+            tasks: {
+              where: {
+                state: "transcribing",
+                NOT: {
+                  transcriber_id: null,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    //  console.log('Debug - Task Count Result:', JSON.stringify(taskCount, null, 2));
+    return taskCount;
   } catch (error) {
     console.error("Error fetching transcribing count:", error);
-    throw error; 
+    return { error: "Failed to fetch transcribing count. Please try again." };
   }
-}
+};
 
 export const getAllGroup = async () => {
   try {
@@ -48,14 +48,21 @@ export const getAllGroup = async () => {
     return allGroup;
   } catch (error) {
     console.error("Error getting all group:", error);
-    throw new Error(error);
+    return { error: "Failed to fetch groups. Please try again." };
   }
 };
 
-export const createGroup = async (formData) => {
-  const groupName = formData.get("name");
+export const createGroup = async (prevState, formData) => {
+  const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {
+    // guard: prevent duplicate group names within the same department
+    const exists = await prisma.group.findFirst({
+      where: { name: groupName, department_id: parseInt(departmentId) },
+    });
+    if (exists) {
+      return { error: "Group with this name already exists in the department" };
+    }
     const newGroup = await prisma.group.create({
       data: {
         name: groupName,
@@ -63,10 +70,13 @@ export const createGroup = async (formData) => {
       },
     });
     revalidatePath("/dashboard/group");
-    return newGroup;
+    return { success: "Group created successfully", group: newGroup };
   } catch (error) {
-    //console.log("Error creating a group", error);
-    throw new Error(error);
+    console.error("Error creating a group:", error);
+    if (error?.code === "P2002") {
+      return { error: "Group with this name already exists in the department" };
+    }
+    return { error: "Failed to create group. Please try again." };
   }
 };
 
@@ -78,17 +88,28 @@ export const deleteGroup = async (id) => {
       },
     });
     revalidatePath("/dashboard/group");
-    return group;
+    return { success: "Group deleted successfully" };
   } catch (error) {
-    //console.log("Error deleting a group", error);
-    throw new Error(error);
+    console.error("Error deleting a group:", error);
+    return { error: "Failed to delete group. Please try again." };
   }
 };
 
 export const editGroup = async (id, formData) => {
-  const groupName = formData.get("name");
+  const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {
+    // guard: prevent duplicate on rename/move
+    const exists = await prisma.group.findFirst({
+      where: {
+        name: groupName,
+        department_id: parseInt(departmentId),
+        NOT: { id },
+      },
+    });
+    if (exists) {
+      return { error: "Group with this name already exists in the department" };
+    }
     const group = await prisma.group.update({
       where: {
         id,
@@ -99,10 +120,13 @@ export const editGroup = async (id, formData) => {
       },
     });
     revalidatePath("/dashboard/group");
-    return group;
+    return { success: "Group updated successfully", group };
   } catch (error) {
-    //console.log("Error updating a group", error);
-    throw new Error(error);
+    console.error("Error updating a group:", error);
+    if (error?.code === "P2002") {
+      return { error: "Group with this name already exists in the department" };
+    }
+    return { error: "Failed to update group. Please try again." };
   }
 };
 
@@ -113,8 +137,8 @@ export const getAllGroupTaskStats = async (groupList) => {
     by: ["state", "group_id"],
     where: {
       NOT: {
-        state: "transcribing", 
-      }
+        state: "transcribing",
+      },
     },
     _count: {
       _all: true,
@@ -134,14 +158,14 @@ export const getAllGroupTaskStats = async (groupList) => {
   const taskTranscribingCount = await prisma.task.groupBy({
     by: ["group_id"],
     where: {
-      state: "transcribing", 
-      NOT:{
-        transcriber_id: null
-      }
+      state: "transcribing",
+      NOT: {
+        transcriber_id: null,
+      },
     },
     _count: {
       _all: true,
-    }
+    },
   });
 
   taskImportedCount.map((task) => {
@@ -198,7 +222,7 @@ export const getAllGroupTaskStats = async (groupList) => {
       groupStatsList.push(groupStats);
     } catch (error) {
       console.error("Error getting all groups task stats:", error);
-      throw new Error(error);
+      return { error: "Failed to fetch group task statistics. Please try again." };
     }
   }
   const groupedByDepartment = groupByDepartmentId(groupStatsList);

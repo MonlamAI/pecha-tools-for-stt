@@ -1,31 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
 import DashboardBtn from "@/components/DashboardBtn";
 import AddUserModal from "./AddUserModal";
-import { deleteUser } from "@/model/user";
+import { deleteUserByForm } from "@/model/user";
+import { useFormState } from "react-dom";
+import { useRouter } from "next/navigation";
 import EditUserModal from "./EditUserModal";
+import toast from "react-hot-toast";
 
-const UserDashboard = ({ users, groups }) => {
+
+const UserDashboard = ({ users, groups, searchParams }) => {
+  // console.log("UserDashboard:", { users, groups });
   const [selectedRow, setSelectedRow] = useState(null);
+  const router = useRouter();
 
-  const handleRemoveUser = async (user) => {
-    const noTranscriberTask = user._count.transcriber_task;
-    const noReviewerTask = user._count.reviewer_task;
-    const noFinalReviewerTask = user._count.final_reviewer_task;
-    if (
-      noTranscriberTask !== 0 ||
-      noReviewerTask !== 0 ||
-      noFinalReviewerTask !== 0
-    ) {
-      window.alert(`User ${user.name} has some uncomplete tasks!`);
-    } else {
-      const deletedUser = await deleteUser(user.id);
+  // Handle Server Action results from URL params
+  useEffect(() => {
+    if (searchParams?.success) {
+      toast.success(searchParams.success);
+    } else if (searchParams?.error) {
+      toast.error(searchParams.error);
     }
-  };
+  }, [searchParams]);
 
-  const handleEditUser = async (userRow) => {
+  const handleEditUser = (userRow) => {
     setSelectedRow(userRow);
     window.edit_modal.showModal();
   };
@@ -63,20 +63,21 @@ const UserDashboard = ({ users, groups }) => {
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4">{user.role}</td>
                   <td className="flex items-center px-6 py-4 space-x-3">
-                    <a
-                      href="#"
+                    <button
+                      type="button"
                       className="font-medium text-info hover:underline"
                       onClick={() => handleEditUser(user)}
                     >
                       Edit
-                    </a>
-                    <a
+                    </button>
+                    <DeleteUserButton userId={user.id} onDone={() => router.refresh()} />
+                    {/* <a
                       href="#"
                       className="font-medium text-error hover:underline"
                       onClick={() => handleRemoveUser(user)}
                     >
                       Remove
-                    </a>
+                    </a> */}
                   </td>
                 </tr>
               ))}
@@ -91,3 +92,20 @@ const UserDashboard = ({ users, groups }) => {
 };
 
 export default UserDashboard;
+
+function DeleteUserButton({ userId, onDone }) {
+  const [state, formAction] = useFormState(deleteUserByForm, null);
+  useEffect(() => {
+    if (state?.error) toast.error(state.error);
+    if (state?.success) {
+      toast.success(state.success);
+      onDone?.();
+    }
+  }, [state]);
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="id" value={userId} readOnly />
+      <button className="font-medium text-error hover:underline">Remove</button>
+    </form>
+  );
+}

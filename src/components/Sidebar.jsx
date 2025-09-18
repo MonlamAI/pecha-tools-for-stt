@@ -1,10 +1,11 @@
+'use client';
+
 import React from "react";
 import AppContext from "./AppContext";
 import { useContext } from "react";
 import LanguageToggle from "./LanguageToggle";
 import ThemeToggle from "./ThemeToggle";
 import { BsCheckLg, BsTrash } from "react-icons/bs";
-import { getTaskWithRevertedState } from "@/model/task";
 
 const Sidebar = ({
   children,
@@ -14,17 +15,28 @@ const Sidebar = ({
   role,
   setTaskList,
   userHistory,
+  onHistoryChanged,
 }) => {
   const { completedTaskCount, totalTaskCount, totalTaskPassed } = userTaskStats;
   const value = useContext(AppContext);
   let { lang } = value;
 
   const handleHistoryClick = async (task) => {
-    // get the task from db with task state step down by 1
-    // if it is not, just push the new task to the top
-    const newTask = await getTaskWithRevertedState(task, role);
-    setTaskList([newTask, ...taskList]);
-    return;
+    try {
+      const res = await fetch("/api/task/revert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task, role }),
+      });
+      const newTask = await res.json();
+      if (!res.ok || newTask?.error) return;
+      setTaskList([newTask, ...taskList]);
+      if (onHistoryChanged) {
+        try { await onHistoryChanged(); } catch {}
+      }
+    } catch (e) {
+      // noop
+    }
   };
 
   return (
@@ -75,17 +87,6 @@ const Sidebar = ({
             </section>
             <section className="px-5 pb-2 mb-2 border-b border-b-[#384451]">
               <h3 className="uppercase font-bold mb-2">{lang.target}</h3>
-              {/*   <div
-                className="tooltip tooltip-bottom w-full my-2"
-                data-tip={`${completedTaskCount}/${totalTaskCount}`}
-              >
-                <progress
-                  className="progress progress-success"
-                  value={completedTaskCount}
-                  max={totalTaskCount}
-                ></progress>
-              </div>
-              */}
               <div
                 className="tooltip tooltip-top flex text-right justify-between"
                 data-tip={
@@ -173,7 +174,17 @@ const Sidebar = ({
                   </p>
                   <div
                     className="tooltip tooltip-left"
-                    data-tip={`${task.state}`}
+                    data-tip={
+                      task.state === "trashed"
+                        ? lang.trash
+                        : task.state === "finalised"
+                        ? lang.final_reviewed
+                        : task.state === "accepted"
+                        ? lang.reviewed
+                        : task.state === "submitted"
+                        ? lang.submitted
+                        : lang.save
+                    }
                   >
                     {(task.state === "submitted" ||
                       task.state === "accepted" ||

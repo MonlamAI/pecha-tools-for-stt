@@ -8,6 +8,7 @@ import EditGroupModal from "./EditGroupModal";
 import { deleteGroup } from "@/model/group";
 
 const GroupDashboard = ({ groupList, departments }) => {
+  // console.log({ groupList, departments });
   const [selectedRow, setSelectedRow] = useState(null);
 
   const handleRemoveGroup = async (row) => {
@@ -58,20 +59,20 @@ const GroupDashboard = ({ groupList, departments }) => {
                   <td className="px-6 py-4">{row._count.users || 0}</td>
                   <td className="px-6 py-4">{row._count.tasks || 0}</td>
                   <td className="flex items-center px-6 py-4 space-x-3">
-                    <a
-                      href="#"
+                    <button
+                      type="button"
                       className="font-medium text-info hover:underline"
                       onClick={() => handleEditGroup(row)}
                     >
                       Edit
-                    </a>
-                    <a
-                      href="#"
+                    </button>
+                    <button
+                      type="button"
                       className="font-medium text-error hover:underline"
                       onClick={() => handleRemoveGroup(row)}
                     >
                       Remove
-                    </a>
+                    </button>
                   </td>
                 </tr>
               ))}

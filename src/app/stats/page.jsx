@@ -1,12 +1,17 @@
 import { getAllGroup, getAllGroupTaskStats } from "@/model/group";
+import { getAllGroupTaskStats as getOptimizedGroupTaskStats } from "@/service/group-service";
+import { STATS_CONFIG } from "@/constants/config";
 import React from "react";
 import GroupImportStats from "./GroupImportStats";
 import TaskStats from "./TaskStats";
-export const dynamic = "force-dynamic";
+
+// Using service layer optimization with caching
+export const revalidate = STATS_CONFIG.CACHE_TIME;
 
 const Stats = async () => {
   const allGroup = await getAllGroup();
-  const groupStatByDept = await getAllGroupTaskStats(allGroup);
+  // Using optimized service layer function
+  const groupStatByDept = await getOptimizedGroupTaskStats(allGroup);
 
   return (
     <>

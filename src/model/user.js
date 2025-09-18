@@ -10,6 +10,7 @@ import {
   getUserSpecificTasksCount,
   getUserSubmittedAndReviewedSecs,
 } from "./task";
+import { utcToIst } from "@/lib/istCurrentTime";
 
 const levenshtein = require("fast-levenshtein");
 
@@ -37,20 +38,21 @@ export const getAllUser = async () => {
   }
 };
 
-export const createUser = async (formData) => {
-  const name = formData.get("name");
-  const email = formData.get("email");
+export const createUser = async (_prevState, formData) => {
+  const name = formData.get("name")?.trim();
+  const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
+  console.log("crateUser:", { groupId });
   const role = formData.get("role");
   try {
     // check if username  and email already exists
-    const userByName = await prisma.user.findUnique({
+    const userByName = await prisma.user.findFirst({
       where: {
         name: name,
       },
     });
 
-    const userByEmail = await prisma.user.findUnique({
+    const userByEmail = await prisma.user.findFirst({
       where: {
         email: email,
       },
@@ -90,35 +92,65 @@ export const createUser = async (formData) => {
       };
     }
   } catch (error) {
-    //console.log("Error adding a user", error);
-    throw new Error(error);
+    console.error("Error adding a user", error);
+    if (error?.code === "P2002") {
+      return { error: "Duplicate username or email" };
+    }
+    return { error: "Failed to create user. Please try again." };
   }
 };
 
 export const deleteUser = async (id) => {
   try {
-    const user = await prisma.user.delete({
+    // Prevent delete if user is referenced in tasks
+    const taskCount = await prisma.task.count({
       where: {
-        id,
+        OR: [
+          { transcriber_id: id },
+          { reviewer_id: id },
+          { final_reviewer_id: id },
+        ],
       },
     });
+
+    if (taskCount > 0) {
+      return {
+        error:
+          `Cannot delete user. They have ${taskCount} associated task(s). Please reassign or complete these tasks first.`,
+      };
+    }
+
+    await prisma.user.delete({
+      where: { id },
+    });
     revalidatePath("/dashboard/user");
-    return user;
+    return { success: "User deleted successfully" };
   } catch (error) {
-    //console.log("Error deleting a user", error);
-    throw new Error(error);
+    console.error("Error deleting a user", error);
+    return { error: "Failed to delete user. Please try again." };
   }
 };
 
+// useFormState wrapper: delete user from FormData (expects name="id")
+export const deleteUserByForm = async (_prevState, formData) => {
+  const idRaw = formData.get("id");
+  const id = typeof idRaw === "string" ? parseInt(idRaw) : Number(idRaw);
+  if (!id || Number.isNaN(id)) {
+    return { error: "Invalid user id" };
+  }
+  return await deleteUser(id);
+};
+
 export const editUser = async (id, formData) => {
-  const name = formData.get("name");
-  const email = formData.get("email");
+  const name = formData.get("name")?.trim();
+  const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
   const role = formData.get("role");
+
   try {
     // check if username  and email already exists
     const userId = parseInt(id); // Ensure id is converted to an integer
-    const userByName = await prisma.user.findUnique({
+    const userByName = await prisma.user.findFirst({
       where: {
         name: name,
         NOT: {
@@ -127,7 +159,7 @@ export const editUser = async (id, formData) => {
       },
     });
 
-    const userByEmail = await prisma.user.findUnique({
+    const userByEmail = await prisma.user.findFirst({
       where: {
         email: email,
         NOT: {
@@ -172,9 +204,22 @@ export const editUser = async (id, formData) => {
       };
     }
   } catch (error) {
-    //console.log("Error updating a user details", error);
-    throw new Error(error);
+    console.error("Error updating a user details", error);
+    if (error?.code === "P2002") {
+      return { error: "Duplicate username or email" };
+    }
+    return { error: "Failed to update user. Please try again." };
   }
+};
+
+// useFormState wrapper: edit user from FormData (expects name="id")
+export const editUserByForm = async (_prevState, formData) => {
+  const idRaw = formData.get("id");
+  const id = typeof idRaw === "string" ? parseInt(idRaw) : Number(idRaw);
+  if (!id || Number.isNaN(id)) {
+    return { error: "Invalid user id" };
+  }
+  return await editUser(id, formData);
 };
 
 export const getUsersByGroup = async (groupId) => {
@@ -217,12 +262,14 @@ export const generateUsersTaskReport = async (user, dates, groupId) => {
     userTasks,
     reviewedTaskCount,
     transcriberSyllableCount,
+    transcriberCer,
   ] = await Promise.all([
     getUserSpecificTasksCount(userId, dates),
     getUserSubmittedAndReviewedSecs(userId, dates, groupId),
     getTranscriberTaskList(userId, dates),
     getReviewedCountBasedOnSubmittedAt(userId, dates, groupId),
     getTranscriberSyllableCount(userId, dates),
+    getTranscriberCer(userId, dates),
   ]);
 
   const transcriberObj = {
@@ -236,6 +283,7 @@ export const generateUsersTaskReport = async (user, dates, groupId) => {
     trashedInMin: parseFloat((trashedSecs / 60).toFixed(2) || 0),
     syllableCount: 0,
     transcriberSyllableCount: transcriberSyllableCount || 0,
+    transcriberCer: transcriberCer || 0,
     noTranscriptCorrected: 0,
     characterCount: 0,
     cer: 0,
@@ -245,6 +293,34 @@ export const generateUsersTaskReport = async (user, dates, groupId) => {
   const updatedTranscriberObj = await UserTaskReport(transcriberObj, userTasks);
 
   return updatedTranscriberObj;
+};
+
+const getTranscriberCer = async (id, dates) => {
+  const { from: fromDate, to: toDate } = dates;
+  const transcriberId = parseInt(id); // Ensure id is an integer
+  const dateFilter = buildDateFilter(fromDate, toDate);
+  try {
+    const tasks = await prisma.task.findMany({
+      where: {
+        transcriber_id: transcriberId,
+        ...dateFilter,
+      },
+      select: {
+        inference_transcript: true,
+        transcript: true,
+      },
+    });
+    const transcriberCer = tasks.reduce((acc, task) => {
+      if (task.transcript && task.inference_transcript) {
+        const cer = levenshtein.get(task.inference_transcript, task.transcript);
+        acc += cer;
+      }
+      return acc;
+    }, 0);
+    return transcriberCer;
+  } catch (error) {
+    console.log("Error getting transcriber cer:", error);
+  }
 };
 
 const getTranscriberSyllableCount = async (id, dates) => {
@@ -281,8 +357,8 @@ const buildDateFilter = (fromDate, toDate) => {
   if (fromDate && toDate) {
     return {
       submitted_at: {
-        gte: new Date(fromDate).toISOString(),
-        lte: new Date(toDate).toISOString(),
+        gte: utcToIst(new Date(fromDate)),
+        lte: utcToIst(new Date(toDate)),
       },
     };
   }

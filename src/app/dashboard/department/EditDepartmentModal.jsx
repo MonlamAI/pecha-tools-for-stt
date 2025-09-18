@@ -1,32 +1,43 @@
 "use client";
-import React, { useRef, useState, useEffect } from "react";
-import { editGroup } from "@/model/group";
-import Select from "@/components/Select";
+import React, { useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useFormState } from "react-dom";
+import { editDepartment } from "@/model/department";
+import toast from "react-hot-toast";
 
-const EditGroupModal = ({ selectedRow, departments }) => {
+const EditDepartmentModal = ({ selectedRow }) => {
   const ref = useRef(null);
-  const [departmentId, setDepartmentId] = useState("");
+  const router = useRouter();
 
-  const handleDepartmentChange = async (event) => {
-    setDepartmentId(event.target.value);
+  // Create a wrapper function for editDepartment with the selectedRow ID
+  const editDepartmentWithId = (prevState, formData) => {
+    if (selectedRow?.id) {
+      return editDepartment(selectedRow.id, formData);
+    }
+    return { error: "No department selected" };
   };
 
+  // Initialize useFormState with the wrapper function
+  const [state, formAction] = useFormState(editDepartmentWithId, null);
+
+  // Handle Server Action results
   useEffect(() => {
-    let isMounted = true;
-    if (selectedRow?.Department !== null) {
-      setDepartmentId(selectedRow?.Department?.id);
+    if (state?.error) {
+      toast.error(state.error);
+    } else if (state?.success) {
+      toast.success(state.success);
+      router.refresh();
+      window.edit_modal.close();
     }
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedRow]);
+  }, [state]);
 
   return (
     <>
       <dialog id="edit_modal" className="modal ">
-        <form ref={ref} method="dialog" className="modal-box w-4/5 max-w-2xl  ">
+        <form ref={ref} action={formAction} className="modal-box w-4/5 max-w-2xl  ">
+          <input type="hidden" name="id" value={selectedRow?.id} readOnly />
           <div className="flex justify-between items-center">
-            <h3 className="font-bold text-lg">Edit Group</h3>
+            <h3 className="font-bold text-lg">Edit Department</h3>
             <button
               className="btn btn-sm btn-circle btn-ghost"
               onClick={(e) => {
@@ -72,7 +83,7 @@ const EditGroupModal = ({ selectedRow, departments }) => {
             <div>
               <label className="label" htmlFor="users">
                 <span className="label-text text-base font-semibold ">
-                  No. Users
+                  No. Groups
                 </span>
               </label>
               <input
@@ -82,40 +93,12 @@ const EditGroupModal = ({ selectedRow, departments }) => {
                 disabled
                 required
                 className="input input-bordered w-full"
-                defaultValue={selectedRow?._count.users}
+                defaultValue={selectedRow?._count.groups}
               />
             </div>
-            <div>
-              <label className="label" htmlFor="tasks">
-                <span className="label-text text-base font-semibold ">
-                  No. Tasks
-                </span>
-              </label>
-              <input
-                id="tasks"
-                type="text"
-                name="tasks"
-                required
-                disabled
-                defaultValue={selectedRow?._count.tasks}
-                className="input input-bordered w-full"
-              />
-            </div>
-            <Select
-              title="department_id"
-              label="Department"
-              options={departments}
-              selectedOption={departmentId}
-              handleOptionChange={handleDepartmentChange}
-            />
           </div>
           <button
             type="submit"
-            formAction={async (formData) => {
-              ref.current?.reset();
-              const edited_Group = await editGroup(selectedRow?.id, formData);
-              window.edit_modal.close();
-            }}
             className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"
           >
             update
@@ -126,4 +109,4 @@ const EditGroupModal = ({ selectedRow, departments }) => {
   );
 };
 
-export default EditGroupModal;
+export default EditDepartmentModal;

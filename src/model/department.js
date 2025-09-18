@@ -15,29 +15,37 @@ export const getAllDepartment = async () => {
             id: true,
             name: true,
           },
-        }
+        },
       },
     });
     return allDepartment;
   } catch (error) {
     console.error("Error getting all Department:", error);
-    throw new Error(error);
+    return { error: "Failed to fetch departments. Please try again." };
   }
 };
 
-export const createDepartment = async (formData) => {
-  const departmentName = formData.get("name");
+export const createDepartment = async (prevState, formData) => {
+  const departmentName = formData.get("name")?.trim();
   try {
+    // guard: prevent duplicate department names
+    const exists = await prisma.department.findFirst({ where: { name: departmentName } });
+    if (exists) {
+      return { error: "Department already exists" };
+    }
     const newDepartment = await prisma.department.create({
       data: {
         name: departmentName,
       },
     });
     revalidatePath("/dashboard/department");
-    return newDepartment;
+    return { success: "Department created successfully", department: newDepartment };
   } catch (error) {
-    //console.log("Error creating a department", error);
-    throw new Error(error);
+    console.error("Error creating a department:", error);
+    if (error?.code === "P2002") {
+      return { error: "Department already exists" };
+    }
+    return { error: "Failed to create department. Please try again." };
   }
 };
 
@@ -49,17 +57,22 @@ export const deleteDepartment = async (id) => {
       },
     });
     revalidatePath("/dashboard/department");
-    return department;
+    return { success: "Department deleted successfully" };
   } catch (error) {
-    //console.log("Error deleting a department", error);
-    throw new Error(error);
+    console.error("Error deleting a department:", error);
+    return { error: "Failed to delete department. Please try again." };
   }
 };
 
 export const editDepartment = async (id, formData) => {
-  const departmentName = formData.get("name");
+  const departmentName = formData.get("name")?.trim();
   try {
-    const group = await prisma.department.update({
+    // guard: prevent duplicate on rename
+    const exists = await prisma.department.findFirst({ where: { name: departmentName, NOT: { id } } });
+    if (exists) {
+      return { error: "Department already exists" };
+    }
+    const department = await prisma.department.update({
       where: {
         id,
       },
@@ -68,9 +81,12 @@ export const editDepartment = async (id, formData) => {
       },
     });
     revalidatePath("/dashboard/department");
-    return group;
+    return { success: "Department updated successfully", department };
   } catch (error) {
-    //console.log("Error updating a department", error);
-    throw new Error(error);
+    console.error("Error updating a department:", error);
+    if (error?.code === "P2002") {
+      return { error: "Department already exists" };
+    }
+    return { error: "Failed to update department. Please try again." };
   }
 };

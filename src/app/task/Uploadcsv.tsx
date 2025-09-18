@@ -13,6 +13,7 @@ type UploadCsvProps = {
 type UploadStatus = "idle" | "loading" | "success" | "error";
 
 export default function UploadCsv({ groups }: UploadCsvProps) {
+  console.log("updatecsv:", groups)
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
@@ -20,6 +21,7 @@ export default function UploadCsv({ groups }: UploadCsvProps) {
   const router = useRouter();
 
   const handleGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    console.log('handleGroupChange:', e.target.value)
     const groupValue = Number(e.target.value);
     setSelectedGroup(groupValue?.toString());
     setUploadStatus("idle");

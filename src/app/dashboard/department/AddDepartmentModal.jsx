@@ -1,14 +1,34 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useFormState } from "react-dom";
 import { createDepartment } from "@/model/department";
+import toast from "react-hot-toast";
 
 const AddDepartmentModal = () => {
   const ref = useRef(null);
+  const router = useRouter();
+
+  // Initialize useFormState with createDepartment
+  const [state, formAction] = useFormState(createDepartment, null);
+
+  // Handle Server Action results
+  useEffect(() => {
+    if (state?.error) {
+      toast.error(state.error);
+    } else if (state?.success) {
+      toast.success(state.success);
+      // Reset form and close modal
+      ref.current?.reset();
+      router.refresh();
+      window.add_modal.close();
+    }
+  }, [state]);
   return (
     <>
       <dialog id="add_modal" className="modal">
-        <form ref={ref} method="dialog" className="modal-box">
+        <form ref={ref} action={formAction} className="modal-box">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-lg">Create Department</h3>
             <button
@@ -39,11 +59,6 @@ const AddDepartmentModal = () => {
           </div>
           <button
             type="submit"
-            formAction={async (formData) => {
-              ref.current?.reset();
-              const newDepartment = await createDepartment(formData);
-              window.add_modal.close();
-            }}
             className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"
           >
             create
