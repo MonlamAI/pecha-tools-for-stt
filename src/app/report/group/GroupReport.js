@@ -24,24 +24,19 @@ const GroupReport = ({ groups }) => {
       setIsLoading(true); // Start loading
       async function fetchData() {
         try {
-          const usersPromise = generateUserReportByGroup(selectGroup, dates);
-          const reviewersPromise = generateReviewerReportbyGroup(
-            selectGroup,
-            dates
-          );
-          const finalReviewersPromise = generateFinalReviewerReportbyGroup(
-            selectGroup,
-            dates
-          );
-
           // Use Promise.all to wait for all promises to resolve
           const [usersOfGroup, reviewersOfGroup, finalReviewersOfGroup] =
             await Promise.all([
-              usersPromise,
-              reviewersPromise,
-              finalReviewersPromise,
+              generateUserReportByGroup(selectGroup, dates),
+              generateReviewerReportbyGroup(selectGroup, dates),
+              generateFinalReviewerReportbyGroup(selectGroup, dates),
             ]);
 
+          // console.log("GroupReport: useEffect: fetchData: ", {
+          //   usersOfGroup,
+          //   reviewersOfGroup,
+          //   finalReviewersOfGroup,
+          // });
           setUsersStatistic(usersOfGroup);
           setReviewersStatistic(reviewersOfGroup);
           setFinalReviewersStatistic(finalReviewersOfGroup);
