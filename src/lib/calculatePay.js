@@ -15,9 +15,10 @@ export const calculatePay = (
     return ((reviewedInMin + trashedInMin) * 5 + syllableCount * 2).toFixed(2);
     // return (reviewedInMin * 5 + reviewedCount * 2).toFixed(2);
   } else if (stt_cs_groups.includes(groupID)) {
-    return ((reviewedInMin + trashedInMin) * 5 + syllableCount * 0.33).toFixed(
+    return ((reviewedInMin + trashedInMin) * 5 + syllableCount * 0.35).toFixed(
       2
     );
+    // return ((reviewedInMin + trashedInMin) * 5 + syllableCount * 0.33).toFixed(
   } else if (stt_gr_groups.includes(groupID)) {
     return (transcriberSyllableCount * 0.5).toFixed(2);
   } else {
