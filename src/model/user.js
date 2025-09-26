@@ -115,8 +115,7 @@ export const deleteUser = async (id) => {
 
     if (taskCount > 0) {
       return {
-        error:
-          `Cannot delete user. They have ${taskCount} associated task(s). Please reassign or complete these tasks first.`,
+        error: `Cannot delete user. They have ${taskCount} associated task(s). Please reassign or complete these tasks first.`,
       };
     }
 
@@ -240,6 +239,7 @@ export const getUsersByGroup = async (groupId) => {
 export const generateUserReportByGroup = async (groupId, dates) => {
   try {
     const users = await getUsersByGroup(groupId);
+
     // if user is not found, return empty array
     if (!users) {
       return [];
@@ -323,11 +323,18 @@ const getTranscriberCer = async (id, dates) => {
   }
 };
 
+function tibetanSyllableCount(text) {
+  // keep only Tibetan range chars plus spaces/punct you care about
+  const tibetanOnly = text.replace(/[^\u0F00-\u0FFF]+/g, "");
+
+  return tibetanOnly
+    .split(/[་།]/) // split on tsek and shad
+    .filter(Boolean); // drop empties
+}
+
 const getTranscriberSyllableCount = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
-
   const transcriberId = parseInt(id); // Ensure id is an integer
-
   const dateFilter = buildDateFilter(fromDate, toDate);
 
   try {
@@ -338,16 +345,10 @@ const getTranscriberSyllableCount = async (id, dates) => {
         ...dateFilter,
       },
     });
-    let syllableCount = 0;
 
-    // get the sum of syllable count of all the tasks
-    transcriberTasks.map((task) => {
-      const syllables = task.transcript
-        ? splitIntoSyllables(task.transcript).length
-        : 0;
-      syllableCount += syllables;
-    });
-    return syllableCount;
+    return transcriberTasks.reduce((count, task) => {
+      return (count += tibetanSyllableCount(task.transcript).length);
+    }, 0);
   } catch (error) {
     console.log("Error getting transcriber syllable count:", error);
   }
@@ -398,10 +399,11 @@ export const UserTaskReport = (transcriberObj, userTasks) => {
   const userTaskSummary = userTasks.reduce((acc, task) => {
     if (["accepted", "finalised"].includes(task.state)) {
       acc.noReviewed++;
-      const syllableCount = task.reviewed_transcript
-        ? splitIntoSyllables(task.reviewed_transcript).length
-        : 0;
-      acc.syllableCount += syllableCount;
+
+      acc.syllableCount += tibetanSyllableCount(
+        task.reviewed_transcript
+      ).length;
+
       acc.characterCount += task.transcript ? task.transcript.length : 0;
       // Ensure both transcripts are available before calculating CER
       if (task.transcript && task.reviewed_transcript) {
