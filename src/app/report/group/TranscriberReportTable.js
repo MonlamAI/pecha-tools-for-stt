@@ -116,10 +116,12 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
                   user.submittedInMin
                 )}`}
               >
+                {/* Reviewed min % */}
                 {calculatePercent(user.reviewedInMin, user.submittedInMin)}
               </td>
               <td>{user.trashedInMin}</td>
               <td>
+                {/* Total Audio Min */}
                 {parseFloat(
                   (user.reviewedInMin + user.trashedInMin).toFixed(2)
                 )}
@@ -142,6 +144,8 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
               </td>
               <td>{user.transcriberSyllableCount}</td>
               <td>{user.transcriberCer}</td>
+
+              {/* Reviewed Syllable count */}
               <td>{user.syllableCount}</td>
               <td>
                 {calculatePay(
