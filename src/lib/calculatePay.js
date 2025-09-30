@@ -12,7 +12,8 @@ export const calculatePay = (
   const stt_gr_groups = [32, 33];
   groupID = Number(groupID);
   if (stt_ab_groups.includes(groupID)) {
-    return ((reviewedInMin + trashedInMin) * 5 + syllableCount * 2).toFixed(2);
+    // return ((reviewedInMin + trashedInMin) * 5 + syllableCount * 2).toFixed(2);
+    return ((reviewedInMin + trashedInMin) * 5 + reviewedCount * 2).toFixed(2);0
     // return (reviewedInMin * 5 + reviewedCount * 2).toFixed(2);
   } else if (stt_cs_groups.includes(groupID)) {
     return ((reviewedInMin + trashedInMin) * 5 + syllableCount * 0.35).toFixed(
