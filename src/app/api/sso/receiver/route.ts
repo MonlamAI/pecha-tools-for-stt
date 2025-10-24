@@ -49,11 +49,13 @@ export async function POST(req: Request) {
 
   await prisma.user.upsert({
     where: { email },
-    // On update: keep existing role if claim invalid by not setting role
     update: roleFromJwt ? { name: username, role: roleFromJwt } : { name: username },
-    // On create: default to TRANSCRIBER if claim invalid
     create: { name: username, email, role: roleFromJwt ?? "TRANSCRIBER", group_id: 0 },
   });
 
-  return NextResponse.redirect(new URL(`/?session=${encodeURIComponent(username)}`, req.url), 302);
+  // Build absolute URL from forwarded headers to avoid internal hosts like localhost:10000
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const host = req.headers.get("x-forwarded-host") || new URL(req.url).host;
+  const redirectUrl = `${proto}://${host}/?session=${encodeURIComponent(username)}`;
+  return NextResponse.redirect(redirectUrl, 302);
 }
