@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { getUserSpecificTasks, getUserSpecificTasksCount } from "@/model/task";
 import PaginationControls from "@/components/PaginationControls";
 import UserReportTable from "./UserReportTable";
 import Select from "@/components/Select";
@@ -39,16 +38,29 @@ const UserReport = ({ searchParams, id, users }) => {
     setIsLoading(true); // Start loading
     async function getUserReportByGroup() {
       try {
-        allUserSpecificTasks.current = await getUserSpecificTasks(
-          selectedOption,
-          limit,
-          skip,
-          dates
-        );
-        const totalUserSpecificTasks = await getUserSpecificTasksCount(
-          selectedOption,
-          dates
-        );
+        const qs = new URLSearchParams({
+          id: String(selectedOption || ""),
+          limit: String(limit),
+          skip: String(skip),
+          from: dates.from || "",
+          to: dates.to || "",
+        });
+        const [tasksRes, countRes] = await Promise.all([
+          fetch(`/api/report/user/tasks?${qs.toString()}`, { cache: "no-store" }),
+          fetch(
+            `/api/report/user/count?${new URLSearchParams({
+              id: String(selectedOption || ""),
+              from: dates.from || "",
+              to: dates.to || "",
+            }).toString()}`,
+            { cache: "no-store" }
+          ),
+        ]);
+        const [tasks, totalUserSpecificTasks] = await Promise.all([
+          tasksRes.json(),
+          countRes.json(),
+        ]);
+        allUserSpecificTasks.current = Array.isArray(tasks) ? tasks : [];
         setUserTaskRecord(allUserSpecificTasks.current); // Update state with the fetched data
         setTotalTasks(totalUserSpecificTasks); // Update state with the total count
       } catch (error) {

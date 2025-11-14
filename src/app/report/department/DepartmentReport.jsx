@@ -1,10 +1,5 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import {
-  generateUserReportByGroup,
-  generateReviewerReportbyGroup,
-  generateFinalReviewerReportbyGroup,
-} from "@/model/user";
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
 import TranscriberReportTable from "../group/TranscriberReportTable";
@@ -38,36 +33,41 @@ const DepartmentReport = ({ departments }) => {
   useEffect(() => {
     async function fetchTasks(groups) {
       try {
-        const userReports = groups.map((group) =>
-          generateUserReportByGroup(group.id, dates)
-        );
-        const reviewerReports = groups.map((group) =>
-          generateReviewerReportbyGroup(group.id, dates)
-        );
-        const finalReviewerReports = groups.map((group) =>
-          generateFinalReviewerReportbyGroup(group.id, dates)
-        );
+        // Cap concurrency to avoid DB storms
+        const chunk = (arr, size) =>
+          arr.length ? [arr.slice(0, size), ...chunk(arr.slice(size), size)] : [];
 
-        // Wait for all promises from all groups to resolve
-        const allUserReports = await Promise.all(userReports);
-        const allReviewerReports = await Promise.all(reviewerReports);
-        const allFinalReviewerReports = await Promise.all(finalReviewerReports);
+        for (const batch of chunk(groups, 4)) {
+          const results = await Promise.all(
+            batch.map(async (group) => {
+              const qs = new URLSearchParams({
+                groupId: String(group.id),
+                from: dates.from || "",
+                to: dates.to || "",
+              }).toString();
+              const res = await fetch(`/api/report/department/group?${qs}`, {
+                cache: "no-store",
+              });
+              const data = await res.json();
+              return { group, data };
+            })
+          );
 
-        // Combine the reports into their respective states
-        groups.forEach((group, index) => {
-          setUsersStatistic((prev) => ({
-            ...prev,
-            [group.id]: allUserReports[index],
-          }));
-          setReviewersStatistic((prev) => ({
-            ...prev,
-            [group.id]: allReviewerReports[index],
-          }));
-          setFinalReviewersStatistic((prev) => ({
-            ...prev,
-            [group.id]: allFinalReviewerReports[index],
-          }));
-        });
+          results.forEach(({ group, data }) => {
+            setUsersStatistic((prev) => ({
+              ...prev,
+              [group.id]: data.users,
+            }));
+            setReviewersStatistic((prev) => ({
+              ...prev,
+              [group.id]: data.reviewers,
+            }));
+            setFinalReviewersStatistic((prev) => ({
+              ...prev,
+              [group.id]: data.finalReviewers,
+            }));
+          });
+        }
       } catch (error) {
         console.error("Error fetching reports:", error);
       } finally {
