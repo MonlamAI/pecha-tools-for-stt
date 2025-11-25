@@ -159,8 +159,8 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
         ? "reviewed_at"
         : "finalised_reviewed_at";
     whereCondition[dateField] = {
-      gte: new Date(fromDate),
-      lte: new Date(toDate),
+      gte: utcToIst(new Date(fromDate)),
+      lte: utcToIst(new Date(toDate)),
     };
   }
 

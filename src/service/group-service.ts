@@ -62,73 +62,65 @@ export async function getAllGroupTaskStats(groupList: any[]) {
   if (!groupList || groupList.length === 0) return [];
 
   try {
-    // Optimized concurrent queries using Promise.all pattern
-    const groupPromises = groupList.map(async (group) => {
-      const [importedTasks, transcribingTasks, submittedTasks, acceptedTasks, finalisedTasks, trashedTasks] = await Promise.all([
-        // Tasks in "transcribing" state with no transcriber (imported)
-        prisma.task.count({
-          where: {
-            group_id: group.id,
-            state: "transcribing",
-            transcriber_id: null,
-          },
-        }),
+    // Aggregate once across all groups, then project per group
+    const taskStatsMain = await prisma.task.groupBy({
+      by: ["state", "group_id"],
+      where: { NOT: { state: "transcribing" } },
+      _count: { _all: true },
+    });
 
-        // Tasks in "transcribing" state with transcriber assigned
-        prisma.task.count({
-          where: {
-            group_id: group.id,
-            state: "transcribing",
-            transcriber_id: { not: null },
-          },
-        }),
+    const taskImportedCount = await prisma.task.groupBy({
+      by: ["group_id"],
+      where: { state: "transcribing", transcriber_id: null },
+      _count: { _all: true },
+    });
 
-        // Tasks in other states
-        prisma.task.count({
-          where: {
-            group_id: group.id,
-            state: "submitted",
-          },
-        }),
+    const taskTranscribingCount = await prisma.task.groupBy({
+      by: ["group_id"],
+      where: { state: "transcribing", NOT: { transcriber_id: null } },
+      _count: { _all: true },
+    });
 
-        prisma.task.count({
-          where: {
-            group_id: group.id,
-            state: "accepted",
-          },
-        }),
+    for (const t of taskImportedCount) {
+      taskStatsMain.push({
+        group_id: t.group_id,
+        // @ts-ignore merge pseudo-state for imported
+        state: "imported",
+        _count: { _all: t._count._all },
+      } as any);
+    }
+    for (const t of taskTranscribingCount) {
+      taskStatsMain.push({
+        group_id: t.group_id,
+        state: "transcribing",
+        _count: { _all: t._count._all },
+      } as any);
+    }
 
-        prisma.task.count({
-          where: {
-            group_id: group.id,
-            state: "finalised",
-          },
-        }),
-
-        prisma.task.count({
-          where: {
-            group_id: group.id,
-            state: "trashed",
-          },
-        }),
-      ]);
-
-      return {
+    const out = [];
+    for (const group of groupList) {
+      const bucket = taskStatsMain.filter((t) => t.group_id === group.id);
+      out.push({
         id: group.id,
         name: group.name,
         department_id: group.department_id,
         departmentName: group.Department?.name,
-        taskImportedCount: importedTasks,
-        taskTranscribingCount: transcribingTasks,
-        taskSubmittedCount: submittedTasks,
-        taskAcceptedCount: acceptedTasks,
-        taskFinalisedCount: finalisedTasks,
-        taskTrashedCount: trashedTasks,
-      };
-    });
+        taskImportedCount:
+          bucket.find((b) => b.state === "imported")?._count?._all ?? 0,
+        taskTranscribingCount:
+          bucket.find((b) => b.state === "transcribing")?._count?._all ?? 0,
+        taskSubmittedCount:
+          bucket.find((b) => b.state === "submitted")?._count?._all ?? 0,
+        taskAcceptedCount:
+          bucket.find((b) => b.state === "accepted")?._count?._all ?? 0,
+        taskFinalisedCount:
+          bucket.find((b) => b.state === "finalised")?._count?._all ?? 0,
+        taskTrashedCount:
+          bucket.find((b) => b.state === "trashed")?._count?._all ?? 0,
+      });
+    }
 
-    const groupStatsList = await Promise.all(groupPromises);
-    return groupByDepartmentId(groupStatsList);
+    return groupByDepartmentId(out);
   } catch (error) {
     console.error("Error getting all groups task stats:", error);
     return { error: "Failed to fetch group task statistics. Please try again." };
