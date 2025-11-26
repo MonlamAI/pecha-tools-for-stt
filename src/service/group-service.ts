@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import prisma from "./db";
+type StatRow = { group_id: number; state: string; _count: { _all: number } };
 
 export async function getTranscribingCount({ groupId }: { groupId: number }) {
   return await prisma.group.findUnique({
@@ -63,11 +64,11 @@ export async function getAllGroupTaskStats(groupList: any[]) {
 
   try {
     // Aggregate once across all groups, then project per group
-    const taskStatsMain = await prisma.task.groupBy({
+    const taskStatsMain = (await prisma.task.groupBy({
       by: ["state", "group_id"],
       where: { NOT: { state: "transcribing" } },
       _count: { _all: true },
-    });
+    })) as StatRow[];
 
     const taskImportedCount = await prisma.task.groupBy({
       by: ["group_id"],
@@ -84,20 +85,20 @@ export async function getAllGroupTaskStats(groupList: any[]) {
     for (const t of taskImportedCount) {
       taskStatsMain.push({
         group_id: t.group_id,
-        // @ts-ignore merge pseudo-state for imported
+        // pseudo-state for imported
         state: "imported",
         _count: { _all: t._count._all },
-      } as any);
+      } as StatRow);
     }
     for (const t of taskTranscribingCount) {
       taskStatsMain.push({
         group_id: t.group_id,
         state: "transcribing",
         _count: { _all: t._count._all },
-      } as any);
+      } as StatRow);
     }
 
-    const out = [];
+    const out = [] as any[];
     for (const group of groupList) {
       const bucket = taskStatsMain.filter((t) => t.group_id === group.id);
       out.push({
