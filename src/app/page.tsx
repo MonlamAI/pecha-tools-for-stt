@@ -29,7 +29,7 @@ export default async function Home({ searchParams }: { searchParams: any }) {
       {session === undefined || session === "" ? (
         <>
           <div className="text-xl font-semibold mt-10 p-5 text-center">
-            please log in to it with correct username - ?session=username
+            please log in to it with correct email - ?session=email
             <span className="block">or</span>
           </div>
           <div className="flex flex-col gap-6 sm:flex-row">

@@ -45,14 +45,17 @@ export async function POST(req: Request) {
   const isValidRole = (ALLOWED_ROLES as string[]).includes(claimRoleRaw);
   const roleFromJwt = (isValidRole ? (claimRoleRaw as Role) : undefined);
 
-  const username = email;
+  const preferredName =
+    (typeof payload.name === "string" && payload.name.trim()) ||
+    (typeof payload.nickname === "string" && payload.nickname.trim()) ||
+    email;
 
   await prisma.user.upsert({
     where: { email },
-    // On update: keep existing role if claim invalid by not setting role
-    update: roleFromJwt ? { name: username, role: roleFromJwt } : { name: username },
+    // On update: only refresh role when claim is valid so manual names stay intact
+    update: roleFromJwt ? { role: roleFromJwt } : {},
     // On create: default to TRANSCRIBER if claim invalid
-    create: { name: username, email, role: roleFromJwt ?? "TRANSCRIBER", group_id: 0 },
+    create: { name: preferredName, email, role: roleFromJwt ?? "TRANSCRIBER", group_id: 0 },
   });
 
   return NextResponse.redirect(new URL(`/?session=${encodeURIComponent(username)}`, req.url), 302);

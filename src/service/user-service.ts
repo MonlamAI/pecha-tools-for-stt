@@ -54,7 +54,7 @@ export async function getOrCreateUser({ username }: { username: string }) {
   // if (!username.endsWith("@yourdomain.com")) return { error: "Unauthorized user" };
 
   let user = await prisma.user.findUnique({
-    where: { name: username },
+    where: { email: username },
     select: {
       id: true,
       name: true,
