@@ -58,5 +58,8 @@ export async function POST(req: Request) {
     create: { name: preferredName, email, role: roleFromJwt ?? "TRANSCRIBER", group_id: 0 },
   });
 
-  return NextResponse.redirect(new URL(`/?session=${encodeURIComponent(username)}`, req.url), 302);
+  return NextResponse.redirect(
+    new URL(`/?session=${encodeURIComponent(email)}`, req.url),
+    302
+  );
 }
