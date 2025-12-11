@@ -30,7 +30,7 @@ body {
     [data-theme="dark"] textarea,
     [data-theme="dark"] select,
     [data-theme="dark"] input {
-        background-color: #374151;
+        background-color: #000000;
         color: white;
     }
 }

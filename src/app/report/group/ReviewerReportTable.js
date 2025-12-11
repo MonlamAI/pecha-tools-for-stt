@@ -58,10 +58,10 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
   };
 
   return (
-    <div className="overflow-x-auto shadow-md sm:rounded-lg w-11/12 md:w-4/5 max-h-[80vh]">
+    <div className="overflow-x-auto shadow-md sm:rounded-lg w-11/12 md:w-4/5 max-h-[80vh] text-black dark:text-slate-50">
       <table className="table">
         {/* head */}
-        <thead className="text-sm uppercase">
+        <thead className="text-sm uppercase text-black dark:text-slate-50">
           <tr>
             <th>Reviewer Name</th>
             <th>Task Reviewed</th>

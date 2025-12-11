@@ -1,5 +1,12 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+  Suspense,
+} from "react";
 import {
   generateUserReportByGroup,
   generateReviewerReportbyGroup,
@@ -7,101 +14,134 @@ import {
 } from "@/model/user";
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
-import TranscriberReportTable from "../group/TranscriberReportTable";
-import ReviewerReportTable from "../group/ReviewerReportTable";
 import DepartmentTotal from "./DepartmentTotal";
-import FinalReviewerTable from "../group/FinalReviewerTable";
+
+const TranscriberReportTable = React.lazy(() =>
+  import("../group/TranscriberReportTable")
+);
+const ReviewerReportTable = React.lazy(() =>
+  import("../group/ReviewerReportTable")
+);
+const FinalReviewerTable = React.lazy(() =>
+  import("../group/FinalReviewerTable")
+);
+
+const TableSkeleton = () => (
+  <div className="w-full space-y-4 animate-pulse">
+    <div className="h-6 bg-gray-300 rounded"></div>
+    <div className="h-40 bg-gray-200 rounded"></div>
+  </div>
+);
 
 const DepartmentReport = ({ departments }) => {
-  const [isLoading, setIsLoading] = useState(false); // Loading state
+  const [isLoading, setIsLoading] = useState(false);
   const [usersStatistic, setUsersStatistic] = useState({});
   const [reviewersStatistic, setReviewersStatistic] = useState({});
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState({});
   const [selectDepartment, setSelectDepartment] = useState("");
   const [dates, setDates] = useState({ from: "", to: "" });
 
-  const handleDepartmentChange = async (event) => {
+  // 🔹 New: selected group for filtering
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
+
+  const cacheRef = useRef({});
+
+  const handleDepartmentChange = useCallback((event) => {
     setSelectDepartment(event.target.value);
-  };
+    setSelectedGroupId(null); // reset group view
+  }, []);
 
-  const handleDateChange = async (event) => {
-    setDates((prev) => ({ ...prev, [event.target.name]: event.target.value }));
-  };
+  const handleDateChange = useCallback((event) => {
+    setDates((prev) => ({
+      ...prev,
+      [event.target.name]: event.target.value,
+    }));
+  }, []);
 
-  function getGroupByDepartmentId(departmentId) {
-    if (!departmentId) return [];
-    return departments.find(
-      (department) => department.id === parseInt(departmentId)
-    )?.groups;
-  }
+  const selectedGroups = useMemo(() => {
+    if (!selectDepartment) return [];
+    const dept = departments.find(
+      (d) => d.id === parseInt(selectDepartment)
+    );
+    return dept?.groups || [];
+  }, [selectDepartment, departments]);
 
   useEffect(() => {
-    async function fetchTasks(groups) {
-      try {
-        const userReports = groups.map((group) =>
-          generateUserReportByGroup(group.id, dates)
-        );
-        const reviewerReports = groups.map((group) =>
-          generateReviewerReportbyGroup(group.id, dates)
-        );
-        const finalReviewerReports = groups.map((group) =>
-          generateFinalReviewerReportbyGroup(group.id, dates)
-        );
-
-        // Wait for all promises from all groups to resolve
-        const allUserReports = await Promise.all(userReports);
-        const allReviewerReports = await Promise.all(reviewerReports);
-        const allFinalReviewerReports = await Promise.all(finalReviewerReports);
-
-        // Combine the reports into their respective states
-        groups.forEach((group, index) => {
-          setUsersStatistic((prev) => ({
-            ...prev,
-            [group.id]: allUserReports[index],
-          }));
-          setReviewersStatistic((prev) => ({
-            ...prev,
-            [group.id]: allReviewerReports[index],
-          }));
-          setFinalReviewersStatistic((prev) => ({
-            ...prev,
-            [group.id]: allFinalReviewerReports[index],
-          }));
-        });
-      } catch (error) {
-        console.error("Error fetching reports:", error);
-      } finally {
-        setIsLoading(false); // Ensure loading is false after all operations
-      }
-    }
-
-    if (selectDepartment) {
-      setIsLoading(true); // Start loading before any operation
-
-      const groups = getGroupByDepartmentId(selectDepartment);
-      if (groups.length > 0) {
-        fetchTasks(groups);
-      } else {
-        // Handle the case when the selected department has no groups
-        setIsLoading(false); // Still need to stop loading
-        setUsersStatistic({});
-        setReviewersStatistic({});
-        setFinalReviewersStatistic({});
-      }
-    } else {
-      // Reset statistics and loading state if no department is selected
-      setIsLoading(false);
+    if (!selectDepartment || selectedGroups.length === 0) {
       setUsersStatistic({});
       setReviewersStatistic({});
       setFinalReviewersStatistic({});
+      return;
     }
-  }, [selectDepartment, dates]);
+
+    const fetchReports = async () => {
+      const cacheKey = `${selectDepartment}_${dates.from}_${dates.to}`;
+
+      if (cacheRef.current[cacheKey]) {
+        const cached = cacheRef.current[cacheKey];
+        setUsersStatistic(cached.users);
+        setReviewersStatistic(cached.reviewers);
+        setFinalReviewersStatistic(cached.finalReviewers);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+
+        const [allUserReports, allReviewerReports, allFinalReviewerReports] =
+          await Promise.all([
+            Promise.all(
+              selectedGroups.map((group) =>
+                generateUserReportByGroup(group.id, dates)
+              )
+            ),
+            Promise.all(
+              selectedGroups.map((group) =>
+                generateReviewerReportbyGroup(group.id, dates)
+              )
+            ),
+            Promise.all(
+              selectedGroups.map((group) =>
+                generateFinalReviewerReportbyGroup(group.id, dates)
+              )
+            ),
+          ]);
+
+        const newUsers = {};
+        const newReviewers = {};
+        const newFinalReviewers = {};
+
+        selectedGroups.forEach((group, index) => {
+          newUsers[group.id] = allUserReports[index];
+          newReviewers[group.id] = allReviewerReports[index];
+          newFinalReviewers[group.id] = allFinalReviewerReports[index];
+        });
+
+        setUsersStatistic(newUsers);
+        setReviewersStatistic(newReviewers);
+        setFinalReviewersStatistic(newFinalReviewers);
+
+        cacheRef.current[cacheKey] = {
+          users: newUsers,
+          reviewers: newReviewers,
+          finalReviewers: newFinalReviewers,
+        };
+      } catch (error) {
+        console.error("Error fetching reports:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, [selectDepartment, selectedGroups, dates]);
 
   const isEmpty = (obj) => Object.keys(obj).length === 0;
 
   return (
     <>
-      <form className="sticky top-0 z-20 py-8 bg-base-100 flex flex-col md:flex-row justify-around items-center md:items-end space-y-5 space-x-0 md:space-y-0 md:space-x-10">
+      {/* Filters */}
+      <form className="sticky top-0 z-20 py-8 bg-base-100 flex flex-col md:flex-row justify-around items-center md:items-end space-y-5 md:space-y-0 md:space-x-10">
         <Select
           title="department_id"
           label="department"
@@ -109,6 +149,7 @@ const DepartmentReport = ({ departments }) => {
           selectedOption={selectDepartment}
           handleOptionChange={handleDepartmentChange}
         />
+
         <div className="flex flex-col md:flex-row gap-2 md:gap-6">
           <DateInput
             label="from"
@@ -122,31 +163,63 @@ const DepartmentReport = ({ departments }) => {
           />
         </div>
       </form>
+
+      {/* Group Buttons */}
+      {selectedGroups.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-4 my-6">
+          {selectedGroups.map((group) => (
+            <button
+              key={group.id}
+              onClick={() => setSelectedGroupId(group.id)}
+              className={`
+                px-6 py-3 rounded-xl shadow-md font-semibold 
+                transition-all border 
+                ${selectedGroupId === group.id
+                  ? "bg-blue-600 text-white border-blue-700 shadow-lg"
+                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:shadow-lg"
+                }
+              `}
+            >
+              {group.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Reports */}
       <div className="w-full">
         {isLoading ? (
           <div className="text-center mt-10">
-            <span className="loading loading-spinner text-success text-center"></span>
+            <span className="loading loading-spinner text-success"></span>
           </div>
         ) : (
           <>
-            {getGroupByDepartmentId(selectDepartment).map((group) => (
-              <div
-                key={group.id}
-                className="flex flex-col gap-10 justify-center items-center my-8"
-              >
-                <h1>{group.name}</h1>
-                <TranscriberReportTable
-                  usersStatistic={usersStatistic[group.id]}
-                  selectGroup={group.id}
-                />
-                <ReviewerReportTable
-                  reviewersStatistic={reviewersStatistic[group.id]}
-                />
-                <FinalReviewerTable
-                  finalReviewersStatistic={finalReviewersStatistic[group.id]}
-                />
-              </div>
-            ))}
+            {/* Show only selected group */}
+            {selectedGroupId &&
+              selectedGroups
+                .filter((g) => g.id === selectedGroupId)
+                .map((group) => (
+                  <div
+                    key={group.id}
+                    className="flex flex-col gap-10 justify-center items-center my-8 w-full"
+                  >
+                    <Suspense fallback={<TableSkeleton />}>
+                      <TranscriberReportTable
+                        usersStatistic={usersStatistic[group.id]}
+                        selectGroup={group.id}
+                      />
+                      <ReviewerReportTable
+                        reviewersStatistic={reviewersStatistic[group.id]}
+                      />
+                      <FinalReviewerTable
+                        finalReviewersStatistic={
+                          finalReviewersStatistic[group.id]
+                        }
+                      />
+                    </Suspense>
+                  </div>
+                ))}
+
             {!isEmpty(usersStatistic) && (
               <div className="flex justify-center items-center my-8">
                 <DepartmentTotal usersStatistic={usersStatistic} />

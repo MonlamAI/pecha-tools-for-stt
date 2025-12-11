@@ -1,5 +1,6 @@
 import React from "react";
 import { calculatePercent } from "@/lib/calculatePercent";
+
 const DepartmentTotal = ({ usersStatistic }) => {
   const allUsersStatistic = [];
 
@@ -9,9 +10,10 @@ const DepartmentTotal = ({ usersStatistic }) => {
 
   return (
     <div className="overflow-x-auto shadow-md sm:rounded-lg w-11/12 md:w-4/5 max-h-[80vh]">
-      <table className="table  ">
+      {/* Added text-black dark:text-white so text is visible in both themes */}
+      <table className="table text-black dark:text-white">
         {/* head */}
-        <thead className="text-sm uppercase">
+        <thead className="text-sm uppercase text-black dark:text-slate-50">
           <tr>
             <th>Department Total</th>
             <th>
@@ -31,7 +33,9 @@ const DepartmentTotal = ({ usersStatistic }) => {
             </th>
           </tr>
         </thead>
-        <tbody>
+
+        {/* tbody also forced to visible text */}
+        <tbody className="text-black dark:text-white">
           <tr>
             <td>
               <b>Total</b>
