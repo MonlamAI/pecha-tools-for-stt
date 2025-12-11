@@ -8,25 +8,25 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
     const percentage = calculatePercent(num1, num2);
     // if else to return the color based on the percentage
     if (percentage > 90) {
-      return "bg-[#ff0000]"; // Red
+      return "bg-[#ff0000] text-black"; // Red
     } else if (percentage > 80) {
-      return "bg-[#ff4500]"; // Red-orange
+      return "bg-[#ff4500] text-black"; // Red-orange
     } else if (percentage > 70) {
-      return "bg-[#ff7700]"; // Dark orange
+      return "bg-[#ff7700] text-black"; // Dark orange
     } else if (percentage > 60) {
-      return "bg-[#ffa700]"; // Orange
+      return "bg-[#ffa700] text-black"; // Orange
     } else if (percentage > 50) {
-      return "bg-[#ffc700]"; // Orange-yellow
+      return "bg-[#ffc700] text-black"; // Orange-yellow
     } else if (percentage > 40) {
-      return "bg-[#fff400]"; // Yellow
+      return "bg-[#fff400] text-black"; // Yellow
     } else if (percentage > 30) {
-      return "bg-[#cfff00]"; // Light lime green
+      return "bg-[#cfff00] text-black"; // Light lime green
     } else if (percentage > 20) {
-      return "bg-[#a3ff00]"; // Lime green
+      return "bg-[#a3ff00] text-black"; // Lime green
     } else if (percentage > 10) {
-      return "bg-[#4edc00]"; // Light green
+      return "bg-[#4edc00] text-black"; // Light green
     } else {
-      return "bg-[#2cba00]"; // Dark green
+      return "bg-[#2cba00] text-black"; // Dark green
     }
   };
 
@@ -35,25 +35,25 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
     const percentage = calculatePercent(num1, num2);
     // if else to return the color based on the percentage
     if (percentage > 90) {
-      return "bg-[#2cba00]"; // Dark green
+      return "bg-[#2cba00] text-black"; // Dark green
     } else if (percentage > 80) {
-      return "bg-[#4edc00]"; // Light green
+      return "bg-[#4edc00] text-black"; // Light green
     } else if (percentage > 70) {
-      return "bg-[#a3ff00]"; // Lime green
+      return "bg-[#a3ff00] text-black"; // Lime green
     } else if (percentage > 60) {
-      return "bg-[#cfff00]"; // Light lime green
+      return "bg-[#cfff00] text-black"; // Light lime green
     } else if (percentage > 50) {
-      return "bg-[#fff400]"; // Yellow
+      return "bg-[#fff400] text-black"; // Yellow
     } else if (percentage > 40) {
-      return "bg-[#ffc700]"; // Orange-yellow
+      return "bg-[#ffc700] text-black"; // Orange-yellow
     } else if (percentage > 30) {
-      return "bg-[#ffa700]"; // Orange
+      return "bg-[#ffa700] text-black"; // Orange
     } else if (percentage > 20) {
-      return "bg-[#ff7700]"; // Dark orange
+      return "bg-[#ff7700] text-black"; // Dark orange
     } else if (percentage > 10) {
-      return "bg-[#ff4500]"; // Red-orange
+      return "bg-[#ff4500] text-black"; // Red-orange
     } else {
-      return "bg-[#ff0000]"; // Red
+      return "bg-[#ff0000] text-black"; // Red
     }
   };
 
