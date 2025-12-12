@@ -51,7 +51,7 @@ export default async function Home({ searchParams }: { searchParams: any }) {
         </div>
       ) : (
         <AudioTranscript
-          tasks={userTasks}
+          tasks={userTasks ?? []}
           userDetail={userDetail}
           language={language}
           userHistory={userHistory}

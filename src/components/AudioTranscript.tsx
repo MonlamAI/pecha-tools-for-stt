@@ -5,15 +5,39 @@ import ActionButtons from "./ActionButtons";
 import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
 import AppContext from "./AppContext";
-import type { Task, User } from "@prisma/client";
+import type { State, User } from "@prisma/client";
 import { MAX_HISTORY } from "@/constants/config";
 
 // Types
+type BasicTask = {
+  id: number;
+  group_id: number;
+  state: State;
+  inference_transcript: string | null;
+  transcript: string | null;
+  reviewed_transcript: string | null;
+  final_transcript: string | null;
+  file_name: string;
+  url: string;
+  transcriber: { name: string } | null;
+  reviewer: { name: string } | null;
+};
+
+type HistoryTask = {
+  id: number;
+  group_id: number;
+  state: State;
+  inference_transcript: string | null;
+  transcript: string | null;
+  reviewed_transcript: string | null;
+  final_transcript: string | null;
+};
+
 type AudioTranscriptType = {
-  tasks: Task[];
+  tasks: BasicTask[];
   userDetail: User;
   language: any;
-  userHistory: Task[];
+  userHistory: HistoryTask[];
 };
 
 async function fetchUserProgress({
@@ -84,9 +108,9 @@ const AudioTranscript = ({
 }: AudioTranscriptType) => {
   const [languageSelected, setLanguageSelected] = useState("bo");
   const lang = language[languageSelected];
-  const [taskList, setTaskList] = useState<any>(tasks);
+  const [taskList, setTaskList] = useState<BasicTask[]>(tasks || []);
   const [transcript, setTranscript] = useState("");
-  const [historyList, setHistoryList] = useState<Task[]>(userHistory || []);
+  const [historyList, setHistoryList] = useState<HistoryTask[]>(userHistory || []);
   const [userTaskStats, setUserTaskStats] = useState({
     completedTaskCount: 0,
     totalTaskCount: 0,
@@ -203,7 +227,7 @@ const AudioTranscript = ({
     const lastTaskIndex = getLastTaskIndex();
 
     if (lastTaskIndex !== 0) {
-      setTaskList((prev: any) => prev.filter((task: Task) => task.id !== id));
+      setTaskList((prev) => prev.filter((task) => task.id !== id));
       return;
     }
 
