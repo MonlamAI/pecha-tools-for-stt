@@ -52,7 +52,7 @@ export default async function Home({ searchParams }: { searchParams: any }) {
       ) : (
         <AudioTranscript
           tasks={userTasks ?? []}
-          userDetail={userDetail}
+          userDetail={userDetail!}
           language={language}
           userHistory={userHistory}
         />

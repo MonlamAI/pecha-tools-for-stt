@@ -5,7 +5,7 @@ import ActionButtons from "./ActionButtons";
 import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
 import AppContext from "./AppContext";
-import type { State, User } from "@prisma/client";
+import type { State, Role } from "@prisma/client";
 import { MAX_HISTORY } from "@/constants/config";
 
 // Types
@@ -33,9 +33,16 @@ type HistoryTask = {
   final_transcript: string | null;
 };
 
+type UserLite = {
+  id: number;
+  name: string;
+  group_id: number;
+  role: Role;
+};
+
 type AudioTranscriptType = {
   tasks: BasicTask[];
-  userDetail: User;
+  userDetail: UserLite;
   language: any;
   userHistory: HistoryTask[];
 };
