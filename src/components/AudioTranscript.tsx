@@ -137,16 +137,16 @@ const AudioTranscript = ({
         case "TRANSCRIBER":
           taskList[0]?.transcript != null && taskList[0]?.transcript != ""
             ? setTranscript(taskList[0]?.transcript)
-            : setTranscript(taskList[0]?.inference_transcript);
+            : setTranscript(taskList[0]?.inference_transcript ?? "");
           break;
         case "REVIEWER":
           taskList[0].reviewed_transcript != null &&
             taskList[0].reviewed_transcript != ""
             ? setTranscript(taskList[0]?.reviewed_transcript)
-            : setTranscript(taskList[0]?.transcript);
+            : setTranscript(taskList[0]?.transcript ?? "");
           break;
         case "FINAL_REVIEWER":
-          setTranscript(taskList[0]?.reviewed_transcript);
+          setTranscript(taskList[0]?.reviewed_transcript ?? "");
           break;
         default:
           break;

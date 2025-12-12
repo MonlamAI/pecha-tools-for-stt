@@ -10,16 +10,18 @@ import { getCache, setCache } from "@/lib/cache";
 export type FetchUserDataResult =
   | { error: string }
   | {
-      userDetail: {
-        id: number;
-        name: string;
-        group_id: number;
-        role: Role;
-        group: { name: string | null } | null;
-      };
+      userDetail: UserRecord;
       userTasks: any[];
       userHistory: any[];
     };
+
+type UserRecord = {
+  id: number;
+  name: string;
+  group_id: number;
+  role: Role;
+  group: { name: string | null } | null;
+};
 
 export async function fetchUserDataBySession(session: string): Promise<FetchUserDataResult> {
   if (!session || session === "") {
@@ -27,9 +29,10 @@ export async function fetchUserDataBySession(session: string): Promise<FetchUser
   }
 
   const userData = await getOrCreateUser({ username: session });
-  if (userData === null) {
+  if (!userData || "error" in userData) {
     return {
       error:
+        userData?.error ??
         "No user found. Please try again with the correct username or email..",
     };
   }
@@ -63,7 +66,7 @@ export async function fetchUserDataBySession(session: string): Promise<FetchUser
   };
 }
 
-export async function getOrCreateUser({ username }: { username: string }) {
+export async function getOrCreateUser({ username }: { username: string }): Promise<UserRecord | { error: string }> {
   // only allow from certain domain? uncomment below
   if (!username) return { error: "Username not found. Please try again." };
   // if (!username.endsWith("@yourdomain.com")) return { error: "Unauthorized user" };
@@ -167,7 +170,7 @@ export const getUserProgressStats = async ({
         where: {
           group_id: groupId,
           [rule.idField]: userId,
-          state: { in: rule.passedStates },
+          state: { in: Array.isArray(rule.passedStates) ? rule.passedStates : [rule.passedStates] },
         },
       }),
     ]);

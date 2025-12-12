@@ -5,10 +5,24 @@ import { revalidatePath } from "next/cache";
 import { formatTime } from "@/lib/formatTime";
 import { istCurrentTime } from "@/lib/istCurrentTime";
 import { TASK_RULES } from "@/constants/taskRules";
-import type { Prisma, Role, Task } from "@prisma/client";
+import type { Prisma, Role, Task, State } from "@prisma/client";
 import { ASSIGN_TASKS, USER_FETCH_TASKS } from "@/constants/config";
 import { getNumberOfAssignedTask } from "@/model/action";
 import { getCache, setCache } from "@/lib/cache";
+
+type TaskListItem = {
+  id: number;
+  group_id: number;
+  state: State;
+  inference_transcript: string | null;
+  transcript: string | null;
+  reviewed_transcript: string | null;
+  final_transcript: string | null;
+  file_name: string;
+  url: string;
+  transcriber: { name: string } | null;
+  reviewer: { name: string } | null;
+};
 
 // count user’s assigned but pending tasks
 export const getNumberOfPendingTasks = async ({
@@ -49,12 +63,13 @@ export const getCompletedTaskCount = async ({
   groupId: number;
 }) => {
   const { completedStates, idField } = TASK_RULES[role];
+  const statesArray = Array.isArray(completedStates) ? completedStates : [completedStates];
 
   return prisma.task.count({
     where: {
       [idField]: userId,
       group_id: groupId,
-      state: { in: completedStates },
+      state: { in: statesArray },
     },
   });
 };
@@ -68,7 +83,7 @@ export const getTasks = async ({
   groupId: number;
   userId: number;
   role: Role;
-}) => {
+}): Promise<TaskListItem[]> => {
   // const pendingTaskCount = await getNumberOfAssignedTask(userId, role, groupId);
   const pendingTaskCount = await getNumberOfPendingTasks({
     userId,
@@ -87,7 +102,7 @@ export const getTasks = async ({
   const { workingState, idField } = TASK_RULES[role];
 
   // console.log({ groupId, userId, role, workingState, idField })
-  return await prisma.task.findMany({
+  return (await prisma.task.findMany({
     where: { group_id: groupId, state: workingState, [idField]: userId },
     orderBy: { id: "asc" },
     take: USER_FETCH_TASKS,
@@ -104,7 +119,7 @@ export const getTasks = async ({
       transcriber: { select: { name: true } },
       reviewer: { select: { name: true } },
     },
-  });
+  })) as unknown as TaskListItem[];
 };
 
 export const assignTasksToUser = async ({
@@ -115,7 +130,7 @@ export const assignTasksToUser = async ({
   groupId: number;
   userId: number;
   role: Role;
-}): Promise<Task[]> => {
+}): Promise<TaskListItem[]> => {
   const { workingState, idField } = TASK_RULES[role];
 
   return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -141,7 +156,7 @@ export const assignTasksToUser = async ({
         transcriber: { select: { name: true } },
         reviewer: { select: { name: true } },
       },
-    });
+    }) as unknown as TaskListItem[];
 
     // console.log('unassignedTasks:', unassignedTasks.length, { groupId, userId, role, workingState, idField, })
     if (unassignedTasks.length > 0) {
