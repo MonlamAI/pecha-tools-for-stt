@@ -8,6 +8,7 @@ import { TASK_RULES } from "@/constants/taskRules";
 import type { Prisma, Role, Task } from "@prisma/client";
 import { ASSIGN_TASKS, USER_FETCH_TASKS } from "@/constants/config";
 import { getNumberOfAssignedTask } from "@/model/action";
+import { getCache, setCache } from "@/lib/cache";
 
 // count user’s assigned but pending tasks
 export const getNumberOfPendingTasks = async ({
@@ -20,7 +21,11 @@ export const getNumberOfPendingTasks = async ({
   groupId: number;
 }) => {
   const { workingState, transcriptField, idField } = TASK_RULES[role];
-  return await prisma.task.count({
+  const cacheKey = `pending:${userId}:${groupId}:${role}`;
+  const cached = getCache<number>(cacheKey);
+  if (typeof cached === "number") return cached;
+
+  const count = await prisma.task.count({
     where: {
       group_id: groupId,
       state: workingState,
@@ -29,6 +34,9 @@ export const getNumberOfPendingTasks = async ({
       //   OR: [{ [transcriptField]: null }, { [transcriptField]: "" }],
     },
   });
+  // 3s TTL
+  setCache(cacheKey, count, 3000);
+  return count;
 };
 
 export const getCompletedTaskCount = async ({
