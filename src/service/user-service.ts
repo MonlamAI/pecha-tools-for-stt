@@ -7,7 +7,21 @@ import { MAX_HISTORY } from "@/constants/config";
 import { getCompletedTaskCount, getTasks } from "./task-service";
 import { getCache, setCache } from "@/lib/cache";
 
-export async function fetchUserDataBySession(session: string) {
+export type FetchUserDataResult =
+  | { error: string }
+  | {
+      userDetail: {
+        id: number;
+        name: string;
+        group_id: number;
+        role: Role;
+        group: { name: string | null } | null;
+      };
+      userTasks: any[];
+      userHistory: any[];
+    };
+
+export async function fetchUserDataBySession(session: string): Promise<FetchUserDataResult> {
   if (!session || session === "") {
     return { error: "Invalid session" };
   }
