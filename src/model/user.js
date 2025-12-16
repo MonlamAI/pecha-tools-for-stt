@@ -324,17 +324,15 @@ const getTranscriberCer = async (id, dates) => {
 };
 
 function tibetanSyllableCount(text) {
-  // keep only Tibetan range chars plus spaces/punct you care about
   const tibetanOnly = text.replace(/[^\u0F00-\u0FFF]+/g, "");
-
   return tibetanOnly
-    .split(/[་།]/) // split on tsek and shad
-    .filter(Boolean); // drop empties
+    .split(/[་།]/)
+    .filter(Boolean);
 }
 
 const getTranscriberSyllableCount = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
-  const transcriberId = parseInt(id); // Ensure id is an integer
+  const transcriberId = parseInt(id);
   const dateFilter = buildDateFilter(fromDate, toDate);
 
   try {
@@ -373,8 +371,8 @@ export const getReviewedCountBasedOnSubmittedAt = async (
 ) => {
   const { from: fromDate, to: toDate } = dates;
 
-  const transcriberId = parseInt(id); // Ensure id is an integer
-  const group_id = parseInt(groupId); // Ensure groupId is an integer
+  const transcriberId = parseInt(id);
+  const group_id = parseInt(groupId);
 
   const dateFilter = buildDateFilter(fromDate, toDate);
 
@@ -394,21 +392,15 @@ export const getReviewedCountBasedOnSubmittedAt = async (
   }
 };
 
-// get the task statistics - task reviewed, reviewed secs, syllable count
 export const UserTaskReport = (transcriberObj, userTasks) => {
   const userTaskSummary = userTasks.reduce((acc, task) => {
     if (["accepted", "finalised"].includes(task.state)) {
       acc.noReviewed++;
-
-      acc.syllableCount += tibetanSyllableCount(
-        task.reviewed_transcript
-      ).length;
-
+      acc.syllableCount += tibetanSyllableCount(task.reviewed_transcript).length;
       acc.characterCount += task.transcript ? task.transcript.length : 0;
-      // Ensure both transcripts are available before calculating CER
       if (task.transcript && task.reviewed_transcript) {
         const cer = levenshtein.get(task.transcript, task.reviewed_transcript);
-        acc.totalCer += cer; // Add CER for each task to total
+        acc.totalCer += cer;
       }
     }
     if (task.transcriber_is_correct === false) {
@@ -420,11 +412,8 @@ export const UserTaskReport = (transcriberObj, userTasks) => {
 };
 
 export const splitIntoSyllables = (transcript) => {
-  // Split the text into syllables using regular expressions
   const syllables = transcript.split(/[\\s་།]+/);
-  // Filter out empty syllables
-  const filteredSplit = syllables.filter((s) => s !== "");
-  return filteredSplit;
+  return syllables.filter((s) => s !== "");
 };
 
 export const reviewerOfGroup = async (groupId) => {
@@ -442,7 +431,6 @@ export const reviewerOfGroup = async (groupId) => {
   }
 };
 
-// for all the reviewers of a group retun the task statistics - task reviewed, task accepted, task finalised
 export const generateReviewerReportbyGroup = async (groupId, dates) => {
   try {
     const reviewers = await reviewerOfGroup(groupId);
@@ -478,11 +466,7 @@ export const generateReviewerTaskReport = async (reviewer, dates) => {
     characterCount: 0,
   };
 
-  // const updatedReviwerObj = await getReviewerTaskCount(id, dates, reviewerObj);
-  const updatedReviewerObj = await moreReviewerStats(
-    reviewerObj,
-    reviewerTasks
-  );
+  const updatedReviewerObj = await moreReviewerStats(reviewerObj, reviewerTasks);
 
   return updatedReviewerObj;
 };
@@ -496,26 +480,18 @@ export const moreReviewerStats = (reviewerObj, reviewerTasks) => {
       acc.characterCount += task.reviewed_transcript
         ? task.reviewed_transcript.length
         : 0;
-      const cer = levenshtein.get(
-        task.reviewed_transcript,
-        task.final_transcript
-      );
-      acc.totalCer += cer; // Add CER for each task to total
+      const cer = levenshtein.get(task.reviewed_transcript, task.final_transcript);
+      acc.totalCer += cer;
     }
     return acc;
   }, reviewerObj);
   return reviewerTaskSummary;
 };
 
-// for all the final reviewers of a group retun the task statistics - task finalised, finalised mintues
 export const generateFinalReviewerReportbyGroup = async (groupId, dates) => {
   try {
     const finalReviewers = await finalReviewerOfGroup(groupId);
-    const usersReport = generateFinalReviewerTaskReport(
-      finalReviewers,
-      dates,
-      groupId
-    );
+    const usersReport = generateFinalReviewerTaskReport(finalReviewers, dates, groupId);
     return usersReport;
   } catch (error) {
     console.error("Error getting users by group:", error);
@@ -538,20 +514,46 @@ export const finalReviewerOfGroup = async (groupId) => {
   }
 };
 
-export const generateFinalReviewerTaskReport = async (
-  finalReviewers,
-  dates,
-  groupId
-) => {
+export const generateFinalReviewerTaskReport = async (finalReviewers, dates, groupId) => {
   const list = await Promise.all(
     finalReviewers.map(({ id, name }) =>
-      getFinalReviewerTaskCount(
-        id,
-        dates,
-        { id, name, noFinalised: 0, finalisedInMin: 0 },
-        groupId
-      )
+      getFinalReviewerTaskCount(id, dates, { id, name, noFinalised: 0, finalisedInMin: 0 }, groupId)
     )
   );
   return list;
+};
+
+// --------------------- NEW MULTI-GROUP FUNCTIONS ---------------------
+
+export const generateUserReportByGroups = async (groupIds, dates) => {
+  const allReports = {};
+  await Promise.all(
+    groupIds.map(async (groupId) => {
+      const report = await generateUserReportByGroup(groupId, dates);
+      allReports[groupId] = report;
+    })
+  );
+  return allReports;
+};
+
+export const generateReviewerReportByGroups = async (groupIds, dates) => {
+  const allReports = {};
+  await Promise.all(
+    groupIds.map(async (groupId) => {
+      const report = await generateReviewerReportbyGroup(groupId, dates);
+      allReports[groupId] = report;
+    })
+  );
+  return allReports;
+};
+
+export const generateFinalReviewerReportByGroups = async (groupIds, dates) => {
+  const allReports = {};
+  await Promise.all(
+    groupIds.map(async (groupId) => {
+      const report = await generateFinalReviewerReportbyGroup(groupId, dates);
+      allReports[groupId] = report;
+    })
+  );
+  return allReports;
 };

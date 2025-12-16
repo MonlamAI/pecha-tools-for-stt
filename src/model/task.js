@@ -74,21 +74,25 @@ export async function createTasksFromCSV(formData) {
   }
 }
 
-export const getUserSpecificTasksCount = async (id, dates) => {
+export const getUserSpecificTasksCount = async (id, dates, role = null) => {
   const { from: fromDate, to: toDate } = dates;
 
-  const user = await prisma.user.findUnique({
-    where: { id: parseInt(id) },
-    select: { role: true },
-  });
-
-  if (!user) return { error: `User with ID ${id} not found.` };
+  // Fetch user role only if not provided (optimization to avoid N+1)
+  let userRole = role;
+  if (!userRole) {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select: { role: true },
+    });
+    if (!user) return { error: `User with ID ${id} not found.` };
+    userRole = user.role;
+  }
 
   // Define the state based on user role
   let stateFilter;
-  if (user.role === "TRANSCRIBER") {
+  if (userRole === "TRANSCRIBER") {
     stateFilter = { in: ["submitted", "accepted", "finalised"] };
-  } else if (user.role === "REVIEWER") {
+  } else if (userRole === "REVIEWER") {
     stateFilter = { in: ["accepted", "finalised"] };
   } else {
     stateFilter = { in: ["finalised"] }; // FINAL_REVIEWER case
@@ -96,14 +100,14 @@ export const getUserSpecificTasksCount = async (id, dates) => {
 
   // Define the base condition for task counting based on the user's role
   let baseWhereCondition = {
-    [`${user.role.toLowerCase()}_id`]: parseInt(id),
+    [`${userRole.toLowerCase()}_id`]: parseInt(id),
     state: stateFilter,
   };
 
   let dateFieldName;
-  if (user.role === "TRANSCRIBER") {
+  if (userRole === "TRANSCRIBER") {
     dateFieldName = "submitted_at";
-  } else if (user.role === "REVIEWER") {
+  } else if (userRole === "REVIEWER") {
     dateFieldName = "reviewed_at";
   } else {
     dateFieldName = "finalised_reviewed_at";
@@ -128,24 +132,27 @@ export const getUserSpecificTasksCount = async (id, dates) => {
   }
 };
 
-export const getUserSpecificTasks = async (id, limit, skip, dates) => {
+export const getUserSpecificTasks = async (id, limit, skip, dates, role = null) => {
   const { from: fromDate, to: toDate } = dates;
 
-  // Attempt to retrieve the user and their role
-  const user = await prisma.user.findUnique({
-    where: { id: parseInt(id) },
-    select: { role: true },
-  });
-
-  if (!user) return { error: `User with ID ${id} not found.` };
+  // Fetch user role only if not provided (optimization to avoid N+1)
+  let userRole = role;
+  if (!userRole) {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select: { role: true },
+    });
+    if (!user) return { error: `User with ID ${id} not found.` };
+    userRole = user.role;
+  }
 
   let whereCondition = {
-    [`${user.role.toLowerCase()}_id`]: parseInt(id),
+    [`${userRole.toLowerCase()}_id`]: parseInt(id),
     // Generic state filter applied to all roles. Adjust as necessary.
     state:
-      user.role === "TRANSCRIBER"
+      userRole === "TRANSCRIBER"
         ? { in: ["submitted", "accepted", "finalised"] }
-        : user.role === "REVIEWER"
+        : userRole === "REVIEWER"
         ? { in: ["accepted", "finalised"] }
         : { in: ["finalised"] },
   };
@@ -153,9 +160,9 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
   // Adjust the `whereCondition` based on dates if provided
   if (fromDate && toDate) {
     const dateField =
-      user.role === "TRANSCRIBER"
+      userRole === "TRANSCRIBER"
         ? "submitted_at"
-        : user.role === "REVIEWER"
+        : userRole === "REVIEWER"
         ? "reviewed_at"
         : "finalised_reviewed_at";
     whereCondition[dateField] = {
@@ -201,7 +208,7 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
     return tasksWithSyllableCounts;
   } catch (error) {
     console.error(`Error fetching tasks for user with ID ${id}:`, error);
-    return { error: `Failed to fetch tasks for user with role ${user.role}. Please try again.` };
+    return { error: `Failed to fetch tasks for user with role ${userRole}. Please try again.` };
   }
 };
 

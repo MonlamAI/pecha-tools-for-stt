@@ -7,11 +7,13 @@ import React, {
   useCallback,
   Suspense,
 } from "react";
+
 import {
   generateUserReportByGroup,
   generateReviewerReportbyGroup,
   generateFinalReviewerReportbyGroup,
 } from "@/model/user";
+
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
 import DepartmentTotal from "./DepartmentTotal";
@@ -35,20 +37,23 @@ const TableSkeleton = () => (
 
 const DepartmentReport = ({ departments }) => {
   const [isLoading, setIsLoading] = useState(false);
+
   const [usersStatistic, setUsersStatistic] = useState({});
   const [reviewersStatistic, setReviewersStatistic] = useState({});
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState({});
+
   const [selectDepartment, setSelectDepartment] = useState("");
   const [dates, setDates] = useState({ from: "", to: "" });
 
-  // 🔹 New: selected group for filtering
   const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const cacheRef = useRef({});
 
   const handleDepartmentChange = useCallback((event) => {
     setSelectDepartment(event.target.value);
-    setSelectedGroupId(null); // reset group view
+    setSelectedGroupId(null);
+    setHasSearched(false);
   }, []);
 
   const handleDateChange = useCallback((event) => {
@@ -56,6 +61,7 @@ const DepartmentReport = ({ departments }) => {
       ...prev,
       [event.target.name]: event.target.value,
     }));
+    setHasSearched(false);
   }, []);
 
   const selectedGroups = useMemo(() => {
@@ -66,16 +72,20 @@ const DepartmentReport = ({ departments }) => {
     return dept?.groups || [];
   }, [selectDepartment, departments]);
 
+  // AUTO-SELECT FIRST GROUP
   useEffect(() => {
-    if (!selectDepartment || selectedGroups.length === 0) {
-      setUsersStatistic({});
-      setReviewersStatistic({});
-      setFinalReviewersStatistic({});
-      return;
+    if (selectedGroups.length > 0 && !selectedGroupId) {
+      setSelectedGroupId(selectedGroups[0].id);
     }
+  }, [selectedGroups, selectedGroupId]);
+
+  // 🚀 FETCH REPORTS (FIXED)
+  useEffect(() => {
+    if (!hasSearched) return;
+    if (!selectDepartment || !selectedGroupId) return;
 
     const fetchReports = async () => {
-      const cacheKey = `${selectDepartment}_${dates.from}_${dates.to}`;
+      const cacheKey = `${selectedGroupId}_${dates.from}_${dates.to}`;
 
       if (cacheRef.current[cacheKey]) {
         const cached = cacheRef.current[cacheKey];
@@ -88,34 +98,17 @@ const DepartmentReport = ({ departments }) => {
       try {
         setIsLoading(true);
 
-        const [allUserReports, allReviewerReports, allFinalReviewerReports] =
+        // ✅ ONLY SELECTED GROUP API CALLS
+        const [userReport, reviewerReport, finalReviewerReport] =
           await Promise.all([
-            Promise.all(
-              selectedGroups.map((group) =>
-                generateUserReportByGroup(group.id, dates)
-              )
-            ),
-            Promise.all(
-              selectedGroups.map((group) =>
-                generateReviewerReportbyGroup(group.id, dates)
-              )
-            ),
-            Promise.all(
-              selectedGroups.map((group) =>
-                generateFinalReviewerReportbyGroup(group.id, dates)
-              )
-            ),
+            generateUserReportByGroup(selectedGroupId, dates),
+            generateReviewerReportbyGroup(selectedGroupId, dates),
+            generateFinalReviewerReportbyGroup(selectedGroupId, dates),
           ]);
 
-        const newUsers = {};
-        const newReviewers = {};
-        const newFinalReviewers = {};
-
-        selectedGroups.forEach((group, index) => {
-          newUsers[group.id] = allUserReports[index];
-          newReviewers[group.id] = allReviewerReports[index];
-          newFinalReviewers[group.id] = allFinalReviewerReports[index];
-        });
+        const newUsers = { [selectedGroupId]: userReport };
+        const newReviewers = { [selectedGroupId]: reviewerReport };
+        const newFinalReviewers = { [selectedGroupId]: finalReviewerReport };
 
         setUsersStatistic(newUsers);
         setReviewersStatistic(newReviewers);
@@ -134,14 +127,17 @@ const DepartmentReport = ({ departments }) => {
     };
 
     fetchReports();
-  }, [selectDepartment, selectedGroups, dates]);
+  }, [hasSearched, selectDepartment, selectedGroupId, dates]);
 
   const isEmpty = (obj) => Object.keys(obj).length === 0;
 
   return (
     <>
       {/* Filters */}
-      <form className="sticky top-0 z-20 py-8 bg-base-100 flex flex-col md:flex-row justify-around items-center md:items-end space-y-5 md:space-y-0 md:space-x-10">
+      <form
+        className="sticky top-0 z-20 py-8 bg-base-100 flex flex-col md:flex-row justify-around items-center
+       md:items-end space-y-5 md:space-y-0 md:space-x-10"
+      >
         <Select
           title="department_id"
           label="department"
@@ -162,23 +158,28 @@ const DepartmentReport = ({ departments }) => {
             handleDateChange={handleDateChange}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={() => setHasSearched(true)}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition"
+        >
+          Search
+        </button>
       </form>
 
       {/* Group Buttons */}
-      {selectedGroups.length > 0 && (
+      {selectedGroups.length > 0 && hasSearched && (
         <div className="flex flex-wrap justify-center gap-4 my-6">
           {selectedGroups.map((group) => (
             <button
               key={group.id}
               onClick={() => setSelectedGroupId(group.id)}
-              className={`
-                px-6 py-3 rounded-xl shadow-md font-semibold 
-                transition-all border 
-                ${selectedGroupId === group.id
+              className={`px-6 py-3 rounded-xl shadow-md font-semibold transition-all border ${
+                selectedGroupId === group.id
                   ? "bg-blue-600 text-white border-blue-700 shadow-lg"
                   : "bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:shadow-lg"
-                }
-              `}
+              }`}
             >
               {group.name}
             </button>
@@ -188,14 +189,20 @@ const DepartmentReport = ({ departments }) => {
 
       {/* Reports */}
       <div className="w-full">
+        {!hasSearched && (
+          <p className="text-center text-gray-500 mt-8">
+            Select Department + Date Range and click <b>Search</b>
+          </p>
+        )}
+
         {isLoading ? (
           <div className="text-center mt-10">
             <span className="loading loading-spinner text-success"></span>
           </div>
         ) : (
           <>
-            {/* Show only selected group */}
-            {selectedGroupId &&
+            {hasSearched &&
+              selectedGroupId &&
               selectedGroups
                 .filter((g) => g.id === selectedGroupId)
                 .map((group) => (
@@ -220,7 +227,7 @@ const DepartmentReport = ({ departments }) => {
                   </div>
                 ))}
 
-            {!isEmpty(usersStatistic) && (
+            {hasSearched && !isEmpty(usersStatistic) && (
               <div className="flex justify-center items-center my-8">
                 <DepartmentTotal usersStatistic={usersStatistic} />
               </div>
