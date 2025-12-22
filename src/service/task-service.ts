@@ -1,7 +1,6 @@
 "use server";
 
 import prisma from "@/service/db";
-import { revalidatePath } from "next/cache";
 import { formatTime } from "@/lib/formatTime";
 import { istCurrentTime } from "@/lib/istCurrentTime";
 import { TASK_RULES } from "@/constants/taskRules";
@@ -283,13 +282,6 @@ export const updateTask = async (
 
   // console.log('updateTask', { updatedTask, data, id })
   if (updatedTask) {
-    const shouldRevalidate =
-      action === "submit" || (action as string) === "accept" || (action as string) === "finalise";
-    if (shouldRevalidate) {
-      revalidatePath("/stats");
-      revalidatePath("/dashboard");
-      revalidatePath("/report");
-    }
     return { msg: taskToastMsg(action), updatedTask };
   }
   return { error: "Error updating task" };

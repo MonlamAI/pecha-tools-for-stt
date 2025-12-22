@@ -205,14 +205,17 @@ const AudioTranscript = ({
       }
       toast.success(result?.msg?.success || "");
 
-      // refresh user progress after updates
-      await setUserProgress();
-
-      // refetch authoritative history to avoid duplicates and keep correct order
-      try {
-        const latestHistory = await fetchUserHistoryApi({ userId, groupId, role });
-        setHistoryList(latestHistory);
-      } catch {}
+      // refresh user progress after updates (in parallel with optional history refresh)
+      const shouldRefreshHistory = action !== "save" && action !== "trash";
+      const refreshPromises: Promise<any>[] = [setUserProgress()];
+      if (shouldRefreshHistory) {
+        refreshPromises.push(
+          fetchUserHistoryApi({ userId, groupId, role })
+            .then((latestHistory) => setHistoryList(latestHistory))
+            .catch(() => {})
+        );
+      }
+      await Promise.all(refreshPromises);
       handleTaskListUpdate(action, task.id);
     } catch (error) {
       console.error("Failed to update task:", error);
