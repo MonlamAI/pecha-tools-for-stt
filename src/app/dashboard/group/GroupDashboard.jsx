@@ -19,10 +19,6 @@ const GroupDashboard = ({ groupList, departments }) => {
         `Group ${row.name} has ${noUser} users and ${noTask} tasks!`
       );
     } else {
-      const ok = window.confirm(
-        `Are you sure you want to delete group "${row.name}"? This action cannot be undone.`
-      );
-      if (!ok) return;
       const deletedGroup = await deleteGroup(row.id);
     }
   };

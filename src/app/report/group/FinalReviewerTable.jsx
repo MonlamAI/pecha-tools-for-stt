@@ -6,20 +6,18 @@ const FinalReviewerTable = ({ finalReviewersStatistic }) => {
     <div className="overflow-x-auto shadow-md sm:rounded-lg w-11/12 md:w-4/5 max-h-[80vh]">
       <table className="table  ">
         {/* head */}
-        <thead className="text-sm uppercase text-black dark:text-slate-50">
+        <thead className="text-sm uppercase">
           <tr>
             <th>Final Reviewer Name</th>
             <th>Task Finalised</th>
             <th>Finalised minutes</th>
           </tr>
         </thead>
-        <tbody className="text-black dark:text-slate-50">
+        <tbody>
           {finalReviewersStatistic?.map((finalReviewer) => (
             <tr key={finalReviewer.id}>
               <td>
-                <Link href={`/report/user/${finalReviewer.id}`}
-                className="text-black dark:text-slate-50"
-                >
+                <Link href={`/report/user/${finalReviewer.id}`}>
                   {finalReviewer.name}
                 </Link>
               </td>

@@ -9,8 +9,22 @@ const UserReportTable = ({
   setUserTaskRecord,
 }) => {
   function formattedDate(date) {
+  if (!date) return "";
+
+  // If already a string (production case)
+  if (typeof date === "string") {
+    return new Date(date).toISOString();
+  }
+
+  // If Date object (localhost case)
+  if (date instanceof Date) {
     return date.toISOString();
   }
+
+  // Fallback safety
+  return "";
+}
+
   const [disabledButtons, setDisabledButtons] = useState({});
   const countRef = useRef(0);
 
@@ -130,14 +144,12 @@ const UserReportTable = ({
                 <td>{task.reviewer?.name || ""}</td>
                 <td>{task.final_reviewer?.name || ""}</td>
                 <td>
-                  {task.submitted_at !== null
-                    ? formattedDate(task?.submitted_at)
-                    : ""}
+                  {formattedDate(task.submitted_at)}
+
                 </td>
                 <td>
-                  {task.reviewed_at !== null
-                    ? formattedDate(task?.reviewed_at)
-                    : ""}
+                  {formattedDate(task.reviewed_at)}
+
                 </td>
                 <td>{task.file_name}</td>
                 <td>{task.audio_duration}</td>

@@ -5,63 +5,58 @@ import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
 import { utcToIst } from "@/lib/istCurrentTime";
 
-// get all tasks basd on the search params
+/* --------------------- TASK FETCHERS --------------------- */
+
+// Get all tasks based on pagination
 export const getAllTask = async (limit, skip) => {
   try {
-    const tasks = await prisma.task.findMany({
-      skip: skip,
+    return await prisma.task.findMany({
+      skip,
       take: limit,
     });
-    return tasks;
   } catch (error) {
     console.error("Error getting all the tasks:", error);
     return { error: "Failed to fetch all tasks. Please try again." };
   }
 };
 
-//get the total count of tasks
+// Get total task count with caching
 export const getTotalTaskCount = async () => {
   try {
+    const cacheKey = "task_total_count";
+    const cached = getCache(cacheKey);
+    if (typeof cached === "number") return cached;
+
     const totalTask = await prisma.task.count({});
+    setCache(cacheKey, totalTask, 10000); // 10s TTL
     return totalTask;
   } catch (error) {
-    console.error("Error fetching the count of lists:", error);
+    console.error("Error fetching total task count:", error);
     return { error: "Failed to fetch task count. Please try again." };
   }
 };
 
+/* --------------------- TASK CREATION --------------------- */
+
 export async function createTasksFromCSV(formData) {
   let tasksToCreate = [];
   try {
-    const groupId = formData.get("group_id");
-    const tasksFile = formData.get("tasks");
-    const parsedTasksFile = JSON.parse(tasksFile);
-    // Create an array to hold task data
-    tasksToCreate = await Promise.all(
-      parsedTasksFile.map((row) => {
-        // Extract data from the CSV row
-        const inference_transcript = row.inference_transcript;
-        const fileName = row.file_name;
-        const url = row.url;
-        const audio_duration = row.audio_duration;
+    const groupId = parseInt(formData.get("group_id"));
+    const parsedTasksFile = JSON.parse(formData.get("tasks"));
 
-        // Return task data as an object
-        return {
-          group_id: parseInt(groupId),
-          inference_transcript: inference_transcript,
-          file_name: fileName,
-          url: url,
-          audio_duration: parseFloat(audio_duration),
-        };
-      })
-    );
+    tasksToCreate = parsedTasksFile.map((row) => ({
+      group_id: groupId,
+      inference_transcript: row.inference_transcript,
+      file_name: row.file_name,
+      url: row.url,
+      audio_duration: parseFloat(row.audio_duration),
+    }));
   } catch (error) {
     console.error("Error parsing tasks file:", error);
     return { count: 0 };
   }
 
   try {
-    // Use createMany to insert all tasks at once
     const tasksCreated = await prisma.task.createMany({
       data: tasksToCreate,
       skipDuplicates: true,
@@ -74,172 +69,146 @@ export async function createTasksFromCSV(formData) {
   }
 }
 
-export const getUserSpecificTasksCount = async (id, dates, role = null) => {
+/* --------------------- USER SPECIFIC TASKS --------------------- */
+
+// Get user-specific task count (optimized)
+export const getUserSpecificTasksCount = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
+  const userId = parseInt(id);
 
-  // Fetch user role only if not provided (optimization to avoid N+1)
-  let userRole = role;
-  if (!userRole) {
-    const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
-      select: { role: true },
-    });
-    if (!user) return { error: `User with ID ${id} not found.` };
-    userRole = user.role;
-  }
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!user) return { error: `User with ID ${id} not found.` };
 
-  // Define the state based on user role
-  let stateFilter;
-  if (userRole === "TRANSCRIBER") {
-    stateFilter = { in: ["submitted", "accepted", "finalised"] };
-  } else if (userRole === "REVIEWER") {
-    stateFilter = { in: ["accepted", "finalised"] };
-  } else {
-    stateFilter = { in: ["finalised"] }; // FINAL_REVIEWER case
-  }
+  const role = user.role.toLowerCase();
+  const stateFilter =
+    role === "transcriber"
+      ? ["submitted", "accepted", "finalised"]
+      : role === "reviewer"
+      ? ["accepted", "finalised"]
+      : ["finalised"];
 
-  // Define the base condition for task counting based on the user's role
-  let baseWhereCondition = {
-    [`${userRole.toLowerCase()}_id`]: parseInt(id),
-    state: stateFilter,
+  const dateField =
+    role === "transcriber"
+      ? "submitted_at"
+      : role === "reviewer"
+      ? "reviewed_at"
+      : "finalised_reviewed_at";
+
+  const whereCondition = {
+    [`${role}_id`]: userId,
+    state: { in: stateFilter },
+    ...(fromDate && toDate && {
+      [dateField]: {
+        gte: utcToIst(new Date(fromDate)),
+        lte: utcToIst(new Date(toDate)),
+      },
+    }),
   };
 
-  let dateFieldName;
-  if (userRole === "TRANSCRIBER") {
-    dateFieldName = "submitted_at";
-  } else if (userRole === "REVIEWER") {
-    dateFieldName = "reviewed_at";
-  } else {
-    dateFieldName = "finalised_reviewed_at";
-  }
-  // Extend the base condition with date filters if both fromDate and toDate are provided
-  if (fromDate && toDate) {
-    // Applies to REVIEWER and FINAL_REVIEWER
-    baseWhereCondition[dateFieldName] = {
-      gte: utcToIst(new Date(fromDate)),
-      lte: utcToIst(new Date(toDate)),
-    };
-  }
-
   try {
-    const userTaskCount = await prisma.task.count({
-      where: baseWhereCondition,
-    });
-    return userTaskCount;
+    return await prisma.task.count({ where: whereCondition });
   } catch (error) {
-    console.error(`Error fetching tasks count for user with ID ${id}:`, error);
+    console.error(`Error fetching tasks count for user ${id}:`, error);
     return { error: "Failed to fetch user-specific tasks count. Please try again." };
   }
 };
 
-export const getUserSpecificTasks = async (id, limit, skip, dates, role = null) => {
+// Get user-specific tasks (with syllable counts, optimized)
+export const getUserSpecificTasks = async (id, limit, skip, dates) => {
   const { from: fromDate, to: toDate } = dates;
+  const userId = parseInt(id);
 
-  // Fetch user role only if not provided (optimization to avoid N+1)
-  let userRole = role;
-  if (!userRole) {
-    const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
-      select: { role: true },
-    });
-    if (!user) return { error: `User with ID ${id} not found.` };
-    userRole = user.role;
-  }
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!user) return { error: `User with ID ${id} not found.` };
 
-  let whereCondition = {
-    [`${userRole.toLowerCase()}_id`]: parseInt(id),
-    // Generic state filter applied to all roles. Adjust as necessary.
-    state:
-      userRole === "TRANSCRIBER"
-        ? { in: ["submitted", "accepted", "finalised"] }
-        : userRole === "REVIEWER"
-        ? { in: ["accepted", "finalised"] }
-        : { in: ["finalised"] },
+  const role = user.role.toLowerCase();
+  const stateFilter =
+    role === "transcriber"
+      ? ["submitted", "accepted", "finalised"]
+      : role === "reviewer"
+      ? ["accepted", "finalised"]
+      : ["finalised"];
+
+  const dateField =
+    role === "transcriber"
+      ? "submitted_at"
+      : role === "reviewer"
+      ? "reviewed_at"
+      : "finalised_reviewed_at";
+
+  const whereCondition = {
+    [`${role}_id`]: userId,
+    state: { in: stateFilter },
+    ...(fromDate && toDate && {
+      [dateField]: {
+        gte: utcToIst(new Date(fromDate)),
+        lte: utcToIst(new Date(toDate)),
+      },
+    }),
   };
 
-  // Adjust the `whereCondition` based on dates if provided
-  if (fromDate && toDate) {
-    const dateField =
-      userRole === "TRANSCRIBER"
-        ? "submitted_at"
-        : userRole === "REVIEWER"
-        ? "reviewed_at"
-        : "finalised_reviewed_at";
-    whereCondition[dateField] = {
-      gte: utcToIst(new Date(fromDate)),
-      lte: utcToIst(new Date(toDate)),
-    };
-  }
-
   try {
-    // Fetch tasks based on the constructed whereCondition
-    const userTaskList = await prisma.task.findMany({
-      skip: skip,
+    const tasks = await prisma.task.findMany({
+      skip,
       take: limit,
       where: whereCondition,
-      include: {
-        transcriber: { select: { name: true } },
-        reviewer: { select: { name: true } },
-        final_reviewer: { select: { name: true } },
-      },
       orderBy: [
-        {
-          finalised_reviewed_at: "desc",
-        },
-        {
-          reviewed_at: "desc",
-        },
-        {
-          submitted_at: "desc",
-        },
+        { finalised_reviewed_at: "desc" },
+        { reviewed_at: "desc" },
+        { submitted_at: "desc" },
       ],
+      select: {
+        id: true,
+        transcript: true,
+        reviewed_transcript: true,
+        inference_transcript: true,
+        final_transcript: true,
+        state: true,
+        transcriber_is_correct: true,
+        reviewer_is_correct: true,
+      },
     });
 
-    // Compute syllable counts without mutating original task objects
-    const tasksWithSyllableCounts = userTaskList.map((task) => ({
+    // Compute syllable counts in batch
+    return tasks.map((task) => ({
       ...task,
-      transcriptSyllableCount: task.transcript
-        ? splitIntoSyllables(task.transcript).length
-        : 0,
-      reviewedSyllableCount: task.reviewed_transcript
-        ? splitIntoSyllables(task.reviewed_transcript).length
-        : 0,
+      transcriptSyllableCount: task.transcript ? splitIntoSyllables(task.transcript).length : 0,
+      reviewedSyllableCount: task.reviewed_transcript ? splitIntoSyllables(task.reviewed_transcript).length : 0,
     }));
-    return tasksWithSyllableCounts;
   } catch (error) {
-    console.error(`Error fetching tasks for user with ID ${id}:`, error);
-    return { error: `Failed to fetch tasks for user with role ${userRole}. Please try again.` };
+    console.error(`Error fetching tasks for user ${id}:`, error);
+    return { error: `Failed to fetch tasks for user with role ${user.role}.` };
   }
 };
+
+/* --------------------- USER PROGRESS --------------------- */
 
 export const getCompletedTaskCount = async (id, role, groupId) => {
-  let completedTaskCount = 0;
-  let whereCondition = {
-    [`${role.toLowerCase()}_id`]: parseInt(id),
-    state:
-      role === "TRANSCRIBER"
-        ? { in: ["submitted", "accepted", "finalised"] }
-        : role === "REVIEWER"
-        ? { in: ["accepted", "finalised"] }
-        : "finalised",
-    group_id: parseInt(groupId),
-  };
-
   try {
-    completedTaskCount = await prisma.task.count({
-      where: whereCondition,
+    return await prisma.task.count({
+      where: {
+        [`${role.toLowerCase()}_id`]: parseInt(id),
+        group_id: parseInt(groupId),
+        state:
+          role === "TRANSCRIBER"
+            ? { in: ["submitted", "accepted", "finalised"] }
+            : role === "REVIEWER"
+            ? { in: ["accepted", "finalised"] }
+            : "finalised",
+      },
     });
-    return completedTaskCount;
   } catch (error) {
-    console.error(
-      `Error fetching completed tasks for user with ID ${id}:`,
-      error
-    );
-    return {
-      error: `Failed to fetch completed tasks for user with role ${role}. Please try again.`
-    };
+    console.error(`Error fetching completed tasks for user ${id}:`, error);
+    return { error: `Failed to fetch completed tasks for ${role}.` };
   }
 };
+
 
 export const getReviewerTaskCount = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
@@ -422,153 +391,91 @@ export const getReviewerTaskList = async (id, dates) => {
     return { error: "Operation failed. Please try again." };
   }
 };
-
-// get user progress based on the role, user id and group id
 export const UserProgressStats = async (id, role, groupId) => {
-  let completedTaskCount = 0;
-  let totalTaskCount = 0;
-  let totalTaskPassed = 0;
   try {
-    completedTaskCount = await getCompletedTaskCount(id, role, groupId);
-    totalTaskCount = await prisma.task.count({
+    const completedTaskCount = await getCompletedTaskCount(id, role, groupId);
+
+    const totalTaskCount = await prisma.task.count({
       where: {
-        group_id: parseInt(groupId),
         [`${role.toLowerCase()}_id`]: parseInt(id),
+        group_id: parseInt(groupId),
       },
     });
-    totalTaskPassed = await prisma.task.count({
+
+    const totalTaskPassed = await prisma.task.count({
       where: {
         [`${role.toLowerCase()}_id`]: parseInt(id),
         group_id: parseInt(groupId),
         state:
-          role === "TRANSCRIBER"
-            ? { in: ["accepted", "finalised"] }
-            : "finalised",
+          role === "TRANSCRIBER" ? { in: ["accepted", "finalised"] } : "finalised",
       },
     });
+
     return { completedTaskCount, totalTaskCount, totalTaskPassed };
   } catch (error) {
     return { error: "Operation failed. Please try again." };
   }
 };
 
+/* --------------------- TASK STATE REVERSAL --------------------- */
+
 export const getTaskWithRevertedState = async (task, role) => {
   try {
     let newState;
+    if (task.state === "submitted" || (role === "TRANSCRIBER" && task.state === "trashed")) newState = "transcribing";
+    if (task.state === "accepted" || (role === "REVIEWER" && task.state === "trashed")) newState = "submitted";
+    if (task.state === "finalised" || (role === "FINAL_REVIEWER" && task.state === "trashed")) newState = "accepted";
 
-    if (
-      task.state === "submitted" ||
-      (role === "TRANSCRIBER" && task.state === "trashed")
-    ) {
-      newState = "transcribing";
-    }
-    if (
-      task.state === "accepted" ||
-      (role === "REVIEWER" && task.state === "trashed")
-    ) {
-      newState = "submitted";
-    }
-    if (
-      task.state === "finalised" ||
-      (role === "FINAL_REVIEWER" && task.state === "trashed")
-    ) {
-      newState = "accepted";
-    }
     const updatedTask = await prisma.task.update({
-      where: {
-        id: parseInt(task.id),
-      },
-      data: {
-        state: newState,
-      },
+      where: { id: parseInt(task.id) },
+      data: { state: newState },
       include: {
-        transcriber: {
-          select: { name: true },
-        },
-        reviewer: {
-          select: { name: true },
-        },
+        transcriber: { select: { name: true } },
+        reviewer: { select: { name: true } },
       },
     });
+
     revalidatePath("/");
     return updatedTask;
   } catch (error) {
-    console.error("Error getting reverted state task:", error);
+    console.error("Error reverting task state:", error);
     return { error: "Operation failed. Please try again." };
   }
 };
 
+/* --------------------- AGGREGATE DURATION --------------------- */
+
 export const getUserSubmittedAndReviewedSecs = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
-
-  const transcriberId = parseInt(id); // Ensuring ID is treated as an integer
-  const group_id = parseInt(groupId);
+  const userId = parseInt(id);
 
   try {
-    // Execute the aggregate function once with the constructed conditions
-    const totalSubmittedSecs = await prisma.task.aggregate({
+    // Aggregate all states in one query to reduce DB calls
+    const stats = await prisma.task.groupBy({
+      by: ["state"],
       where: {
-        transcriber_id: transcriberId,
-        // Conditionally add date filters if both dates are provided
-        ...(fromDate &&
-          toDate && {
-            submitted_at: {
-              gte: utcToIst(new Date(fromDate)),
-              lte: utcToIst(new Date(toDate)),
-            },
-          }),
-        state: { in: ["submitted", "accepted", "finalised"] },
+        transcriber_id: userId,
+        ...(fromDate && toDate && {
+          submitted_at: { gte: utcToIst(new Date(fromDate)), lte: utcToIst(new Date(toDate)) },
+        }),
+        state: { in: ["submitted", "accepted", "finalised", "trashed"] },
       },
-      _sum: {
-        audio_duration: true,
-      },
+      _sum: { audio_duration: true },
     });
 
-    const totolReviewedSecs = await prisma.task.aggregate({
-      where: {
-        transcriber_id: transcriberId,
-        // Conditionally add date filters if both dates are provided
-        ...(fromDate &&
-          toDate && {
-            reviewed_at: {
-              gte: new Date(fromDate),
-              lte: new Date(toDate),
-            },
-          }),
-        state: { in: ["accepted", "finalised"] },
-      },
-      _sum: {
-        audio_duration: true,
-      },
+    let submittedSecs = 0,
+      reviewedSecs = 0,
+      trashedSecs = 0;
+
+    stats.forEach((s) => {
+      if (["submitted", "accepted", "finalised"].includes(s.state)) submittedSecs += s._sum.audio_duration || 0;
+      if (["accepted", "finalised"].includes(s.state)) reviewedSecs += s._sum.audio_duration || 0;
+      if (s.state === "trashed") trashedSecs += s._sum.audio_duration || 0;
     });
 
-    const totalTrashedSecs = await prisma.task.aggregate({
-      where: {
-        transcriber_id: transcriberId,
-        // Conditionally add date filters if both dates are provided
-        ...(fromDate &&
-          toDate && {
-            submitted_at: {
-              gte: new Date(fromDate),
-              lte: new Date(toDate),
-            },
-          }),
-        state: "trashed",
-      },
-      _sum: {
-        audio_duration: true,
-      },
-    });
-
-    // Extract and return the sum of audio_duration
-    const submittedSecs = totalSubmittedSecs._sum.audio_duration || 0; // Default to 0 if null
-    const reviewedSecs = totolReviewedSecs._sum.audio_duration || 0; // Default to 0 if null
-    const trashedSecs = totalTrashedSecs._sum.audio_duration || 0; // Default to 0 if null
     return { submittedSecs, reviewedSecs, trashedSecs };
   } catch (error) {
     console.error(`Error aggregating user submitted seconds:`, error);
-    return {
-      error: "Failed to aggregate user submitted seconds. Please try again."
-    };
+    return { error: "Failed to aggregate user submitted seconds." };
   }
 };
