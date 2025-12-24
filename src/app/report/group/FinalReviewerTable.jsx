@@ -1,28 +1,42 @@
 import Link from "next/link";
 import React from "react";
 
-const FinalReviewerTable = ({ finalReviewersStatistic }) => {
+const FinalReviewerTable = ({ finalReviewersStatistic = [] }) => {
   return (
-    <div className="overflow-x-auto shadow-md sm:rounded-lg w-11/12 md:w-4/5 max-h-[80vh]">
-      <table className="table  ">
-        {/* head */}
-        <thead className="text-sm uppercase">
+    <div className="relative overflow-x-auto border rounded-xl">
+      <table className="table w-full min-w-[700px] font-sans tabular-nums text-sm">
+        <thead className="uppercase bg-base-200 text-base-content/80">
           <tr>
-            <th>Final Reviewer Name</th>
+            <th className="sticky left-0 z-10 bg-base-200">
+              Final Reviewer Name
+            </th>
             <th>Task Finalised</th>
-            <th>Finalised minutes</th>
+            <th>Finalised Minutes</th>
           </tr>
         </thead>
-        <tbody>
-          {finalReviewersStatistic?.map((finalReviewer) => (
-            <tr key={finalReviewer.id}>
-              <td>
-                <Link href={`/report/user/${finalReviewer.id}`}>
-                  {finalReviewer.name}
+        <tbody className="tabular-nums">
+          {finalReviewersStatistic.length === 0 && (
+            <tr>
+              <td colSpan={3} className="text-center py-6">
+                No final reviewer data
+              </td>
+            </tr>
+          )}
+
+          {finalReviewersStatistic.map((fr) => (
+            <tr key={fr.id}>
+              <td className="sticky left-0 bg-base-100 font-medium">
+                <Link
+                  href={`/report/user/${fr.id}`}
+                  className="hover:underline"
+                >
+                  {fr.name ||
+                    fr.finalReviewerName ||
+                    "Unknown"}
                 </Link>
               </td>
-              <td>{finalReviewer.noFinalised}</td>
-              <td>{finalReviewer.finalisedInMin}</td>
+              <td>{fr.noFinalised ?? 0}</td>
+              <td>{fr.finalisedInMin?.toFixed?.(2) ?? 0}</td>
             </tr>
           ))}
         </tbody>

@@ -8,25 +8,25 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
     const percentage = calculatePercent(num1, num2);
     // if else to return the color based on the percentage
     if (percentage > 90) {
-      return "bg-[#ff0000]"; // Red
+      return "bg-[#ff0000] text-black"; // Red
     } else if (percentage > 80) {
-      return "bg-[#ff4500]"; // Red-orange
+      return "bg-[#ff4500] text-black"; // Red-orange
     } else if (percentage > 70) {
-      return "bg-[#ff7700]"; // Dark orange
+      return "bg-[#ff7700] text-black"; // Dark orange
     } else if (percentage > 60) {
-      return "bg-[#ffa700]"; // Orange
+      return "bg-[#ffa700] text-black"; // Orange
     } else if (percentage > 50) {
-      return "bg-[#ffc700]"; // Orange-yellow
+      return "bg-[#ffc700] text-black"; // Orange-yellow
     } else if (percentage > 40) {
-      return "bg-[#fff400]"; // Yellow
+      return "bg-[#fff400] text-black"; // Yellow
     } else if (percentage > 30) {
-      return "bg-[#cfff00]"; // Light lime green
+      return "bg-[#cfff00] text-black"; // Light lime green
     } else if (percentage > 20) {
-      return "bg-[#a3ff00]"; // Lime green
+      return "bg-[#a3ff00] text-black"; // Lime green
     } else if (percentage > 10) {
-      return "bg-[#4edc00]"; // Light green
+      return "bg-[#4edc00] text-black"; // Light green
     } else {
-      return "bg-[#2cba00]"; // Dark green
+      return "bg-[#2cba00] text-black"; // Dark green
     }
   };
 
@@ -35,35 +35,36 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
     const percentage = calculatePercent(num1, num2);
     // if else to return the color based on the percentage
     if (percentage > 90) {
-      return "bg-[#2cba00]"; // Dark green
+      return "bg-[#2cba00] text-black"; // Dark green
     } else if (percentage > 80) {
-      return "bg-[#4edc00]"; // Light green
+      return "bg-[#4edc00] text-black"; // Light green
     } else if (percentage > 70) {
-      return "bg-[#a3ff00]"; // Lime green
+      return "bg-[#a3ff00] text-black"; // Lime green
     } else if (percentage > 60) {
-      return "bg-[#cfff00]"; // Light lime green
+      return "bg-[#cfff00] text-black"; // Light lime green
     } else if (percentage > 50) {
-      return "bg-[#fff400]"; // Yellow
+      return "bg-[#fff400] text-black"; // Yellow
     } else if (percentage > 40) {
-      return "bg-[#ffc700]"; // Orange-yellow
+      return "bg-[#ffc700] text-black"; // Orange-yellow
     } else if (percentage > 30) {
-      return "bg-[#ffa700]"; // Orange
+      return "bg-[#ffa700] text-black"; // Orange
     } else if (percentage > 20) {
-      return "bg-[#ff7700]"; // Dark orange
+      return "bg-[#ff7700] text-black"; // Dark orange
     } else if (percentage > 10) {
-      return "bg-[#ff4500]"; // Red-orange
+      return "bg-[#ff4500] text-black"; // Red-orange
     } else {
-      return "bg-[#ff0000]"; // Red
+      return "bg-[#ff0000] text-black"; // Red
     }
   };
 
   return (
-    <div className="overflow-x-auto shadow-md sm:rounded-lg w-11/12 md:w-4/5 max-h-[80vh]">
-      <table className="table">
-        {/* head */}
-        <thead className="text-sm uppercase">
+    <div className="relative overflow-x-auto border rounded-xl">
+      <table className="table w-full min-w-[1100px] font-sans tabular-nums text-sm">
+        <thead className="uppercase bg-base-200">
           <tr>
-            <th>Reviewer Name</th>
+            <th className="sticky left-0 bg-base-200 z-10">
+              Reviewer Name
+            </th>
             <th>Task Reviewed</th>
             <th>Task Accepted</th>
             <th>Task Finalised</th>
@@ -73,44 +74,47 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
             <th>Character Error %</th>
           </tr>
         </thead>
-        <tbody>
-          {reviewersStatistic?.map((reviewer) => (
-            <tr key={reviewer.id}>
-              <td>
-                <Link href={`/report/user/${reviewer.id}`}>
-                  {reviewer.name}
+        <tbody classsName="tabular-nums">
+          {reviewersStatistic.map((r) => (
+            <tr key={r.id}>
+              <td className="sticky left-0 bg-base-100 font-medium">
+                <Link
+                  href={`/report/user/${r.id}`}
+                  className="hover:underline"
+                >
+                  {r.name}
                 </Link>
               </td>
-              <td>{reviewer.noReviewed}</td>
-              <td>{reviewer.noAccepted}</td>
-              <td>{reviewer.noFinalised}</td>
-              <td>{reviewer.reviewedInMin}</td>
+              <td>{r.noReviewed}</td>
+              <td>{r.noAccepted}</td>
+              <td>{r.noFinalised}</td>
+              <td>{r.reviewedInMin}</td>
               <td
                 className={`${glideRedtoGreen(
-                  reviewer.noFinalised,
-                  reviewer.noReviewed
+                  r.noFinalised,
+                  r.noReviewed
                 )}`}
               >
-                {calculatePercent(reviewer.noFinalised, reviewer.noReviewed)}
+                {calculatePercent(r.noFinalised, r.noReviewed)}
               </td>
               <td
                 className={`${glideGreentoRed(
-                  reviewer.noReviewedTranscriptCorrected,
-                  reviewer.noFinalised
+                  r.noReviewedTranscriptCorrected,
+                  r.noFinalised
                 )}`}
               >
                 {calculatePercent(
-                  reviewer.noReviewedTranscriptCorrected,
-                  reviewer.noFinalised
+                  r.noReviewedTranscriptCorrected,
+                  r.noFinalised
                 )}
               </td>
               <td
                 className={`${glideGreentoRed(
-                  reviewer.totalCer,
-                  reviewer.characterCount
+                  r.totalCer,
+                  r.characterCount
                 )}`}
               >
-                {calculatePercent(reviewer.totalCer, reviewer.characterCount)}
+                {calculatePercent(r.totalCer, r.characterCount)}
               </td>
             </tr>
           ))}
