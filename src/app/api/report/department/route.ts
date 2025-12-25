@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    /* -------- TASK MAPS (🔥 critical) -------- */
+    /* -------- TASK MAPS (  critical) -------- */
 
     const transcriberMap = new Map<number, any[]>();
     const reviewerMap = new Map<number, any[]>();
