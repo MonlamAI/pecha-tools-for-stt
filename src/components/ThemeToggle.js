@@ -38,12 +38,6 @@ export default function ThemeToggle() {
   return (
     <label className="relative inline-flex items-center cursor-pointer gap-2">
 
-      {/* 🌞 Sun icon when light mode */}
-      {!isDark && <Sun className="w-5 h-5 text-yellow-500 transition-all" />}
-
-      {/* 🌙 Moon icon when dark mode */}
-      {isDark && <Moon className="w-5 h-5 text-blue-400 transition-all" />}
-
       <input
         type="checkbox"
         className="sr-only peer"
