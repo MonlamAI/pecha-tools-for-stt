@@ -189,13 +189,13 @@ const AudioTranscript = ({
               {/* HEADER – ALIGNED */}
               <div
                 className="
-                  flex items-center justify-center gap-8
-                  rounded-2xl
+                  flex flex-wrap md:flex-nowrap items-center justify-center gap-4 md:gap-8
+                  rounded-xl
                   bg-white/70 dark:bg-neutral-800/60
                   backdrop-blur-md
                   border border-white/40 dark:border-white/10
-                  px-6 py-3
-                  shadow-xl
+                  px-6 py-3 
+                  shadow-lg
                 "
               >
                 <div className="text-sm font-medium">
@@ -205,7 +205,7 @@ const AudioTranscript = ({
                   </span>
                 </div>
 
-                <div className="h-5 w-px bg-neutral-300 dark:bg-neutral-600" />
+                <div className="hidden md:block h-5 w-px bg-neutral-300 dark:bg-neutral-600" />
 
                 <div className="text-sm font-medium">
                   <span className="opacity-60">{lang.reviewer}:</span>{" "}
@@ -219,32 +219,36 @@ const AudioTranscript = ({
               </div>
 
               {/* AUDIO CARD */}
-              <div className="relative rounded-[28px] bg-white/70 dark:bg-neutral-800/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-xl p-2">
-                <div className="rounded-2xl bg-white/80 dark:bg-neutral-900/60 p-4">
+              <div className="relative rounded-xl bg-white/70 dark:bg-neutral-800/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-lg p-2">
+                <div className="rounded-xl bg-white/80 dark:bg-neutral-900/60 p-4">
                   <AudioPlayer tasks={taskList} audioRef={audioRef} />
                 </div>
               </div>
 
               {/* TRANSCRIPT CARD */}
-              <div className="relative rounded-[28px] bg-white/70 dark:bg-neutral-800/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-xl p-2">
-                <div className="rounded-2xl bg-white/80 dark:bg-neutral-900/60 p-4">
-                  <textarea
-                    value={transcript}
-                    onChange={(e) => setTranscript(e.target.value)}
-                    rows={6}
-                    className="
-                      w-full resize-none rounded-xl
-                      bg-white/70 dark:bg-neutral-800/70
-                      border border-white/40 dark:border-white/10
-                      p-4 text-base leading-7
-                      focus:outline-none focus:ring-2 focus:ring-yellow-300/60
-                    "
-                  />
+              <div className="relative rounded-xl bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-lg p-2">
 
-                  {/* FILE BADGE */}
-                  <div className="mt-3 flex justify-end">
-                    <div
-                      className="
+                <textarea
+                  value={transcript}
+                  onChange={(e) => setTranscript(e.target.value)}
+                  rows={6}
+                  className="
+                    w-full resize-none rounded-xl
+                    bg-white dark:bg-neutral-800   
+                    border border-neutral-300 dark:border-neutral-700
+                    p-6 md:p-9
+                    text-base leading-8
+                    text-neutral-900 dark:text-neutral-100
+                    focus:outline-none focus:ring-2 focus:ring-yellow-300
+                    antialiased
+                  "
+                />
+
+
+                {/* FILE BADGE */}
+                <div className="mt-0.5 flex justify-end">
+                  <div
+                    className="
                         inline-flex items-center gap-2
                         text-xs px-3 py-1.5
                         rounded-full
@@ -253,11 +257,11 @@ const AudioTranscript = ({
                         backdrop-blur
                         shadow-sm
                       "
-                    >
-                      📄 {taskList[0]?.url.split("/").pop()}
-                    </div>
+                  >
+                    📄 {taskList[0]?.url.split("/").pop()}
                   </div>
                 </div>
+
               </div>
 
               {/* ACTION BUTTONS */}

@@ -56,7 +56,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
 
   // iOS/macOS Glass Buttons
   const baseBtn =
-    "h-9 w-9 rounded-xl flex items-center justify-center " +
+    "h-8 w-8 rounded-xl flex items-center justify-center " +
     "bg-white/70 dark:bg-slate-800/70 backdrop-blur-md " +
     "border border-white/40 dark:border-white/10 " +
     "text-slate-800 dark:text-slate-100 " +
@@ -82,27 +82,29 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
       </audio>
 
       {/* Controls */}
-      <div className="mt-5 flex flex-col items-center justify-center gap-4">
+      <div className="mt-4 flex items-center justify-center">
+        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/50 dark:bg-neutral-800/50 backdrop-blur-xl shadow-lg border border-white/20 dark:border-white/5">
+          {/* Play/Pause & Loop */}
+          <div className="flex items-center gap-1.5 px-1 border-r border-neutral-300 dark:border-neutral-700">
+            <button onClick={handlePlayPause} className={baseBtn}>
+              {isPlaying ? <BsFillPauseFill /> : <BsFillPlayFill />}
+            </button>
 
-        <div className="flex items-center gap-4 shadow-[0_20px_40px_rgba(0,0,0,0.18),_0_2px_6px_rgba(0,0,0,0.08)] dark:shadow-[0_30px_60px_rgba(0,0,0,0.55)] p-3 rounded-2xl bg-white/50 dark:bg-neutral-800/50 backdrop-blur-xl">
-          <button onClick={handlePlayPause} className={baseBtn}>
-            {isPlaying ? <BsFillPauseFill /> : <BsFillPlayFill />}
-          </button>
+            <button
+              onClick={toggleLoop}
+              className={`${baseBtn} ${isLoopEnabled ? activeBtn : ""}`}
+            >
+              <ImLoop />
+            </button>
+          </div>
 
-          <button
-            onClick={toggleLoop}
-            className={`${baseBtn} ${isLoopEnabled ? activeBtn : ""}`}
-          >
-            <ImLoop />
-          </button>
-
-          {/* macOS Segmented Speed Control */}
-          <div className="flex items-center gap-2 ml-6">
-            <span className="text-sm font-medium tracking-tight text-slate-700 dark:text-slate-300">
+          {/* Speed Control */}
+          <div className="flex items-center gap-1.5 px-1">
+            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60 hidden sm:inline">
               {lang.speed}
             </span>
 
-            <div className="flex rounded-xl bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md border border-white/40 dark:border-white/10 p-1">
+            <div className="flex items-center gap-1">
               {rates.map((rate) => (
                 <button
                   key={rate}
@@ -110,8 +112,8 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
                     audioRef.current.playbackRate = rate;
                     setPlaybackRate(rate);
                   }}
-                  className={`px-3 py-1 text-[11px] rounded-lg transition-all relative before:absolute before:inset-0 before:rounded-lg before:bg-gradient-to-b before:from-white/20 before:to-transparent before:pointer-events-none ${playbackRate === rate
-                    ? "bg-yellow-300/80 text-black shadow"
+                  className={`w-9 h-7 text-[10px] md:text-[11px] font-medium rounded-lg transition-all relative before:absolute before:inset-0 before:rounded-lg before:bg-gradient-to-b before:from-white/20 before:to-transparent before:pointer-events-none ${playbackRate === rate
+                    ? "bg-yellow-300/80 text-black shadow-sm"
                     : "text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-700/40"
                     }`}
                 >

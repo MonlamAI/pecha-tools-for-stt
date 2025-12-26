@@ -38,11 +38,11 @@ const Sidebar = ({
   };
 
   return (
-    <div className="drawer lg:drawer-open">
+    <div className="drawer drawer-mobile lg:drawer-open">
       <input id="my-drawer-3" type="checkbox" className="drawer-toggle" />
 
       {/* MAIN CONTENT */}
-      <div className="drawer-content flex flex-col items-center">
+      <div className="drawer-content flex flex-col items-stretch lg:items-center">
         <div className="w-full navbar bg-neutral-900 text-white lg:hidden">
           <label htmlFor="my-drawer-3" className="btn btn-square btn-ghost">
             ☰
@@ -54,73 +54,77 @@ const Sidebar = ({
 
       {/* SIDEBAR */}
       <div className="drawer-side">
-        <label htmlFor="my-drawer-3" className="drawer-overlay"></label>
+        <label htmlFor="my-drawer-3" className="drawer-overlay lg:hidden"></label>
+        <div className="drawer-content flex flex-col lg:items-center">
+          <input
+            id="my-drawer-3"
+            type="checkbox"
+            className="drawer-toggle"
+          />
 
-        <aside
-          className="
-            w-80 h-full
-            m-2 rounded-2xl
-            bg-white/90 dark:bg-neutral-900/90
-            backdrop-blur-xl
-            shadow-[0_30px_80px_rgba(0,0,0,0.35)]
-            dark:shadow-[0_40px_100px_rgba(0,0,0,0.75)]
-            border border-neutral-200 dark:border-neutral-800
+          <aside
+            className="
+            w-[85vw] max-w-sm lg:w-80 h-screen
+            bg-white dark:bg-neutral-900
+            shadow-[20px_0_50px_rgba(0,0,0,0.1)]
+            dark:shadow-[20px_0_50px_rgba(0,0,0,0.3)]
+            border-r border-neutral-200 dark:border-neutral-800
             flex flex-col
           "
-        >
+          >
 
-          {/* PROJECT */}
-          <Section title={lang.project}>
-            <Row label={lang.user} value={userDetail.name} />
-            <Row label={lang.group} value={userDetail.group.name} />
-            <Row label={lang.task} value={taskList[0]?.id} />
-          </Section>
+            {/* PROJECT */}
+            <Section title={lang.project}>
+              <Row label={lang.user} value={userDetail.name} />
+              <Row label={lang.group} value={userDetail.group.name} />
+              <Row label={lang.task} value={taskList[0]?.id} />
+            </Section>
 
-          {/* TARGET */}
-          <Section title={lang.target}>
-            <Row
-              label={
-                role === "TRANSCRIBER"
-                  ? lang.submitted
-                  : role === "REVIEWER"
-                    ? lang.reviewed
-                    : lang.final_reviewed
-              }
-              value={completedTaskCount}
-            />
-
-            {(role === "TRANSCRIBER" || role === "REVIEWER") && (
+            {/* TARGET */}
+            <Section title={lang.target}>
               <Row
                 label={
                   role === "TRANSCRIBER"
-                    ? lang.reviewed
-                    : lang.final_reviewed
+                    ? lang.submitted
+                    : role === "REVIEWER"
+                      ? lang.reviewed
+                      : lang.final_reviewed
                 }
-                value={totalTaskPassed}
+                value={completedTaskCount}
               />
-            )}
 
-            <Row label={lang.total_assigned} value={totalTaskCount} />
-          </Section>
+              {(role === "TRANSCRIBER" || role === "REVIEWER") && (
+                <Row
+                  label={
+                    role === "TRANSCRIBER"
+                      ? lang.reviewed
+                      : lang.final_reviewed
+                  }
+                  value={totalTaskPassed}
+                />
+              )}
 
-          {/* LANGUAGE */}
-          <Section title={lang.language} horizontal>
-            <LanguageToggle />
-          </Section>
+              <Row label={lang.total_assigned} value={totalTaskCount} />
+            </Section>
 
-          {/* THEME */}
-          <Section title={lang.theme} horizontal>
-            <ThemeToggle />
-          </Section>
+            {/* LANGUAGE */}
+            <Section title={lang.language} horizontal>
+              <LanguageToggle />
+            </Section>
 
-          {/* HISTORY */}
-          <Section title={lang.history} grow>
-            <div className="space-y-2">
-              {userHistory.map((task) => (
-                <div
-                  key={task.id}
-                  onClick={() => handleHistoryClick(task)}
-                  className="
+            {/* THEME */}
+            <Section title={lang.theme} horizontal>
+              <ThemeToggle />
+            </Section>
+
+            {/* HISTORY */}
+            <Section title={lang.history} grow>
+              <div className="space-y-2">
+                {userHistory.map((task) => (
+                  <div
+                    key={task.id}
+                    onClick={() => handleHistoryClick(task)}
+                    className="
                     group cursor-pointer
                     rounded-xl
                     p-3
@@ -130,30 +134,31 @@ const Sidebar = ({
                     shadow-sm hover:shadow-md
                     transition-all
                   "
-                >
-                  <p className="text-sm leading-snug line-clamp-2">
-                    {role === "TRANSCRIBER"
-                      ? task.transcript ?? task.inference_transcript
-                      : role === "REVIEWER"
-                        ? task.reviewed_transcript ?? task.transcript
-                        : task.final_transcript ?? task.reviewed_transcript}
-                  </p>
+                  >
+                    <p className="text-sm leading-snug line-clamp-2">
+                      {role === "TRANSCRIBER"
+                        ? task.transcript ?? task.inference_transcript
+                        : role === "REVIEWER"
+                          ? task.reviewed_transcript ?? task.transcript
+                          : task.final_transcript ?? task.reviewed_transcript}
+                    </p>
 
-                  <div className="mt-2 flex justify-end text-neutral-500">
-                    {(task.state === "submitted" ||
-                      task.state === "accepted" ||
-                      task.state === "finalised") && (
-                        <BsCheckLg className="text-green-600" />
+                    <div className="mt-2 flex justify-end text-neutral-500">
+                      {(task.state === "submitted" ||
+                        task.state === "accepted" ||
+                        task.state === "finalised") && (
+                          <BsCheckLg className="text-green-600" />
+                        )}
+                      {task.state === "trashed" && (
+                        <BsTrash className="text-red-600" />
                       )}
-                    {task.state === "trashed" && (
-                      <BsTrash className="text-red-600" />
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </Section>
-        </aside>
+                ))}
+              </div>
+            </Section>
+          </aside>
+        </div>
       </div>
     </div>
   );
