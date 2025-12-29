@@ -4,56 +4,78 @@ import { STATS_CONFIG } from "@/constants/config";
 const GroupImportStats = ({ groupStat }) => {
   const importedThreshold = STATS_CONFIG.IMPORT_THRESHOLD;
 
-  // Function to generate a random color based on a seed (unique ID)
-  const generateRandomColor = (seed) => {
-    // List of available background colors in hex format
-    const colors = [
-      "#EF4444",
-      "#3B82F6",
-      "#10B981",
-      "#F97316",
-      "#FBBF24",
-      "#F59E0B",
-      "#84CC16",
-      "#10B981",
-      "#06B6D4",
-      "#0EA5E9",
-      "#6366F1",
-      "#D946EF",
-      "#EC4899",
-      "#14B8A6",
-      "#F472B6",
-      "#9C4AED",
-      // Add more colors as needed
+  const generateColorTheme = (seed) => {
+    const themes = [
+      { bg: "#2563EB", text: "#EFF6FF" }, // Blue
+      { bg: "#4F46E5", text: "#EEF2FF" }, // Indigo
+      { bg: "#0F766E", text: "#ECFEFF" }, // Teal
+      { bg: "#15803D", text: "#ECFDF5" }, // Emerald
+      { bg: "#B45309", text: "#FFFBEB" }, // Amber
+      { bg: "#C2410C", text: "#FFF7ED" }, // Orange
     ];
-    // Use the seed to select a random color from the list
-    const randomColor = colors[Math.floor(Math.abs(seed) % colors.length)];
-    // Return the Tailwind CSS class for the selected color
-    return `${randomColor}`;
+
+    return themes[Math.abs(seed) % themes.length];
   };
 
   return (
     <>
-      {groupStat.map((group) => (
-        <div
-          key={group.id}
-          className={`
-           shadow-md rounded-md p-2 md:p-4 ${
-             group.taskImportedCount < importedThreshold
-               ? "border-4 border-red-500"
-               : ""
-           } 
-         `}
-          style={{
-            backgroundColor: `${generateRandomColor(group.department_id)}`,
-          }}
-        >
-          <div className="flex justify-center items-center gap-5 text-base md:text-xl font-bold">
-            <p>{group.name}</p>
-            <p>{group.taskImportedCount}</p>
+      {groupStat?.map((group) => {
+        const theme = generateColorTheme(group.department_id);
+        const isBelowThreshold =
+          group.taskImportedCount < importedThreshold;
+
+        return (
+          <div
+            key={group.id}
+            className={`
+              min-h-[72px]
+              rounded-2xl
+              p-4 md:p-5
+              transition-all duration-200
+              hover:-translate-y-1
+              cursor-pointer
+              ${isBelowThreshold
+                ? "ring-1 ring-red-300 shadow-red-100"
+                : "shadow-sm hover:shadow-md"
+              }
+            `}
+            style={{ backgroundColor: theme.bg }}
+          >
+            <div
+              className="flex items-center justify-between gap-3"
+              style={{ color: theme.text }}
+            >
+              {/* Name + Warning */}
+              <p className="text-sm md:text-base font-semibold truncate flex items-center gap-1">
+                {group.name}
+
+                {group.taskImportedCount === 0 && (
+                  <span
+                    title="No tasks imported"
+                    className="text-yellow-300 text-base"
+                  >
+                    ⚠️
+                  </span>
+                )}
+              </p>
+
+              {/* Count */}
+              <span
+                className="
+                  text-sm md:text-base
+                  font-semibold
+                  px-3 py-1
+                  rounded-full
+                  bg-white/20
+                  backdrop-blur
+                "
+              >
+                {group.taskImportedCount}
+              </span>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 };
