@@ -8,7 +8,7 @@ const DepartmentTotal = ({ usersStatistic }) => {
   }
 
   return (
-    <div className="relative overflow-x-auto border rounded-xl">
+    <div className="relative overflow-x-auto">
       <table className="table  ">
         {/* head */}
         <thead className="text-sm uppercase">

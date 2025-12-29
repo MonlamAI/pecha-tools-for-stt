@@ -8,6 +8,7 @@ import DateInput from "@/components/DateInput";
 import TranscriberReportTable from "./TranscriberReportTable";
 import ReviewerReportTable from "./ReviewerReportTable";
 import FinalReviewerTable from "./FinalReviewerTable";
+import { getCurrentReportCycle, getSiblingReportCycle } from "@/utils/report-date-utils";
 
 const GroupReport = ({ groups }) => {
   const [data, setData] = useState({
@@ -21,28 +22,11 @@ const GroupReport = ({ groups }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  /* ================= DATE HELPERS ================= */
-  const pad = (n) => String(n).padStart(2, "0");
-
-  const toDatetimeLocal = (d) =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-      d.getDate()
-    )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
-  const startOfMonth = (d) =>
-    new Date(d.getFullYear(), d.getMonth(), 1, 0, 0);
-
-  const endOfMonth = (d) =>
-    new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59);
-
   /* ================= INIT DATES ================= */
   useEffect(() => {
     if (!dates.from && !dates.to) {
-      const now = new Date();
-      setDates({
-        from: toDatetimeLocal(startOfMonth(now)),
-        to: toDatetimeLocal(now),
-      });
+      const cycle = getCurrentReportCycle();
+      setDates(cycle);
     }
   }, []);
 
@@ -89,38 +73,18 @@ const GroupReport = ({ groups }) => {
 
   /* ================= RENDER ================= */
   return (
-    <div className="max-w-7xl mx-auto px-4 pb-20 font-sans">
+    <div className="w-full px-4 pb-20 font-sans">
       {/* FILTER BAR */}
-      <form className="sticky top-0 z-30 bg-base-100 border-b border-base-300 py-4 flex flex-wrap gap-6 justify-between items-end">
+      <form className="sticky top-0 z-30 bg-base-100 border-b border-base-300 py-1 flex flex-wrap gap-4 justify-between items-end">
         <Select
           title="group_id"
-          label="group"
+          label="Group"
           options={groups}
           selectedOption={selectGroup}
           handleOptionChange={(e) => setSelectGroup(e.target.value)}
         />
 
-        <div className="flex items-start gap-3">
-          {/* LEFT ARROW */}
-          <div className="pt-[48px]">
-            <button
-              type="button"
-              className="btn btn-sm btn-circle btn-outline"
-              onClick={() =>
-                startTransition(() => {
-                  const d = new Date(dates.from);
-                  d.setMonth(d.getMonth() - 1);
-                  setDates({
-                    from: toDatetimeLocal(startOfMonth(d)),
-                    to: toDatetimeLocal(endOfMonth(d)),
-                  });
-                })
-              }
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
-
+        <div className="flex items-end gap-2">
           <DateInput
             label="from"
             selectedDate={dates.from}
@@ -128,6 +92,19 @@ const GroupReport = ({ groups }) => {
               setDates((p) => ({ ...p, from: e.target.value }))
             }
             isReport
+            labelPrefix={
+              <button
+                type="button"
+                className="btn btn-xs btn-square  h-5 w-5 min-h-0"
+                onClick={() =>
+                  startTransition(() => {
+                    setDates(getSiblingReportCycle(dates.from, "prev"));
+                  })
+                }
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            }
           />
 
           <DateInput
@@ -137,27 +114,20 @@ const GroupReport = ({ groups }) => {
               setDates((p) => ({ ...p, to: e.target.value }))
             }
             isReport
+            labelSuffix={
+              <button
+                type="button"
+                className="btn btn-xs btn-square  h-5 w-5 min-h-0"
+                onClick={() =>
+                  startTransition(() => {
+                    setDates(getSiblingReportCycle(dates.from, "next"));
+                  })
+                }
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            }
           />
-
-          {/* RIGHT ARROW */}
-          <div className="pt-[48px]">
-            <button
-              type="button"
-              className="btn btn-sm btn-circle btn-outline"
-              onClick={() =>
-                startTransition(() => {
-                  const d = new Date(dates.from);
-                  d.setMonth(d.getMonth() + 1);
-                  setDates({
-                    from: toDatetimeLocal(startOfMonth(d)),
-                    to: toDatetimeLocal(endOfMonth(d)),
-                  });
-                })
-              }
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       </form>
 
@@ -175,15 +145,15 @@ const GroupReport = ({ groups }) => {
 
       {/* REPORT CONTENT */}
       {selectGroup && (
-        <div className="mt-10 grid grid-cols-1 gap-14">
+        <div className="mt-1 grid grid-cols-1 gap-8">
           {isLoading ? (
             <div className="flex justify-center py-20">
               <span className="loading loading-spinner loading-lg" />
             </div>
           ) : (
             <>
-              <section className="card bg-base-100 border rounded-2xl p-5">
-                <h3 className="font-sans text-xl mb-4 text-center font-bold uppercase">
+              <section className="card bg-base-100 border rounded-2xl p-2">
+                <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Transcriber Performance
                 </h3>
                 <TranscriberReportTable
@@ -192,8 +162,8 @@ const GroupReport = ({ groups }) => {
                 />
               </section>
 
-              <section className="card bg-base-100 border rounded-2xl p-5">
-                <h3 className="font-sans text-xl mb-4 text-center font-bold uppercase">
+              <section className="card bg-base-100 border rounded-2xl p-2">
+                <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Reviewer Evaluation
                 </h3>
                 <ReviewerReportTable
@@ -201,8 +171,8 @@ const GroupReport = ({ groups }) => {
                 />
               </section>
 
-              <section className="card bg-base-100 border rounded-2xl p-5">
-                <h3 className="font-sans text-xl mb-4 text-center font-bold uppercase">
+              <section className="card bg-base-100 border rounded-2xl p-2">
+                <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Final Reviewer Evaluation
                 </h3>
                 <FinalReviewerTable

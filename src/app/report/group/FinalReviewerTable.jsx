@@ -3,7 +3,7 @@ import React from "react";
 
 const FinalReviewerTable = ({ finalReviewersStatistic = [] }) => {
   return (
-    <div className="relative overflow-x-auto border rounded-xl">
+    <div className="relative overflow-x-auto">
       <table className="table w-full min-w-[700px] font-sans tabular-nums text-sm">
         <thead className="uppercase bg-base-200 text-base-content/80">
           <tr>

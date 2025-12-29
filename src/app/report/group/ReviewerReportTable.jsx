@@ -58,7 +58,7 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
   };
 
   return (
-    <div className="relative overflow-x-auto border rounded-xl">
+    <div className="relative overflow-x-auto">
       <table className="table w-full min-w-[1100px] font-sans tabular-nums text-sm">
         <thead className="uppercase bg-base-200">
           <tr>

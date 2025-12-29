@@ -60,7 +60,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
   };
 
   return (
-    <div className="relative overflow-x-auto border rounded-xl">
+    <div className="relative overflow-x-auto">
       <table className="table w-full min-w-[1500px] font-sans tabular-nums text-sm">
         {/* head */}
         <thead className="uppercase bg-base-200">

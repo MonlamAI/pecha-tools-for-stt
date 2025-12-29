@@ -10,19 +10,18 @@ const Select = ({
 }) => {
   return (
     <div
-      className={`${
-        isReport
-          ? "flex flex-row gap-2 md:form-control md:gap-0"
-          : "form-control"
-      }`}
+      className={`${isReport
+        ? "flex flex-row gap-2 md:form-control md:gap-0"
+        : "form-control"
+        }`}
     >
-      <label className="label w-[20%]" htmlFor={title}>
-        <span className="label-text text-base font-semibold">{label}</span>
+      <label className="label w-fit pr-2" htmlFor={title}>
+        <span className="label-text text-sm font-semibold">{label}</span>
       </label>
       <select
         id={title}
         name={title}
-        className="select select-bordered overflow-y-scroll"
+        className="select select-bordered select-sm rounded-md overflow-y-scroll"
         required
         onChange={handleOptionChange}
         value={selectedOption}

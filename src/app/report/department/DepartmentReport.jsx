@@ -7,6 +7,7 @@ import DateInput from "@/components/DateInput";
 import TranscriberReportTable from "../group/TranscriberReportTable";
 import ReviewerReportTable from "../group/ReviewerReportTable";
 import FinalReviewerTable from "../group/FinalReviewerTable";
+import { getCurrentReportCycle, getSiblingReportCycle } from "@/utils/report-date-utils";
 import DepartmentTotal from "./DepartmentTotal";
 
 /* =====================================================
@@ -33,28 +34,11 @@ const DepartmentReport = ({ departments }) => {
   const [reviewersStatistic, setReviewersStatistic] = useState({});
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState({});
 
-  /* ================= DATE HELPERS ================= */
-  const pad = (n) => String(n).padStart(2, "0");
-
-  const toDatetimeLocal = (d) =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-      d.getDate()
-    )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
-  const startOfMonth = (d) =>
-    new Date(d.getFullYear(), d.getMonth(), 1, 0, 0);
-
-  const endOfMonth = (d) =>
-    new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59);
-
   /* ================= INIT DATES ================= */
   useEffect(() => {
     if (!dates.from && !dates.to) {
-      const now = new Date();
-      setDates({
-        from: toDatetimeLocal(startOfMonth(now)),
-        to: toDatetimeLocal(now),
-      });
+      const cycle = getCurrentReportCycle();
+      setDates(cycle);
     }
   }, []);
 
@@ -180,12 +164,12 @@ const DepartmentReport = ({ departments }) => {
 
   /* ================= RENDER ================= */
   return (
-    <div className="max-w-7xl mx-auto px-4 pb-20 font-sans">
+    <div className="w-full px-4 pb-20 font-sans">
       {/* FILTER BAR */}
-      <form className="sticky top-0 z-30 bg-base-100 border-b border-base-300 py-4 flex flex-wrap gap-6 justify-between items-end">
+      <form className="sticky top-0 z-30 bg-base-100 border-b border-base-300 py-1 flex flex-wrap gap-4 justify-between items-end">
         <Select
           title="department_id"
-          label="department"
+          label="Department"
           options={departments}
           selectedOption={selectDepartment}
           handleOptionChange={(e) =>
@@ -193,26 +177,8 @@ const DepartmentReport = ({ departments }) => {
           }
         />
 
-        {/* ARROWS + DATES (ALIGNED) */}
-        <div className="flex items-start gap-3">
-          {/* LEFT ARROW */}
-          <div className="pt-[48px]">
-            <button
-              type="button"
-              className="btn btn-sm btn-circle btn-outline"
-              onClick={() => {
-                const d = new Date(dates.from);
-                d.setMonth(d.getMonth() - 1);
-                setDates({
-                  from: toDatetimeLocal(startOfMonth(d)),
-                  to: toDatetimeLocal(endOfMonth(d)),
-                });
-              }}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
-
+        {/* DATES WITH LABELED ARROWS */}
+        <div className="flex items-end gap-2">
           <DateInput
             label="from"
             selectedDate={dates.from}
@@ -220,6 +186,17 @@ const DepartmentReport = ({ departments }) => {
               setDates((p) => ({ ...p, from: e.target.value }))
             }
             isReport
+            labelPrefix={
+              <button
+                type="button"
+                className="btn btn-xs btn-square   h-5 w-5 min-h-0"
+                onClick={() => {
+                  setDates(getSiblingReportCycle(dates.from, "prev"));
+                }}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            }
           />
 
           <DateInput
@@ -229,24 +206,18 @@ const DepartmentReport = ({ departments }) => {
               setDates((p) => ({ ...p, to: e.target.value }))
             }
             isReport
+            labelSuffix={
+              <button
+                type="button"
+                className="btn btn-xs btn-square  h-5 w-5 min-h-0"
+                onClick={() => {
+                  setDates(getSiblingReportCycle(dates.from, "next"));
+                }}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            }
           />
-          {/* RIGHT ARROW */}
-          <div className="pt-[48px]">
-            <button
-              type="button"
-              className="btn btn-sm btn-circle btn-outline"
-              onClick={() => {
-                const d = new Date(dates.from);
-                d.setMonth(d.getMonth() + 1);
-                setDates({
-                  from: toDatetimeLocal(startOfMonth(d)),
-                  to: toDatetimeLocal(endOfMonth(d)),
-                });
-              }}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       </form>
 
@@ -262,15 +233,14 @@ const DepartmentReport = ({ departments }) => {
         </div>
       )}
 
-      {/* GROUP SELECTOR */}
       {selectDepartment && (
-        <div className="flex justify-between items-center mt-6 mb-10 gap-4">
-          <div className="flex flex-wrap gap-2 bg-base-200 p-2 rounded-xl">
+        <div className="flex justify-between items-center mt-2 mb-2 gap-4">
+          <div className="flex flex-wrap gap-1 bg-base-200 p-1 rounded-md">
             {groups.map((g) => (
               <button
                 key={g.id}
-                className={`btn btn-sm ${String(g.id) === activeGroupId
-                  ? "btn-primary"
+                className={`btn btn-xs ${String(g.id) === activeGroupId
+                  ? "bg-gray-500"
                   : "btn-ghost"
                   }`}
                 onClick={() =>
@@ -283,7 +253,7 @@ const DepartmentReport = ({ departments }) => {
           </div>
 
           <button
-            className="btn btn-outline btn-sm"
+            className="btn bg-gray-500 btn-sm hover:brightness-70"
             onClick={handleLoadDepartmentTotals}
             disabled={deptTotalsLoading}
           >
@@ -296,15 +266,15 @@ const DepartmentReport = ({ departments }) => {
 
       {/* TABLES */}
       {activeGroup && (
-        <div className="mt-10 grid grid-cols-1 gap-14">
+        <div className="mt-1 grid grid-cols-1 gap-8">
           {isLoading ? (
             <div className="flex justify-center py-20">
               <span className="loading loading-spinner loading-lg" />
             </div>
           ) : (
             <>
-              <section className="card bg-base-100 border rounded-2xl p-5">
-                <h3 className="font-sans text-xl mb-4 text-center font-bold uppercase">
+              <section className="card bg-base-100 border rounded-2xl p-2">
+                <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Transcriber Performance
                 </h3>
                 <TranscriberReportTable
@@ -313,8 +283,8 @@ const DepartmentReport = ({ departments }) => {
                 />
               </section>
 
-              <section className="card bg-base-100 border rounded-2xl p-5">
-                <h3 className="font-sans text-xl mb-4 text-center font-bold uppercase">
+              <section className="card bg-base-100 border rounded-2xl p-2">
+                <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Reviewer Evaluation
                 </h3>
                 <ReviewerReportTable
@@ -324,8 +294,8 @@ const DepartmentReport = ({ departments }) => {
                 />
               </section>
 
-              <section className="card bg-base-100 border rounded-2xl p-5">
-                <h3 className="font-sans text-xl mb-4 text-center font-bold uppercase">
+              <section className="card bg-base-100 border rounded-2xl p-2">
+                <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Final Reviewer Evaluation
                 </h3>
                 <FinalReviewerTable
@@ -340,8 +310,8 @@ const DepartmentReport = ({ departments }) => {
       )}
 
       {deptTotalsLoaded && (
-        <section className="mt-20 card bg-base-100 border rounded-2xl p-6">
-          <h3 className="font-sans text-2xl mb-6 text-center font-bold uppercase">
+        <section className="mt-8 card bg-base-100 border rounded-2xl p-2">
+          <h3 className="font-sans text-xl mb-3 text-center font-bold uppercase">
             Department Total
           </h3>
           <DepartmentTotal usersStatistic={usersStatistic} />
