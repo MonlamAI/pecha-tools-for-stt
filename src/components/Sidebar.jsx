@@ -73,9 +73,8 @@ const Sidebar = ({
           "
           >
 
-            {/* PROJECT */}
             <Section title={lang.project}>
-              <Row label={lang.user} value={userDetail.name} />
+              <Row label={lang.user} value={userDetail.email} />
               <Row label={lang.group} value={userDetail.group.name} />
               <Row label={lang.task} value={taskList[0]?.id} />
             </Section>

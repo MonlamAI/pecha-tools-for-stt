@@ -15,7 +15,7 @@ export async function fetchUserDataBySession(session: string) {
   if (userData === null) {
     return {
       error:
-        "No user found. Please try again with the correct username or email..",
+        "No user found. Please try again with the correct email..",
     };
   }
 
@@ -50,11 +50,11 @@ export async function fetchUserDataBySession(session: string) {
 
 export async function getOrCreateUser({ username }: { username: string }) {
   // only allow from certain domain? uncomment below
-  if (!username) return { error: "Username not found. Please try again." };
+  if (!username) return { error: "Email not found. Please try again." };
   // if (!username.endsWith("@yourdomain.com")) return { error: "Unauthorized user" };
 
   let user = await prisma.user.findUnique({
-    where: { name: username },
+    where: { email: username },
     select: {
       id: true,
       name: true,
