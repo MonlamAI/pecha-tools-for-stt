@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import prisma from "./db";
-type StatRow = { group_id: number; state: string; _count: { _all: number } };
 
 export async function getTranscribingCount({ groupId }: { groupId: number }) {
   return await prisma.group.findUnique({
@@ -63,12 +62,12 @@ export async function getAllGroupTaskStats(groupList: any[]) {
   if (!groupList || groupList.length === 0) return [];
 
   try {
-    // Aggregate once across all groups, then project per group
-    const taskStatsMain = (await prisma.task.groupBy({
+    // Collapse per-group counts into aggregated grouped queries
+    const taskStatsMain = await prisma.task.groupBy({
       by: ["state", "group_id"],
       where: { NOT: { state: "transcribing" } },
       _count: { _all: true },
-    })) as unknown as StatRow[];
+    }) as unknown as StatRow[];
 
     const taskImportedCount = await prisma.task.groupBy({
       by: ["group_id"],
@@ -82,46 +81,43 @@ export async function getAllGroupTaskStats(groupList: any[]) {
       _count: { _all: true },
     });
 
-    for (const t of taskImportedCount) {
-      taskStatsMain.push({
-        group_id: t.group_id,
-        // pseudo-state for imported
+    const merged = [
+      ...taskStatsMain,
+      ...taskImportedCount.map((t: any) => ({
         state: "imported",
-        _count: { _all: t._count._all },
-      } as StatRow);
-    }
-    for (const t of taskTranscribingCount) {
-      taskStatsMain.push({
         group_id: t.group_id,
-        state: "transcribing",
         _count: { _all: t._count._all },
-      } as StatRow);
-    }
+      })),
+      ...taskTranscribingCount.map((t: any) => ({
+        state: "transcribing",
+        group_id: t.group_id,
+        _count: { _all: t._count._all },
+      })),
+    ];
 
-    const out = [] as any[];
-    for (const group of groupList) {
-      const bucket = taskStatsMain.filter((t) => t.group_id === group.id);
-      out.push({
+    const groupStatsList = groupList.map((group: any) => {
+      const taskStatsCount = merged.filter((t) => t.group_id === group.id);
+      return {
         id: group.id,
         name: group.name,
         department_id: group.department_id,
         departmentName: group.Department?.name,
         taskImportedCount:
-          bucket.find((b) => b.state === "imported")?._count?._all ?? 0,
+          taskStatsCount.find((s) => s.state === "imported")?._count?._all ?? 0,
         taskTranscribingCount:
-          bucket.find((b) => b.state === "transcribing")?._count?._all ?? 0,
+          taskStatsCount.find((s) => s.state === "transcribing")?._count?._all ?? 0,
         taskSubmittedCount:
-          bucket.find((b) => b.state === "submitted")?._count?._all ?? 0,
+          taskStatsCount.find((s) => s.state === "submitted")?._count?._all ?? 0,
         taskAcceptedCount:
-          bucket.find((b) => b.state === "accepted")?._count?._all ?? 0,
+          taskStatsCount.find((s) => s.state === "accepted")?._count?._all ?? 0,
         taskFinalisedCount:
-          bucket.find((b) => b.state === "finalised")?._count?._all ?? 0,
+          taskStatsCount.find((s) => s.state === "finalised")?._count?._all ?? 0,
         taskTrashedCount:
-          bucket.find((b) => b.state === "trashed")?._count?._all ?? 0,
-      });
-    }
+          taskStatsCount.find((s) => s.state === "trashed")?._count?._all ?? 0,
+      };
+    });
 
-    return groupByDepartmentId(out);
+    return groupByDepartmentId(groupStatsList);
   } catch (error) {
     console.error("Error getting all groups task stats:", error);
     return { error: "Failed to fetch group task statistics. Please try again." };

@@ -1,23 +1,37 @@
 "use client";
 
-import { ThemeProvider as NextThemeProvider } from "next-themes";
-import { type ReactNode } from "react";
+import { ThemeProvider as NextThemes } from "next-themes";
+import { useEffect } from "react";
 
-interface ThemeProviderProps {
-  children: ReactNode;
+export function ThemeProvider({ children, ...props }: any) {
+  return (
+    <NextThemes
+      attribute="class"
+      defaultTheme="system"
+      enableSystem={true}
+      {...props}
+    >
+      <ThemeSync>{children}</ThemeSync>
+    </NextThemes>
+  );
 }
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
-  return (
-    <NextThemeProvider
-      attribute="data-theme"
-      value={{ light: "light", dark: "dark" }}
-      defaultTheme="light"
-      enableSystem={false}
-      storageKey="theme"
-      disableTransitionOnChange
-    >
-      {children}
-    </NextThemeProvider>
-  );
+function ThemeSync({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const html = document.documentElement;
+
+    const observer = new MutationObserver(() => {
+      const isDark = html.classList.contains("dark");
+      html.setAttribute("data-theme", isDark ? "dark" : "light");
+    });
+
+    observer.observe(html, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return <>{children}</>;
 }

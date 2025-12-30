@@ -3,8 +3,6 @@
 // export const USER_FETCH_TASKS = 20;
 // export const ASSIGN_TASKS = 1;
 
-
-
 export const USER_FETCH_TASKS = 20;
 export const ASSIGN_TASKS = 20;
 
@@ -27,5 +25,9 @@ export const TASK_ASSIGN = {
 export const STATS_CONFIG = {
   CACHE_TIME: 300, // 5 minutes like your pattern
   IMPORT_THRESHOLD: 500,
-  CONCURRENT_QUERIES: 6, // For Promise.all optimization
 };
+
+//Report Cycle date configuration
+export const REPORT_CYCLE_DAY = 25;
+export const REPORT_CYCLE_START_TIME = "12:01";
+export const REPORT_CYCLE_END_TIME = "12:00";

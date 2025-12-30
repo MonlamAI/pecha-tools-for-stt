@@ -1,12 +1,12 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { getUserSpecificTasks, getUserSpecificTasksCount } from "@/model/task";
 import PaginationControls from "@/components/PaginationControls";
 import UserReportTable from "./UserReportTable";
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
 import { useRouter, usePathname } from "next/navigation";
 import useDebounce from "@/components/hooks/useDebounceState";
+import { getCurrentReportCycle } from "@/utils/report-date-utils";
 
 const UserReport = ({ searchParams, id, users }) => {
   const [userTaskRecord, setUserTaskRecord] = useState([]);
@@ -35,20 +35,40 @@ const UserReport = ({ searchParams, id, users }) => {
       : 0;
   const end = skip + limit;
 
+  /* ================= INIT DATES ================= */
+  useEffect(() => {
+    if (!dates.from && !dates.to) {
+      setDates(getCurrentReportCycle());
+    }
+  }, []);
+
   useEffect(() => {
     setIsLoading(true); // Start loading
     async function getUserReportByGroup() {
       try {
-        allUserSpecificTasks.current = await getUserSpecificTasks(
-          selectedOption,
-          limit,
-          skip,
-          dates
-        );
-        const totalUserSpecificTasks = await getUserSpecificTasksCount(
-          selectedOption,
-          dates
-        );
+        const qs = new URLSearchParams({
+          id: String(selectedOption || ""),
+          limit: String(limit),
+          skip: String(skip),
+          from: dates.from || "",
+          to: dates.to || "",
+        });
+        const [tasksRes, countRes] = await Promise.all([
+          fetch(`/api/report/user/tasks?${qs.toString()}`, { cache: "no-store" }),
+          fetch(
+            `/api/report/user/count?${new URLSearchParams({
+              id: String(selectedOption || ""),
+              from: dates.from || "",
+              to: dates.to || "",
+            }).toString()}`,
+            { cache: "no-store" }
+          ),
+        ]);
+        const [tasks, totalUserSpecificTasks] = await Promise.all([
+          tasksRes.json(),
+          countRes.json(),
+        ]);
+        allUserSpecificTasks.current = Array.isArray(tasks) ? tasks : [];
         setUserTaskRecord(allUserSpecificTasks.current); // Update state with the fetched data
         setTotalTasks(totalUserSpecificTasks); // Update state with the total count
       } catch (error) {
@@ -101,7 +121,7 @@ const UserReport = ({ searchParams, id, users }) => {
 
   return (
     <div className="h-full">
-      <form className="sticky top-0 z-20 p-4 gap-4 bg-white flex flex-col md:flex-row justify-center md:items-end">
+      <form className="sticky top-0 z-20 py-1 px-4 gap-2 bg-white flex flex-col md:flex-row justify-center md:items-end border-b border-base-300">
         <Select
           title="user_id"
           label="User"
@@ -110,7 +130,7 @@ const UserReport = ({ searchParams, id, users }) => {
           handleOptionChange={handleOptionChange}
           isReport={isReport}
         />
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+        <div className="flex flex-col md:flex-row gap-2 md:gap-4">
           <DateInput
             label="from"
             selectedDate={dates.from}
@@ -124,25 +144,25 @@ const UserReport = ({ searchParams, id, users }) => {
             isReport={isReport}
           />
         </div>
-        <div className="ml-[22%] md:ml-0 flex flex-col md:flex-row gap-4 md:gap-6">
+        <div className="ml-[22%] md:ml-0 flex flex-col md:flex-row gap-2 md:gap-4">
           <input
             name="password"
             placeholder="Password"
             type="password"
-            className="input input-bordered max-w-xs"
+            className="input input-bordered input-sm max-w-[120px]"
             onChange={handlePassword}
           />
           <input
             name="filter"
             placeholder="Filter transcript"
             type="text"
-            className="input input-bordered max-w-xs"
+            className="input input-bordered input-sm max-w-xs"
             value={transcript}
             onChange={handleFilter}
           />
         </div>
       </form>
-      <div className="flex flex-col justify-center items-center my-10">
+      <div className="flex flex-col justify-center items-center my-4">
         {isLoading ? (
           <div className="text-center mt-10">
             <span className="loading loading-spinner text-success text-center"></span>

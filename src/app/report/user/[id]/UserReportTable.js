@@ -9,8 +9,22 @@ const UserReportTable = ({
   setUserTaskRecord,
 }) => {
   function formattedDate(date) {
-    return date.toISOString();
+    if (!date) return "";
+
+    // If already a string (production case)
+    if (typeof date === "string") {
+      return new Date(date).toISOString();
+    }
+
+    // If Date object (localhost case)
+    if (date instanceof Date) {
+      return date.toISOString();
+    }
+
+    // Fallback safety
+    return "";
   }
+
   const [disabledButtons, setDisabledButtons] = useState({});
   const countRef = useRef(0);
 
@@ -50,7 +64,7 @@ const UserReportTable = ({
 
   return (
     <>
-      <div className="overflow-x-auto shadow-md sm:rounded-lg w-11/12 md:w-4/5 max-h-[70vh]">
+      <div className="overflow-x-auto w-full max-h-[70vh]">
         <table className="table table-auto table-pin-rows">
           {/* head */}
           <thead className="text-gray-700 bg-gray-50">
@@ -84,11 +98,10 @@ const UserReportTable = ({
             {userTaskRecord.map((task) => (
               <tr key={task.id}>
                 <td
-                  className={`border-l-4 ${
-                    task.transcriber_is_correct
+                  className={`border-l-4 ${task.transcriber_is_correct
                       ? "border-green-500"
                       : "border-red-500"
-                  }`}
+                    }`}
                 >
                   <div className="grid gap-2 mb-2">
                     <strong>Submitted:</strong>
@@ -130,14 +143,12 @@ const UserReportTable = ({
                 <td>{task.reviewer?.name || ""}</td>
                 <td>{task.final_reviewer?.name || ""}</td>
                 <td>
-                  {task.submitted_at !== null
-                    ? formattedDate(task?.submitted_at)
-                    : ""}
+                  {formattedDate(task.submitted_at)}
+
                 </td>
                 <td>
-                  {task.reviewed_at !== null
-                    ? formattedDate(task?.reviewed_at)
-                    : ""}
+                  {formattedDate(task.reviewed_at)}
+
                 </td>
                 <td>{task.file_name}</td>
                 <td>{task.audio_duration}</td>

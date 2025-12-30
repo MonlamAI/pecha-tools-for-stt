@@ -1,14 +1,19 @@
 "use client";
-import Select from "@/components/Select";
 import React, { useState, useEffect } from "react";
 import GroupPieChart from "./GroupPieChart";
 
-const TaskStats = ({ groupStatByDept }) => {
-  const [selectedScope, setSelectedScope] = useState("all_departments");
+const TaskStats = ({ groupStatByDept, viewScope }) => {
+  const [selectedScope, setSelectedScope] = useState(viewScope || "all_departments");
   const [statsList, setStatsList] = useState([]);
 
   useEffect(() => {
-    if (groupStatByDept) {
+    if (viewScope) {
+      handleScopeChange({ target: { value: viewScope } });
+    }
+  }, [viewScope]);
+
+  useEffect(() => {
+    if (groupStatByDept && !viewScope) {
       calculateStatsAllDepartments();
     }
   }, [groupStatByDept]);
@@ -120,15 +125,22 @@ const TaskStats = ({ groupStatByDept }) => {
 
   return (
     <>
-      <div className="w-4/5 sm:w-1/2 md:w-1/4 my-5">
-        <Select
-          title="scope"
-          label="Scope"
-          options={scopes}
-          selectedOption={selectedScope}
-          handleOptionChange={handleScopeChange}
-        />
-      </div>
+      {!viewScope && (
+        <div className="flex flex-wrap gap-4 mb-10 justify-center">
+          {scopes.map((scope) => (
+            <button
+              key={scope.id}
+              onClick={() => handleScopeChange({ target: { value: scope.id } })}
+              className={`px-6 py-2 rounded-md font-bold transition-all duration-200 ${selectedScope === scope.id
+                  ? "bg-teal-600 text-white shadow-md border-2 border-teal-700"
+                  : "bg-[#2DD4BF] text-slate-800 hover:bg-teal-400 border-2 border-transparent"
+                }`}
+            >
+              {scope.name.replace("_", " ")}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {statsList.map((group, index) => (

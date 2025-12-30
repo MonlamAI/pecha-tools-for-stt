@@ -212,7 +212,7 @@ const AudioTranscript = ({
         refreshPromises.push(
           fetchUserHistoryApi({ userId, groupId, role })
             .then((latestHistory) => setHistoryList(latestHistory))
-            .catch(() => {})
+            .catch(() => { })
         );
       }
       await Promise.all(refreshPromises);
@@ -267,7 +267,7 @@ const AudioTranscript = ({
           try {
             const latestHistory = await fetchUserHistoryApi({ userId, groupId, role });
             setHistoryList(latestHistory);
-          } catch {}
+          } catch { }
         }}
       >
         {/* Page content here */}
