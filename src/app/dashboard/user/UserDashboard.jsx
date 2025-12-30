@@ -70,7 +70,7 @@ const UserDashboard = ({ users, groups, searchParams }) => {
                     >
                       Edit
                     </button>
-                    <DeleteUserButton userId={user.id} onDone={() => router.refresh()} />
+                <DeleteUserButton userId={user.id} userName={user.name} onDone={() => router.refresh()} />
                     {/* <a
                       href="#"
                       className="font-medium text-error hover:underline"
@@ -93,7 +93,7 @@ const UserDashboard = ({ users, groups, searchParams }) => {
 
 export default UserDashboard;
 
-function DeleteUserButton({ userId, onDone }) {
+function DeleteUserButton({ userId, userName, onDone }) {
   const [state, formAction] = useFormState(deleteUserByForm, null);
   useEffect(() => {
     if (state?.error) toast.error(state.error);
@@ -103,7 +103,17 @@ function DeleteUserButton({ userId, onDone }) {
     }
   }, [state]);
   return (
-    <form action={formAction}>
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        const ok = window.confirm(
+          `Are you sure you want to delete user "${userName}" (ID: ${userId})? This action cannot be undone.`
+        );
+        if (!ok) {
+          e.preventDefault();
+        }
+      }}
+    >
       <input type="hidden" name="id" value={userId} readOnly />
       <button className="font-medium text-error hover:underline">Remove</button>
     </form>

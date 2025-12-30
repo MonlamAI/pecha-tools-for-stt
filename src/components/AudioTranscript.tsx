@@ -5,15 +5,46 @@ import ActionButtons from "./ActionButtons";
 import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
 import AppContext from "./AppContext";
-import type { Task, User } from "@prisma/client";
+import type { State, Role } from "@prisma/client";
 import { MAX_HISTORY } from "@/constants/config";
 
 // Types
+type BasicTask = {
+  id: number;
+  group_id: number;
+  state: State;
+  inference_transcript: string | null;
+  transcript: string | null;
+  reviewed_transcript: string | null;
+  final_transcript: string | null;
+  file_name: string;
+  url: string;
+  transcriber: { name: string } | null;
+  reviewer: { name: string } | null;
+};
+
+type HistoryTask = {
+  id: number;
+  group_id: number;
+  state: State;
+  inference_transcript: string | null;
+  transcript: string | null;
+  reviewed_transcript: string | null;
+  final_transcript: string | null;
+};
+
+type UserLite = {
+  id: number;
+  name: string;
+  group_id: number;
+  role: Role;
+};
+
 type AudioTranscriptType = {
-  tasks: Task[];
-  userDetail: User;
+  tasks: BasicTask[];
+  userDetail: UserLite;
   language: any;
-  userHistory: Task[];
+  userHistory: HistoryTask[];
 };
 
 async function fetchUserProgress({
@@ -84,9 +115,9 @@ const AudioTranscript = ({
 }: AudioTranscriptType) => {
   const [languageSelected, setLanguageSelected] = useState("bo");
   const lang = language[languageSelected];
-  const [taskList, setTaskList] = useState<any>(tasks);
+  const [taskList, setTaskList] = useState<BasicTask[]>(tasks || []);
   const [transcript, setTranscript] = useState("");
-  const [historyList, setHistoryList] = useState<Task[]>(userHistory || []);
+  const [historyList, setHistoryList] = useState<HistoryTask[]>(userHistory || []);
   const [userTaskStats, setUserTaskStats] = useState({
     completedTaskCount: 0,
     totalTaskCount: 0,
@@ -106,16 +137,16 @@ const AudioTranscript = ({
         case "TRANSCRIBER":
           taskList[0]?.transcript != null && taskList[0]?.transcript != ""
             ? setTranscript(taskList[0]?.transcript)
-            : setTranscript(taskList[0]?.inference_transcript);
+            : setTranscript(taskList[0]?.inference_transcript ?? "");
           break;
         case "REVIEWER":
           taskList[0].reviewed_transcript != null &&
             taskList[0].reviewed_transcript != ""
             ? setTranscript(taskList[0]?.reviewed_transcript)
-            : setTranscript(taskList[0]?.transcript);
+            : setTranscript(taskList[0]?.transcript ?? "");
           break;
         case "FINAL_REVIEWER":
-          setTranscript(taskList[0]?.reviewed_transcript);
+          setTranscript(taskList[0]?.reviewed_transcript ?? "");
           break;
         default:
           break;
@@ -174,14 +205,17 @@ const AudioTranscript = ({
       }
       toast.success(result?.msg?.success || "");
 
-      // refresh user progress after updates
-      await setUserProgress();
-
-      // refetch authoritative history to avoid duplicates and keep correct order
-      try {
-        const latestHistory = await fetchUserHistoryApi({ userId, groupId, role });
-        setHistoryList(latestHistory);
-      } catch {}
+      // refresh user progress after updates (in parallel with optional history refresh)
+      const shouldRefreshHistory = action !== "save" && action !== "trash";
+      const refreshPromises: Promise<any>[] = [setUserProgress()];
+      if (shouldRefreshHistory) {
+        refreshPromises.push(
+          fetchUserHistoryApi({ userId, groupId, role })
+            .then((latestHistory) => setHistoryList(latestHistory))
+            .catch(() => {})
+        );
+      }
+      await Promise.all(refreshPromises);
       handleTaskListUpdate(action, task.id);
     } catch (error) {
       console.error("Failed to update task:", error);
@@ -203,7 +237,7 @@ const AudioTranscript = ({
     const lastTaskIndex = getLastTaskIndex();
 
     if (lastTaskIndex !== 0) {
-      setTaskList((prev: any) => prev.filter((task: Task) => task.id !== id));
+      setTaskList((prev) => prev.filter((task) => task.id !== id));
       return;
     }
 

@@ -65,6 +65,15 @@ model Task {
   audio_duration         Float     @default(0)
   transcriber_is_correct Boolean?
   reviewer_is_correct    Boolean?
+
+  @@index([group_id, state])
+  @@index([state])
+  @@index([transcriber_id, state])
+  @@index([reviewer_id, state])
+  @@index([final_reviewer_id, state])
+  @@index([transcriber_id, submitted_at])
+  @@index([reviewer_id, reviewed_at])
+  @@index([final_reviewer_id, finalised_reviewed_at])
 }
 
 model User {

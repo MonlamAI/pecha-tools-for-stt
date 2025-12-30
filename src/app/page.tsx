@@ -2,7 +2,7 @@ import Link from "next/link";
 import AudioTranscript from "@/components/AudioTranscript";
 import RightSidebar from "@/components/RightSidebar";
 import languagesObject from "../../data/language";
-import { fetchUserDataBySession } from "@/service/user-service";
+import { fetchUserDataBySession, type FetchUserDataResult } from "@/service/user-service";
 
 /*
  * make sure every request is server-rendered with cache: 'no-store' so Next.js doesn’t cache across sessions
@@ -13,8 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function Home({ searchParams }: { searchParams: any }) {
   const { session } = searchParams;
   const language = languagesObject;
-  const { error, userTasks, userDetail, userHistory } =
-    await fetchUserDataBySession(session);
+  const result: FetchUserDataResult = await fetchUserDataBySession(session);
 
   // console.log({ error, userTasks, userDetail, userHistory })
   const routes = [
@@ -29,7 +28,7 @@ export default async function Home({ searchParams }: { searchParams: any }) {
       {session === undefined || session === "" ? (
         <>
           <div className="text-xl font-semibold mt-10 p-5 text-center">
-            please log in to it with correct username - ?session=username
+            please log in to it with correct email - ?session=email
             <span className="block">or</span>
           </div>
           <div className="flex flex-col gap-6 sm:flex-row">
@@ -45,16 +44,16 @@ export default async function Home({ searchParams }: { searchParams: any }) {
             ))}
           </div>
         </>
-      ) : error ? (
+      ) : "error" in result ? (
         <div className="mt-10 p-5 text-xl font-semibold text-center">
-          {error}
+          {result.error}
         </div>
       ) : (
         <AudioTranscript
-          tasks={userTasks}
-          userDetail={userDetail}
+          tasks={result.userTasks ?? []}
+          userDetail={result.userDetail}
           language={language}
-          userHistory={userHistory}
+          userHistory={result.userHistory}
         />
       )}
       <RightSidebar>

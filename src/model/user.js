@@ -543,25 +543,15 @@ export const generateFinalReviewerTaskReport = async (
   dates,
   groupId
 ) => {
-  const finalReviewerList = [];
-
-  for (const finalReviewer of finalReviewers) {
-    const { id, name } = finalReviewer;
-
-    const finalReviewerObj = {
-      id,
-      name,
-      noFinalised: 0,
-      finalisedInMin: 0,
-    };
-
-    const updatedFinalReviwerObj = await getFinalReviewerTaskCount(
-      id,
-      dates,
-      finalReviewerObj,
-      groupId
-    );
-    finalReviewerList.push(updatedFinalReviwerObj);
-  }
-  return finalReviewerList;
+  const list = await Promise.all(
+    finalReviewers.map(({ id, name }) =>
+      getFinalReviewerTaskCount(
+        id,
+        dates,
+        { id, name, noFinalised: 0, finalisedInMin: 0 },
+        groupId
+      )
+    )
+  );
+  return list;
 };

@@ -1,35 +1,56 @@
 "use server";
 
 import prisma from "@/service/db";
-import { revalidatePath } from "next/cache";
 import { formatTime } from "@/lib/formatTime";
 import { istCurrentTime } from "@/lib/istCurrentTime";
 import { TASK_RULES } from "@/constants/taskRules";
-import type { Prisma, Role, Task } from "@prisma/client";
+import type { Prisma, Role, Task, State } from "@prisma/client";
 import { ASSIGN_TASKS, USER_FETCH_TASKS } from "@/constants/config";
 import { getNumberOfAssignedTask } from "@/model/action";
+import { getCache, setCache } from "@/lib/cache";
 
-// count user’s assigned but pending tasks
-export const getNumberOfPendingTasks = async ({
-  userId,
-  groupId,
-  role,
-}: {
-  userId: number;
-  role: Role;
-  groupId: number;
-}) => {
-  const { workingState, transcriptField, idField } = TASK_RULES[role];
-  return await prisma.task.count({
-    where: {
-      group_id: groupId,
-      state: workingState,
-      [idField]: userId,
-      [transcriptField]: null,
-      //   OR: [{ [transcriptField]: null }, { [transcriptField]: "" }],
-    },
-  });
+type TaskListItem = {
+  id: number;
+  group_id: number;
+  state: State;
+  inference_transcript: string | null;
+  transcript: string | null;
+  reviewed_transcript: string | null;
+  final_transcript: string | null;
+  file_name: string;
+  url: string;
+  transcriber: { name: string } | null;
+  reviewer: { name: string } | null;
 };
+
+// // count user’s assigned but pending tasks (currently unused)
+// export const getNumberOfPendingTasks = async ({
+//   userId,
+//   groupId,
+//   role,
+// }: {
+//   userId: number;
+//   role: Role;
+//   groupId: number;
+// }) => {
+//   const { workingState, transcriptField, idField } = TASK_RULES[role];
+//   const cacheKey = `pending:${userId}:${groupId}:${role}`;
+//   const cached = getCache<number>(cacheKey);
+//   if (typeof cached === "number") return cached;
+//
+//   const count = await prisma.task.count({
+//    where: {
+//       group_id: groupId,
+//       state: workingState,
+//       [idField]: userId,
+//       [transcriptField]: null,
+//       //   OR: [{ [transcriptField]: null }, { [transcriptField]: "" }],
+//     },
+//   });
+//   // 3s TTL
+//   setCache(cacheKey, count, 3000);
+//   return count;
+// };
 
 export const getCompletedTaskCount = async ({
   userId,
@@ -41,12 +62,13 @@ export const getCompletedTaskCount = async ({
   groupId: number;
 }) => {
   const { completedStates, idField } = TASK_RULES[role];
+  const statesArray = Array.isArray(completedStates) ? completedStates : [completedStates];
 
   return prisma.task.count({
     where: {
       [idField]: userId,
       group_id: groupId,
-      state: { in: completedStates },
+      state: { in: statesArray },
     },
   });
 };
@@ -60,26 +82,11 @@ export const getTasks = async ({
   groupId: number;
   userId: number;
   role: Role;
-}) => {
-  // const pendingTaskCount = await getNumberOfAssignedTask(userId, role, groupId);
-  const pendingTaskCount = await getNumberOfPendingTasks({
-    userId,
-    role,
-    groupId,
-  });
-  // console.log("getTasks:", { userId, groupId, pendingTaskCount });
-  // return []
-
-  if (pendingTaskCount === 0) {
-    // await assignMoreTasks(groupId, userId, role);
-    // console.log("assignTasksToUser:", { groupId, userId, role });
-    await assignTasksToUser({ groupId, userId, role });
-  }
-
+}): Promise<TaskListItem[]> => {
   const { workingState, idField } = TASK_RULES[role];
 
-  // console.log({ groupId, userId, role, workingState, idField })
-  return await prisma.task.findMany({
+  // Fetch existing tasks; if none, assign and refetch.
+  let tasks = (await prisma.task.findMany({
     where: { group_id: groupId, state: workingState, [idField]: userId },
     orderBy: { id: "asc" },
     take: USER_FETCH_TASKS,
@@ -96,7 +103,31 @@ export const getTasks = async ({
       transcriber: { select: { name: true } },
       reviewer: { select: { name: true } },
     },
-  });
+  })) as unknown as TaskListItem[];
+
+  if (tasks.length === 0) {
+    await assignTasksToUser({ groupId, userId, role });
+    tasks = (await prisma.task.findMany({
+      where: { group_id: groupId, state: workingState, [idField]: userId },
+      orderBy: { id: "asc" },
+      take: USER_FETCH_TASKS,
+      select: {
+        id: true,
+        group_id: true,
+        state: true,
+        inference_transcript: true,
+        transcript: true,
+        reviewed_transcript: true,
+        final_transcript: true,
+        file_name: true,
+        url: true,
+        transcriber: { select: { name: true } },
+        reviewer: { select: { name: true } },
+      },
+    })) as unknown as TaskListItem[];
+  }
+
+  return tasks;
 };
 
 export const assignTasksToUser = async ({
@@ -107,7 +138,7 @@ export const assignTasksToUser = async ({
   groupId: number;
   userId: number;
   role: Role;
-}): Promise<Task[]> => {
+}): Promise<TaskListItem[]> => {
   const { workingState, idField } = TASK_RULES[role];
 
   return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -133,7 +164,7 @@ export const assignTasksToUser = async ({
         transcriber: { select: { name: true } },
         reviewer: { select: { name: true } },
       },
-    });
+    }) as unknown as TaskListItem[];
 
     // console.log('unassignedTasks:', unassignedTasks.length, { groupId, userId, role, workingState, idField, })
     if (unassignedTasks.length > 0) {
@@ -251,7 +282,6 @@ export const updateTask = async (
 
   // console.log('updateTask', { updatedTask, data, id })
   if (updatedTask) {
-    revalidatePath("/");
     return { msg: taskToastMsg(action), updatedTask };
   }
   return { error: "Error updating task" };

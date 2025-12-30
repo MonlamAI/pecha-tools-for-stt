@@ -244,3 +244,22 @@ function groupByDepartmentId(arr) {
 
   return Object.values(grouped);
 }
+
+// lighter group fetch for stats page
+export const getBasicGroups = async () => {
+  try {
+    const groups = await prisma.group.findMany({
+      select: {
+        id: true,
+        name: true,
+        department_id: true,
+        Department: { select: { name: true } },
+      },
+      orderBy: { department_id: "asc" },
+    });
+    return groups;
+  } catch (error) {
+    console.error("Error getting basic groups:", error);
+    return { error: "Failed to fetch groups. Please try again." };
+  }
+};
