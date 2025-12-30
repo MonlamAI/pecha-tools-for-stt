@@ -5,17 +5,57 @@ import ActionButtons from "./ActionButtons";
 import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
 import AppContext from "./AppContext";
-import type { Task, User } from "@prisma/client";
+import type { State, Role } from "@prisma/client";
+import { MAX_HISTORY } from "@/constants/config";
 
 // Types
-type AudioTranscriptType = {
-  tasks: Task[];
-  userDetail: User;
-  language: any;
-  userHistory: Task[];
+type BasicTask = {
+  id: number;
+  group_id: number;
+  state: State;
+  inference_transcript: string | null;
+  transcript: string | null;
+  reviewed_transcript: string | null;
+  final_transcript: string | null;
+  file_name: string;
+  url: string;
+  transcriber: { name: string } | null;
+  reviewer: { name: string } | null;
 };
 
-async function fetchUserProgress({ userId, groupId, role }: any) {
+type HistoryTask = {
+  id: number;
+  group_id: number;
+  state: State;
+  inference_transcript: string | null;
+  transcript: string | null;
+  reviewed_transcript: string | null;
+  final_transcript: string | null;
+};
+
+type UserLite = {
+  id: number;
+  name: string;
+  group_id: number;
+  role: Role;
+};
+
+type AudioTranscriptType = {
+  tasks: BasicTask[];
+  userDetail: UserLite;
+  language: any;
+  userHistory: HistoryTask[];
+};
+
+async function fetchUserProgress({
+  userId,
+  groupId,
+  role,
+}: {
+  userId: number;
+  groupId: number;
+  role: string;
+}) {
   const res = await fetch(
     `/api/user/progress?userId=${userId}&groupId=${groupId}&role=${role}`,
     { cache: "no-store" }
@@ -24,7 +64,15 @@ async function fetchUserProgress({ userId, groupId, role }: any) {
   return res.json();
 }
 
-async function fetchTaskList({ userId, groupId, role }: any) {
+async function fetchTaskList({
+  userId,
+  groupId,
+  role,
+}: {
+  userId: number;
+  groupId: number;
+  role: string;
+}) {
   const res = await fetch(
     `/api/task/list?userId=${userId}&groupId=${groupId}&role=${role}`,
     { cache: "no-store" }
@@ -34,14 +82,23 @@ async function fetchTaskList({ userId, groupId, role }: any) {
 }
 
 async function postTaskUpdate(body: any) {
-  return fetch("/api/task/update", {
+  const res = await fetch("/api/task/update", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  return res;
 }
 
-async function fetchUserHistoryApi({ userId, groupId, role }: any) {
+async function fetchUserHistoryApi({
+  userId,
+  groupId,
+  role,
+}: {
+  userId: number;
+  groupId: number;
+  role: string;
+}) {
   const res = await fetch(
     `/api/user/history?userId=${userId}&groupId=${groupId}&role=${role}`,
     { cache: "no-store" }
@@ -58,16 +115,15 @@ const AudioTranscript = ({
 }: AudioTranscriptType) => {
   const [languageSelected, setLanguageSelected] = useState("bo");
   const lang = language[languageSelected];
-  const [taskList, setTaskList] = useState<any>(tasks);
+  const [taskList, setTaskList] = useState<BasicTask[]>(tasks || []);
   const [transcript, setTranscript] = useState("");
-  const [historyList, setHistoryList] = useState<Task[]>(userHistory || []);
+  const [historyList, setHistoryList] = useState<HistoryTask[]>(userHistory || []);
   const [userTaskStats, setUserTaskStats] = useState({
     completedTaskCount: 0,
     totalTaskCount: 0,
     totalTaskPassed: 0,
   });
-
-  const audioRef = useRef<any>(null);
+  const audioRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const { id: userId, group_id: groupId, role } = userDetail as any;
   const currentTimeRef: any = useRef(null);
@@ -75,22 +131,24 @@ const AudioTranscript = ({
   useEffect(() => {
     setUserProgress();
     currentTimeRef.current = new Date().toISOString();
-
     if (taskList?.length) {
       setIsLoading(false);
       switch (role) {
         case "TRANSCRIBER":
-          setTranscript(
-            taskList[0]?.transcript || taskList[0]?.inference_transcript
-          );
+          taskList[0]?.transcript != null && taskList[0]?.transcript != ""
+            ? setTranscript(taskList[0]?.transcript)
+            : setTranscript(taskList[0]?.inference_transcript ?? "");
           break;
         case "REVIEWER":
-          setTranscript(
-            taskList[0]?.reviewed_transcript || taskList[0]?.transcript
-          );
+          taskList[0].reviewed_transcript != null &&
+            taskList[0].reviewed_transcript != ""
+            ? setTranscript(taskList[0]?.reviewed_transcript)
+            : setTranscript(taskList[0]?.transcript ?? "");
           break;
         case "FINAL_REVIEWER":
-          setTranscript(taskList[0]?.reviewed_transcript);
+          setTranscript(taskList[0]?.reviewed_transcript ?? "");
+          break;
+        default:
           break;
       }
     } else {
@@ -100,14 +158,37 @@ const AudioTranscript = ({
 
   const setUserProgress = async () => {
     try {
-      const data = await fetchUserProgress({ userId, role, groupId });
-      setUserTaskStats(data);
-    } catch (e) {
-      console.error(e);
+      const { completedTaskCount, totalTaskCount, totalTaskPassed } =
+        await fetchUserProgress({ userId, role, groupId });
+      setUserTaskStats({ completedTaskCount, totalTaskCount, totalTaskPassed });
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  const updateTaskAndIndex = async ({ action, transcript, task }: any) => {
+  type TaskActionType = "submit" | "reject" | "save" | "trash" | "assign";
+
+  function isHistoryState(role: string, state: string): boolean {
+    switch (role) {
+      case "TRANSCRIBER":
+        return state === "submitted" || state === "trashed";
+      case "REVIEWER":
+        return state === "accepted" || state === "trashed";
+      case "FINAL_REVIEWER":
+        return state === "finalised";
+      default:
+        return false;
+    }
+  }
+  const updateTaskAndIndex = async ({
+    action,
+    transcript,
+    task,
+  }: {
+    action: TaskActionType;
+    transcript: string;
+    task: any;
+  }) => {
     try {
       const res = await postTaskUpdate({
         action,
@@ -117,51 +198,64 @@ const AudioTranscript = ({
         role,
         currentTime: currentTimeRef.current,
       });
-
       const result = await res.json();
       if (!res.ok || result?.error) {
-        toast.error(result?.error || "Failed");
+        toast.error(result?.error || "Failed to update task");
         return;
       }
+      toast.success(result?.msg?.success || "");
 
-      toast.success(result?.msg?.success || "Success");
-      await setUserProgress();
-
-      try {
-        const latestHistory = await fetchUserHistoryApi({
-          userId,
-          groupId,
-          role,
-        });
-        setHistoryList(latestHistory);
-      } catch { }
-
+      // refresh user progress after updates (in parallel with optional history refresh)
+      const shouldRefreshHistory = action !== "save" && action !== "trash";
+      const refreshPromises: Promise<any>[] = [setUserProgress()];
+      if (shouldRefreshHistory) {
+        refreshPromises.push(
+          fetchUserHistoryApi({ userId, groupId, role })
+            .then((latestHistory) => setHistoryList(latestHistory))
+            .catch(() => { })
+        );
+      }
+      await Promise.all(refreshPromises);
       handleTaskListUpdate(action, task.id);
-    } catch {
+    } catch (error) {
+      console.error("Failed to update task:", error);
       toast.error("Failed to update task");
     }
   };
 
-  const handleTaskListUpdate = async (action: any, id: number) => {
+  function getLastTaskIndex() {
+    return taskList.length != 0 ? taskList?.length - 1 : 0;
+  }
+  const handleTaskListUpdate = async (action: TaskActionType, id: number) => {
+    // // keep current task on save; only advance on submit/reject/trash
+    // if (action === "save") {
+    //   return;
+    // }
     if (action === "submit") {
       currentTimeRef.current = new Date().toISOString();
     }
+    const lastTaskIndex = getLastTaskIndex();
 
-    if (taskList.length > 1) {
-      setTaskList((prev: any) => prev.filter((t: Task) => t.id !== id));
+    if (lastTaskIndex !== 0) {
+      setTaskList((prev) => prev.filter((task) => task.id !== id));
       return;
     }
 
     try {
       const moreTask = await fetchTaskList({ groupId, userId, role });
       setTaskList(moreTask);
-    } catch {
-      toast.error("Failed to load more tasks");
+    } catch (error) {
+      console.error("Failed to fetch more tasks:", error);
+      toast.error("Failed to load more tasks.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <AppContext.Provider value={{ languageSelected, setLanguageSelected, lang }}>
+    <AppContext.Provider
+      value={{ languageSelected, setLanguageSelected, lang }}
+    >
       <Sidebar
         userDetail={userDetail}
         userTaskStats={userTaskStats}
@@ -170,113 +264,66 @@ const AudioTranscript = ({
         setTaskList={setTaskList}
         userHistory={historyList}
         onHistoryChanged={async () => {
-          const latestHistory = await fetchUserHistoryApi({
-            userId,
-            groupId,
-            role,
-          });
-          setHistoryList(latestHistory);
+          try {
+            const latestHistory = await fetchUserHistoryApi({ userId, groupId, role });
+            setHistoryList(latestHistory);
+          } catch { }
         }}
       >
+        {/* Page content here */}
         {isLoading ? (
-          <div className="flex justify-center items-center min-h-[60vh]">
-            <span className="loading loading-spinner loading-lg" />
+          <div className="flex flex-col justify-center items-center mt-10 p-5">
+            <h1 className="font-bold text-md md:text-3xl">loading...</h1>
           </div>
         ) : taskList?.length ? (
-          <div className="w-full px-4 py-5">
-            <div className="mx-auto max-w-4xl space-y-5">
-
-              {/* HEADER – ALIGNED */}
-              <div
-                className="
-                  flex flex-wrap md:flex-nowrap items-center justify-center gap-4 md:gap-8
-                  rounded-xl
-                  bg-white/70 dark:bg-neutral-800/60
-                  backdrop-blur-md
-                  border border-white/40 dark:border-white/10
-                  px-6 py-3 
-                  shadow-lg
-                "
-              >
-                <div className="text-sm font-medium">
-                  <span className="opacity-60">{lang.transcriber}:</span>{" "}
-                  <span className="font-semibold">
-                    {taskList[0]?.transcriber?.name || "-"}
+          <>
+            <div>
+              <p className="mt-4 md:mt-10">
+                <strong>{lang.transcriber} : </strong>
+                <span>{taskList[0]?.transcriber?.name}</span>
+              </p>
+              <p className="mt-2">
+                <strong>{lang.reviewer} : </strong>
+                <span>{taskList[0]?.reviewer?.name}</span>
+                {role === "TRANSCRIBER" && taskList[0]?.reviewer?.name ? (
+                  <span className="text-red-500">
+                    Rejected by {taskList[0]?.reviewer?.name}
                   </span>
-                </div>
-
-                <div className="hidden md:block h-5 w-px bg-neutral-300 dark:bg-neutral-600" />
-
-                <div className="text-sm font-medium">
-                  <span className="opacity-60">{lang.reviewer}:</span>{" "}
-                  <span className="font-semibold">
-                    {taskList[0]?.reviewer?.name || "-"}
-                  </span>
-                  {role === "TRANSCRIBER" && taskList[0]?.reviewer && (
-                    <span className="ml-2 text-red-500">(Rejected)</span>
-                  )}
-                </div>
-              </div>
-
-              {/* AUDIO CARD */}
-              <div className="relative rounded-xl bg-white/70 dark:bg-neutral-800/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-lg p-2">
-                <div className="rounded-xl bg-white/80 dark:bg-neutral-900/60 p-4">
-                  <AudioPlayer tasks={taskList} audioRef={audioRef} />
-                </div>
-              </div>
-
-              {/* TRANSCRIPT CARD */}
-              <div className="relative rounded-xl bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-lg p-2">
-
-                <textarea
-                  value={transcript}
-                  onChange={(e) => setTranscript(e.target.value)}
-                  rows={6}
-                  className="
-                    w-full resize-none rounded-xl
-                    bg-white dark:bg-neutral-800   
-                    border border-neutral-300 dark:border-neutral-700
-                    p-6 md:p-9
-                    text-base leading-8
-                    text-neutral-900 dark:text-neutral-100
-                    focus:outline-none focus:ring-2 focus:ring-yellow-300
-                    antialiased
-                  "
-                />
-
-
-                {/* FILE BADGE */}
-                <div className="mt-0.5 flex justify-end">
-                  <div
-                    className="
-                        inline-flex items-center gap-2
-                        text-xs px-3 py-1.5
-                        rounded-full
-                        bg-white/70 dark:bg-neutral-800/60
-                        border border-white/40 dark:border-white/10
-                        backdrop-blur
-                        shadow-sm
-                      "
-                  >
-                    📄 {taskList[0]?.url.split("/").pop()}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* ACTION BUTTONS */}
-              <ActionButtons
-                updateTaskAndIndex={updateTaskAndIndex}
-                tasks={taskList}
-                transcript={transcript}
-                role={role}
-              />
+                ) : (
+                  ""
+                )}
+              </p>
             </div>
-          </div>
+            <div className="border rounded-md shadow-sm shadow-gray-400 w-11/12 md:w-3/4 p-6 md:p-8 mt-4 md:mt-10 bg-base-100">
+              <div className="flex flex-col gap-5 justify-center items-center">
+                <AudioPlayer tasks={taskList} audioRef={audioRef} />
+                <textarea
+                  value={transcript || ""}
+                  onChange={(e) => setTranscript(e.target.value)}
+                  className="rounded-md p-4 border border-slate-400 w-full text-xl bg-base-100 text-base-content"
+                  placeholder="Type here..."
+                  rows={6}
+                  id="transcript"
+                />
+                <div className="ml-auto text-xs">
+                  <span>
+                    <strong className="uppercase">{lang.file} : </strong>
+                    {taskList[0]?.url.split("/").pop()}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <ActionButtons
+              updateTaskAndIndex={updateTaskAndIndex}
+              tasks={taskList}
+              transcript={transcript}
+              role={role}
+            />
+          </>
         ) : (
-          <div className="flex justify-center items-center min-h-[60vh]">
-            <h1 className="text-xl font-semibold text-neutral-500">
-              No task found. Will allocate soon.
+          <div className="flex flex-col justify-center items-center mt-10 p-5">
+            <h1 className="font-bold text-lg md:text-3xl">
+              No task found, will allocate soon
             </h1>
           </div>
         )}

@@ -4,6 +4,7 @@ import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
 import { utcToIst } from "@/lib/istCurrentTime";
+import { getCache, setCache } from "@/lib/cache";
 
 /* --------------------- TASK FETCHERS --------------------- */
 
@@ -28,7 +29,8 @@ export const getTotalTaskCount = async () => {
     if (typeof cached === "number") return cached;
 
     const totalTask = await prisma.task.count({});
-    setCache(cacheKey, totalTask, 10000); // 10s TTL
+    // 10s TTL
+    setCache(cacheKey, totalTask, 10000);
     return totalTask;
   } catch (error) {
     console.error("Error fetching total task count:", error);
@@ -87,15 +89,15 @@ export const getUserSpecificTasksCount = async (id, dates) => {
     role === "transcriber"
       ? ["submitted", "accepted", "finalised"]
       : role === "reviewer"
-      ? ["accepted", "finalised"]
-      : ["finalised"];
+        ? ["accepted", "finalised"]
+        : ["finalised"];
 
   const dateField =
     role === "transcriber"
       ? "submitted_at"
       : role === "reviewer"
-      ? "reviewed_at"
-      : "finalised_reviewed_at";
+        ? "reviewed_at"
+        : "finalised_reviewed_at";
 
   const whereCondition = {
     [`${role}_id`]: userId,
@@ -132,15 +134,15 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
     role === "transcriber"
       ? ["submitted", "accepted", "finalised"]
       : role === "reviewer"
-      ? ["accepted", "finalised"]
-      : ["finalised"];
+        ? ["accepted", "finalised"]
+        : ["finalised"];
 
   const dateField =
     role === "transcriber"
       ? "submitted_at"
       : role === "reviewer"
-      ? "reviewed_at"
-      : "finalised_reviewed_at";
+        ? "reviewed_at"
+        : "finalised_reviewed_at";
 
   const whereCondition = {
     [`${role}_id`]: userId,
@@ -199,8 +201,8 @@ export const getCompletedTaskCount = async (id, role, groupId) => {
           role === "TRANSCRIBER"
             ? { in: ["submitted", "accepted", "finalised"] }
             : role === "REVIEWER"
-            ? { in: ["accepted", "finalised"] }
-            : "finalised",
+              ? { in: ["accepted", "finalised"] }
+              : "finalised",
       },
     });
   } catch (error) {
@@ -220,9 +222,9 @@ export const getReviewerTaskCount = async (id, dates) => {
     reviewed_at:
       fromDate && toDate
         ? {
-            gte: utcToIst(new Date(fromDate)),
-            lte: utcToIst(new Date(toDate)),
-          }
+          gte: utcToIst(new Date(fromDate)),
+          lte: utcToIst(new Date(toDate)),
+        }
         : undefined,
   };
 
@@ -283,9 +285,9 @@ export const getFinalReviewerTaskCount = async (
     finalised_reviewed_at:
       fromDate && toDate
         ? {
-            gte: utcToIst(new Date(fromDate)),
-            lte: utcToIst(new Date(toDate)),
-          }
+          gte: utcToIst(new Date(fromDate)),
+          lte: utcToIst(new Date(toDate)),
+        }
         : undefined,
   };
 

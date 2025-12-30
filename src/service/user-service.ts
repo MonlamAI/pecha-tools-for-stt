@@ -5,17 +5,35 @@ import { TASK_RULES } from "@/constants/taskRules";
 import type { Role } from "@prisma/client";
 import { MAX_HISTORY } from "@/constants/config";
 import { getCompletedTaskCount, getTasks } from "./task-service";
+import { getCache, setCache } from "@/lib/cache";
 
-export async function fetchUserDataBySession(session: string) {
+export type FetchUserDataResult =
+  | { error: string }
+  | {
+    userDetail: UserRecord;
+    userTasks: any[];
+    userHistory: any[];
+  };
+
+type UserRecord = {
+  id: number;
+  name: string;
+  group_id: number;
+  role: Role;
+  group: { name: string | null } | null;
+};
+
+export async function fetchUserDataBySession(session: string): Promise<FetchUserDataResult> {
   if (!session || session === "") {
     return { error: "Invalid session" };
   }
 
   const userData = await getOrCreateUser({ username: session });
-  if (userData === null) {
+  if (!userData || "error" in userData) {
     return {
       error:
-        "No user found. Please try again with the correct email..",
+        userData?.error ??
+        "No user found. Please try again with the correct username or email..",
     };
   }
 
@@ -48,7 +66,7 @@ export async function fetchUserDataBySession(session: string) {
   };
 }
 
-export async function getOrCreateUser({ username }: { username: string }) {
+export async function getOrCreateUser({ username }: { username: string }): Promise<UserRecord | { error: string }> {
   // only allow from certain domain? uncomment below
   if (!username) return { error: "Email not found. Please try again." };
   // if (!username.endsWith("@yourdomain.com")) return { error: "Unauthorized user" };
@@ -136,25 +154,31 @@ export const getUserProgressStats = async ({
   const rule = TASK_RULES[role];
 
   try {
-    const [completedTaskCount, totalTaskCount, totalTaskPassed] =
-      await Promise.all([
-        getCompletedTaskCount({ userId, role, groupId }),
-        prisma.task.count({
-          where: {
-            group_id: groupId,
-            [rule.idField]: userId,
-          },
-        }),
-        prisma.task.count({
-          where: {
-            group_id: groupId,
-            [rule.idField]: userId,
-            state: { in: rule.passedStates },
-          },
-        }),
-      ]);
+    const cacheKey = `user_progress:${userId}:${groupId}:${role}`;
+    const cached = getCache<{ completedTaskCount: number; totalTaskCount: number; totalTaskPassed: number }>(cacheKey);
+    if (cached) return cached;
 
-    return { completedTaskCount, totalTaskCount, totalTaskPassed };
+    const [completedTaskCount, totalTaskCount, totalTaskPassed] = await Promise.all([
+      getCompletedTaskCount({ userId, role, groupId }),
+      prisma.task.count({
+        where: {
+          group_id: groupId,
+          [rule.idField]: userId,
+        },
+      }),
+      prisma.task.count({
+        where: {
+          group_id: groupId,
+          [rule.idField]: userId,
+          state: { in: Array.isArray(rule.passedStates) ? rule.passedStates : [rule.passedStates] },
+        },
+      }),
+    ]);
+
+    const result = { completedTaskCount, totalTaskCount, totalTaskPassed };
+    // 10–20s TTL: choose 15s
+    setCache(cacheKey, result, 15000);
+    return result;
   } catch (error) {
     console.error(`Failed to fetch progress stats for user ${userId}:`, error);
     return { error: `Failed to fetch progress stats for role ${role}. Please try again.` };
