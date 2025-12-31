@@ -2,6 +2,19 @@ import levenshtein from "fast-levenshtein";
 
 /* ---------- helpers ---------- */
 
+/**
+ * DB stores IST as UTC literal (e.g. 12:00 PM IST is 12:00 PM UTC).
+ * We parse the date as a literal UTC start/end of day.
+ */
+export function parseLiteralUTC(ds?: string | null | Date, endOfDay = false) {
+  if (!ds) return undefined;
+  if (ds instanceof Date) return ds;
+
+  const dateStr = ds.split("T")[0];
+  const suffix = endOfDay ? "T23:59:59.999Z" : "T00:00:00.000Z";
+  return new Date(dateStr + suffix);
+}
+
 export function tibetanSyllableCount(text?: string | null) {
   if (!text) return 0;
   const tibetanOnly = text.replace(/[^\u0F00-\u0FFF]+/g, "");
@@ -10,8 +23,9 @@ export function tibetanSyllableCount(text?: string | null) {
 
 function inRange(dt: Date | null, from?: Date, to?: Date) {
   if (!dt) return false;
-  if (from && dt < from) return false;
-  if (to && dt > to) return false;
+  const t = dt.getTime();
+  if (from && t < from.getTime()) return false;
+  if (to && t > to.getTime()) return false;
   return true;
 }
 
@@ -34,17 +48,32 @@ export function buildReport({
   const finalReviewerMap = new Map<number, any[]>();
 
   for (const t of tasks) {
-    if (t.transcriber_id)
-      (transcriberMap.get(t.transcriber_id) ??=
-        []).push(t);
+    if (t.transcriber_id) {
+      let bucket = transcriberMap.get(t.transcriber_id);
+      if (!bucket) {
+        bucket = [];
+        transcriberMap.set(t.transcriber_id, bucket);
+      }
+      bucket.push(t);
+    }
 
-    if (t.reviewer_id)
-      (reviewerMap.get(t.reviewer_id) ??=
-        []).push(t);
+    if (t.reviewer_id) {
+      let bucket = reviewerMap.get(t.reviewer_id);
+      if (!bucket) {
+        bucket = [];
+        reviewerMap.set(t.reviewer_id, bucket);
+      }
+      bucket.push(t);
+    }
 
-    if (t.final_reviewer_id)
-      (finalReviewerMap.get(t.final_reviewer_id) ??=
-        []).push(t);
+    if (t.final_reviewer_id) {
+      let bucket = finalReviewerMap.get(t.final_reviewer_id);
+      if (!bucket) {
+        bucket = [];
+        finalReviewerMap.set(t.final_reviewer_id, bucket);
+      }
+      bucket.push(t);
+    }
   }
 
   /* ---------- OUTPUT ---------- */

@@ -67,7 +67,7 @@ export async function getAllGroupTaskStats(groupList: any[]) {
       by: ["state", "group_id"],
       where: { NOT: { state: "transcribing" } },
       _count: { _all: true },
-    }) as unknown as StatRow[];
+    });
 
     const taskImportedCount = await prisma.task.groupBy({
       by: ["group_id"],

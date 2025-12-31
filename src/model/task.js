@@ -4,7 +4,6 @@ import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
 import { utcToIst } from "@/lib/istCurrentTime";
-import { getCache, setCache } from "@/lib/cache";
 
 /* --------------------- TASK FETCHERS --------------------- */
 
@@ -29,8 +28,7 @@ export const getTotalTaskCount = async () => {
     if (typeof cached === "number") return cached;
 
     const totalTask = await prisma.task.count({});
-    // 10s TTL
-    setCache(cacheKey, totalTask, 10000);
+    setCache(cacheKey, totalTask, 10000); // 10s TTL
     return totalTask;
   } catch (error) {
     console.error("Error fetching total task count:", error);

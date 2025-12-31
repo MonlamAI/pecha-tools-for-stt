@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/service/db";
-import levenshtein from "fast-levenshtein";
+import { buildReport, parseLiteralUTC } from "@/lib/reportEngine";
 
 export const runtime = "nodejs";
 
@@ -26,12 +26,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const departmentId = Number(searchParams.get("departmentId"));
-    const from = searchParams.get("from")
-      ? new Date(searchParams.get("from")!)
-      : undefined;
-    const to = searchParams.get("to")
-      ? new Date(searchParams.get("to")!)
-      : undefined;
+    const from = parseLiteralUTC(searchParams.get("from"));
+    const to = parseLiteralUTC(searchParams.get("to"), true);
 
     if (!departmentId) {
       return NextResponse.json(
@@ -92,44 +88,7 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    /* -------- TASK MAPS (  critical) -------- */
-
-    const transcriberMap = new Map<number, any[]>();
-    const reviewerMap = new Map<number, any[]>();
-    const finalReviewerMap = new Map<number, any[]>();
-
-    for (const t of tasks) {
-      if (t.transcriber_id) {
-        let arr = transcriberMap.get(t.transcriber_id);
-        if (!arr) {
-          arr = [];
-          transcriberMap.set(t.transcriber_id, arr);
-        }
-        arr.push(t);
-      }
-
-      if (t.reviewer_id) {
-        let arr = reviewerMap.get(t.reviewer_id);
-        if (!arr) {
-          arr = [];
-          reviewerMap.set(t.reviewer_id, arr);
-        }
-        arr.push(t);
-      }
-
-      if (t.final_reviewer_id) {
-        let arr = finalReviewerMap.get(t.final_reviewer_id);
-        if (!arr) {
-          arr = [];
-          finalReviewerMap.set(t.final_reviewer_id, arr);
-        }
-        arr.push(t);
-      }
-    }
-
-
     /* -------- users by group -------- */
-
     const usersOut: Record<number, any[]> = {};
     const reviewersOut: Record<number, any[]> = {};
     const finalReviewersOut: Record<number, any[]> = {};
@@ -140,173 +99,34 @@ export async function GET(req: NextRequest) {
       finalReviewersOut[gid] = [];
     }
 
-    /* =====================================================
-       MAIN LOOP (NO FILTERS, PURE MAP LOOKUPS)
-    ===================================================== */
+    /* ---------------- REPORT LOGIC ---------------- */
+    const report = buildReport({ users, tasks, from, to });
 
-    /* =====================================================
-       MAIN LOOP (MATCHING GROUP LOGIC: NO STRICT sub-checks)
-    ===================================================== */
-
+    /* ---------------- GROUPING ---------------- */
+    // Map user id to group id for quick lookup during grouping
+    const userToGroup = new Map<number, number>();
     for (const u of users) {
-      /* ---------------- TRANSCRIBER ---------------- */
-      if (u.role === "TRANSCRIBER") {
-        const userTasks = transcriberMap.get(u.id) ?? [];
-        /* If user has no tasks in map, fallback to 0 using defaultTranscriberStats logic later if needed 
-           BUT here we push directly. We must handle 0s or empty. 
-           Actually, the "usersOut" structure here is different from group route which returns list of users.
-           Here we push to usersOut[gid]. 
-        */
+      userToGroup.set(u.id, u.group_id);
+    }
 
-        let submittedSecs = 0;
-        let reviewedSecs = 0;
-        let trashedSecs = 0;
-        let noSubmitted = 0;
-        let noReviewedBasedOnSubmitted = 0;
-        let noReviewed = 0;
-        let syllableCount = 0;
-        let transcriberSyllableCount = 0;
-        let transcriberCer = 0;
-        let totalCer = 0;
-        let noTranscriptCorrected = 0;
-        let characterCount = 0;
-
-        for (const t of userTasks) {
-          /* Enforce Group Boundry: Match group/route.ts behavior */
-          if (t.group_id !== u.group_id) continue;
-
-          /* submitted window */
-          if (["submitted", "accepted", "finalised", "trashed"].includes(t.state)) {
-            noSubmitted++;
-            submittedSecs += t.audio_duration || 0;
-            transcriberSyllableCount += tibetanSyllableCount(t.transcript);
-          }
-
-          /* reviewed based on submitted */
-          if (["accepted", "finalised"].includes(t.state)) {
-            noReviewedBasedOnSubmitted++;
-          }
-
-          /* reviewed */
-          if (["accepted", "finalised"].includes(t.state)) {
-            noReviewed++;
-            reviewedSecs += t.audio_duration || 0;
-            syllableCount += tibetanSyllableCount(t.reviewed_transcript);
-            characterCount += t.reviewed_transcript?.length || 0;
-
-            if (t.transcript && t.reviewed_transcript) {
-              totalCer += levenshtein.get(
-                t.transcript,
-                t.reviewed_transcript
-              );
-            }
-
-            if (t.transcriber_is_correct === false)
-              noTranscriptCorrected++;
-          }
-
-          /* CER (submitted) */
-          if (t.inference_transcript && t.transcript) {
-            transcriberCer += levenshtein.get(
-              t.inference_transcript,
-              t.transcript
-            );
-          }
-
-          /* trashed */
-          if (t.state === "trashed") {
-            trashedSecs += t.audio_duration || 0;
-          }
-        }
-
-        usersOut[u.group_id].push({
-          id: u.id,
-          name: u.name,
-          noSubmitted,
-          noReviewedBasedOnSubmitted,
-          noReviewed,
-          submittedInMin: +(submittedSecs / 60).toFixed(2),
-          reviewedInMin: +(reviewedSecs / 60).toFixed(2),
-          trashedInMin: +(trashedSecs / 60).toFixed(2),
-          syllableCount,
-          transcriberSyllableCount,
-          transcriberCer,
-          noTranscriptCorrected,
-          characterCount,
-          totalCer,
-        });
+    for (const stat of report.users) {
+      const gid = userToGroup.get(stat.id);
+      if (gid !== undefined && usersOut[gid]) {
+        usersOut[gid].push(stat);
       }
+    }
 
-      /* ---------------- REVIEWER ---------------- */
-      if (u.role === "REVIEWER") {
-        const userTasks = reviewerMap.get(u.id) ?? [];
-
-        let reviewedSecs = 0;
-        let noReviewed = 0;
-        let noAccepted = 0;
-        let noFinalised = 0;
-        let noReviewedTranscriptCorrected = 0;
-        let characterCount = 0;
-        let totalCer = 0;
-
-        for (const t of userTasks) {
-          if (t.group_id !== u.group_id) continue;
-
-          if (["accepted", "finalised"].includes(t.state)) {
-            noReviewed++;
-            reviewedSecs += t.audio_duration || 0;
-
-            if (t.state === "accepted") noAccepted++;
-            if (t.state === "finalised") noFinalised++;
-
-            if (t.reviewed_transcript && t.final_transcript) {
-              characterCount += t.reviewed_transcript.length;
-              totalCer += levenshtein.get(
-                t.reviewed_transcript,
-                t.final_transcript
-              );
-
-              if (t.reviewer_is_correct === false)
-                noReviewedTranscriptCorrected++;
-            }
-          }
-        }
-
-        reviewersOut[u.group_id].push({
-          id: u.id,
-          name: u.name,
-          noReviewed,
-          noAccepted,
-          noFinalised,
-          reviewedInMin: +(reviewedSecs / 60).toFixed(2),
-          noReviewedTranscriptCorrected,
-          totalCer,
-          characterCount,
-        });
+    for (const stat of report.reviewers) {
+      const gid = userToGroup.get(stat.id);
+      if (gid !== undefined && reviewersOut[gid]) {
+        reviewersOut[gid].push(stat);
       }
+    }
 
-      /* ---------------- FINAL REVIEWER ---------------- */
-      if (u.role === "FINAL_REVIEWER") {
-        const userTasks = finalReviewerMap.get(u.id) ?? [];
-
-        let noFinalised = 0;
-        let finalisedSecs = 0;
-
-        for (const t of userTasks) {
-          if (t.group_id !== u.group_id) continue;
-
-          if (t.state === "finalised") {
-            noFinalised++;
-            finalisedSecs += t.audio_duration || 0;
-          }
-        }
-
-        finalReviewersOut[u.group_id].push({
-          id: u.id,
-          name: u.name,
-          noFinalised,
-          finalisedInMin: +(finalisedSecs / 60).toFixed(2),
-        });
+    for (const stat of report.finalReviewers) {
+      const gid = userToGroup.get(stat.id);
+      if (gid !== undefined && finalReviewersOut[gid]) {
+        finalReviewersOut[gid].push(stat);
       }
     }
 

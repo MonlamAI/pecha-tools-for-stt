@@ -171,7 +171,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
             <td>
               <b>
                 {usersStatistic?.reduce(
-                  (a, b) => a + b.noReviewedBasedOnSubmitted,
+                  (a, b) => a + (b.noReviewed || 0),
                   0
                 )}
               </b>

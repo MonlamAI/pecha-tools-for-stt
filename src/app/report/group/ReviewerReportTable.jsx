@@ -119,8 +119,8 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
             </tr>
           ))}
         </tbody>
-      </table >
-    </div >
+      </table>
+    </div>
   );
 };
 
