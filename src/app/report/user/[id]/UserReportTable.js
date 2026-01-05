@@ -64,10 +64,10 @@ const UserReportTable = ({
 
   return (
     <>
-      <div className="overflow-x-auto w-full max-h-[70vh]">
-        <table className="table table-auto table-pin-rows">
+      <div className="relative overflow-x-auto">
+        <table className="table w-full font-sans tabular-nums text-sm">
           {/* head */}
-          <thead className="text-gray-700 bg-gray-50">
+          <thead className="text-gray-700 bg-base-200 uppercase">
             <tr>
               <th className="pr-80">Transcript</th>
               <th>Audio</th>
@@ -97,12 +97,7 @@ const UserReportTable = ({
           <tbody>
             {userTaskRecord.map((task) => (
               <tr key={task.id}>
-                <td
-                  className={`border-l-4 ${task.transcriber_is_correct
-                      ? "border-green-500"
-                      : "border-red-500"
-                    }`}
-                >
+                <td>
                   <div className="grid gap-2 mb-2">
                     <strong>Submitted:</strong>
                     {task.transcript}
@@ -138,7 +133,7 @@ const UserReportTable = ({
                   </td>
                 )}
                 <td>
-                  <td>{task.transcriber?.name || ""}</td>
+                  {task.transcriber?.name || ""}
                 </td>
                 <td>{task.reviewer?.name || ""}</td>
                 <td>{task.final_reviewer?.name || ""}</td>

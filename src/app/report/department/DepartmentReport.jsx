@@ -34,6 +34,9 @@ const DepartmentReport = ({ departments }) => {
   const [reviewersStatistic, setReviewersStatistic] = useState({});
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState({});
 
+  // New state to manage exclusive view mode
+  const [showDeptTotals, setShowDeptTotals] = useState(false);
+
   /* ================= INIT DATES ================= */
   useEffect(() => {
     if (!dates.from && !dates.to) {
@@ -52,33 +55,47 @@ const DepartmentReport = ({ departments }) => {
     );
   }, [selectDepartment, departments]);
 
-  /* Reset when department/date changes */
+  /* 
+     Effect 1: Handle Department (Groups) Change 
+     - Reset all stats
+     - Default to Group View (showDeptTotals = false)
+     - Set Active Group to the first group
+  */
   useEffect(() => {
     setUsersStatistic({});
     setReviewersStatistic({});
     setFinalReviewersStatistic({});
     setDeptTotalsLoaded(false);
 
+    // Default to Groups view
+    setShowDeptTotals(false);
+
     if (groups.length > 0) {
       setActiveGroupId(String(groups[0].id));
     } else {
       setActiveGroupId("");
     }
-  }, [groups, dates.from, dates.to]);
+  }, [groups]);
+
+  /* 
+     Effect 2: Handle Date Change 
+     - Reset stats to force refetch
+     - Persist current view mode (don't change showDeptTotals or activeGroupId)
+  */
+  useEffect(() => {
+    setUsersStatistic({});
+    setReviewersStatistic({});
+    setFinalReviewersStatistic({});
+    setDeptTotalsLoaded(false);
+  }, [dates.from, dates.to]);
 
   /* ================= FETCH GROUP ================= */
   useEffect(() => {
-    if (!activeGroupId) return;
+    // Only fetch group data if we are NOT showing dept totals and have an active group
+    if (showDeptTotals || !activeGroupId) return;
 
     const gid = String(activeGroupId);
     const controller = new AbortController();
-
-    if (
-      usersStatistic[gid] &&
-      reviewersStatistic[gid] &&
-      finalReviewersStatistic[gid]
-    )
-      return;
 
     async function fetchGroup() {
       setIsLoading(true);
@@ -123,11 +140,22 @@ const DepartmentReport = ({ departments }) => {
 
     fetchGroup();
     return () => controller.abort();
-  }, [activeGroupId, dates]);
+  }, [activeGroupId, dates, showDeptTotals]);
 
   /* ================= DEPARTMENT TOTAL ================= */
   const handleLoadDepartmentTotals = async () => {
-    if (!selectDepartment || deptTotalsLoaded) return;
+    if (!selectDepartment) return;
+
+    // Switch to Department View
+    setShowDeptTotals(true);
+    // Optional: Clear active group to visually deselect tabs, 
+    // or keep it to preserve state when switching back?
+    // User requirement: "default should be groups". 
+    // If we deselect, we might need logic to re-select when switching back.
+    // Simpler: Just rely on showDeptTotals for rendering.
+    setActiveGroupId("");
+
+    if (deptTotalsLoaded || deptTotalsLoading) return;
 
     setDeptTotalsLoading(true);
 
@@ -137,26 +165,38 @@ const DepartmentReport = ({ departments }) => {
       ...(dates.to && { to: dates.to }),
     });
 
-    const res = await fetch(
-      `/api/report/department?${qs}`,
-      { cache: "no-store" }
-    );
+    try {
+      const res = await fetch(
+        `/api/report/department?${qs}`,
+        { cache: "no-store" }
+      );
 
-    const data = await res.json();
+      const data = await res.json();
 
-    setUsersStatistic((p) =>
-      mergeByGroupId(p, data.users)
-    );
-    setReviewersStatistic((p) =>
-      mergeByGroupId(p, data.reviewers)
-    );
-    setFinalReviewersStatistic((p) =>
-      mergeByGroupId(p, data.finalReviewers)
-    );
+      setUsersStatistic((p) =>
+        mergeByGroupId(p, data.users)
+      );
+      setReviewersStatistic((p) =>
+        mergeByGroupId(p, data.reviewers)
+      );
+      setFinalReviewersStatistic((p) =>
+        mergeByGroupId(p, data.finalReviewers)
+      );
 
-    setDeptTotalsLoaded(true);
-    setDeptTotalsLoading(false);
+      setDeptTotalsLoaded(true);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeptTotalsLoading(false);
+    }
   };
+
+  /* Auto-fetch Department Totals when in Department View and dates change */
+  useEffect(() => {
+    if (showDeptTotals && selectDepartment && !deptTotalsLoaded && !deptTotalsLoading) {
+      handleLoadDepartmentTotals();
+    }
+  }, [showDeptTotals, selectDepartment, deptTotalsLoaded, dates]);
 
   const activeGroup = groups.find(
     (g) => String(g.id) === activeGroupId
@@ -239,13 +279,14 @@ const DepartmentReport = ({ departments }) => {
             {groups.map((g) => (
               <button
                 key={g.id}
-                className={`btn btn-xs ${String(g.id) === activeGroupId
-                  ? "bg-gray-500"
+                className={`btn btn-xs ${!showDeptTotals && String(g.id) === activeGroupId
+                  ? "bg-[#0078D7] text-white hover:bg-[#0063b1]"
                   : "btn-ghost"
                   }`}
-                onClick={() =>
-                  setActiveGroupId(String(g.id))
-                }
+                onClick={() => {
+                  setActiveGroupId(String(g.id));
+                  setShowDeptTotals(false);
+                }}
               >
                 {g.name}
               </button>
@@ -253,7 +294,7 @@ const DepartmentReport = ({ departments }) => {
           </div>
 
           <button
-            className="btn bg-gray-500 btn-sm hover:brightness-70"
+            className={`btn btn-sm ${showDeptTotals ? "bg-[#0078D7] text-white hover:bg-[#0063b1]" : "hover:brightness-70"}`}
             onClick={handleLoadDepartmentTotals}
             disabled={deptTotalsLoading}
           >
@@ -264,8 +305,8 @@ const DepartmentReport = ({ departments }) => {
         </div>
       )}
 
-      {/* TABLES */}
-      {activeGroup && (
+      {/* TABLES: Show ONLY if NOT in Dept View */}
+      {!showDeptTotals && activeGroup && (
         <div className="mt-1 grid grid-cols-1 gap-8">
           {isLoading ? (
             <div className="flex justify-center py-20">
@@ -309,7 +350,8 @@ const DepartmentReport = ({ departments }) => {
         </div>
       )}
 
-      {deptTotalsLoaded && (
+      {/* DEPT TOTALS: Show ONLY if in Dept View */}
+      {showDeptTotals && deptTotalsLoaded && (
         <section className="mt-8 card bg-base-100 border rounded-2xl p-2">
           <h3 className="font-sans text-xl mb-3 text-center font-bold uppercase">
             Department Total

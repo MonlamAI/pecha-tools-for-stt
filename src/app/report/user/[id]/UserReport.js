@@ -162,27 +162,31 @@ const UserReport = ({ searchParams, id, users }) => {
           />
         </div>
       </form>
-      <div className="flex flex-col justify-center items-center my-4">
+      <div className="w-full px-4 my-4">
         {isLoading ? (
           <div className="text-center mt-10">
             <span className="loading loading-spinner text-success text-center"></span>
           </div>
         ) : (
           <>
-            <UserReportTable
-              userTaskRecord={userTaskRecord}
-              secretAccess={secretAccess}
-              setUserTaskRecord={setUserTaskRecord}
-            />
-            <PaginationControls
-              page={page}
-              per_page={per_page}
-              hasNextPage={end < totalTasksCount}
-              hasPrevPage={skip > 0}
-              pageCount={pageCount}
-              isReport={isReport}
-              setTranscript={setTranscript}
-            />
+            <section className="card bg-base-100 border rounded-2xl p-2 w-full">
+              <UserReportTable
+                userTaskRecord={userTaskRecord}
+                secretAccess={secretAccess}
+                setUserTaskRecord={setUserTaskRecord}
+              />
+            </section>
+            <div className="mt-4 flex justify-center">
+              <PaginationControls
+                page={page}
+                per_page={per_page}
+                hasNextPage={end < totalTasksCount}
+                hasPrevPage={skip > 0}
+                pageCount={pageCount}
+                isReport={isReport}
+                setTranscript={setTranscript}
+              />
+            </div>
           </>
         )}
       </div>
