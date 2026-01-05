@@ -174,6 +174,14 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
         state: true,
         transcriber_is_correct: true,
         reviewer_is_correct: true,
+        url: true,
+        file_name: true,
+        audio_duration: true,
+        submitted_at: true,
+        reviewed_at: true,
+        transcriber: { select: { name: true } },
+        reviewer: { select: { name: true } },
+        final_reviewer: { select: { name: true } },
       },
     });
 
