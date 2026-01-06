@@ -18,6 +18,7 @@ export type FetchUserDataResult =
 type UserRecord = {
   id: number;
   name: string;
+  email: string;
   group_id: number;
   role: Role;
   group: { name: string | null } | null;
@@ -76,6 +77,7 @@ export async function getOrCreateUser({ username }: { username: string }): Promi
     select: {
       id: true,
       name: true,
+      email: true,
       group_id: true,
       role: true,
       group: {
@@ -92,6 +94,7 @@ export async function getOrCreateUser({ username }: { username: string }): Promi
       select: {
         id: true,
         name: true,
+        email: true,
         group_id: true,
         role: true,
         group: {
