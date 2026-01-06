@@ -75,7 +75,7 @@ const GroupReport = ({ groups }) => {
   return (
     <div className="w-full px-4 pb-20 font-sans">
       {/* FILTER BAR */}
-      <form className="sticky top-0 z-30 bg-base-100 border-b border-base-300 py-1 flex flex-wrap gap-4 justify-between items-end">
+      <form className="sticky top-0 z-30 bg-base-100 dark:bg-neutral-900 border-b border-base-300 py-1 flex flex-wrap gap-4 justify-between items-end">
         <Select
           title="group_id"
           label="Group"
@@ -152,7 +152,7 @@ const GroupReport = ({ groups }) => {
             </div>
           ) : (
             <>
-              <section className="card bg-base-100 border rounded-2xl p-2">
+              <section className="card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2">
                 <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Transcriber Performance
                 </h3>
@@ -162,7 +162,7 @@ const GroupReport = ({ groups }) => {
                 />
               </section>
 
-              <section className="card bg-base-100 border rounded-2xl p-2">
+              <section className="card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2">
                 <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Reviewer Evaluation
                 </h3>
@@ -171,7 +171,7 @@ const GroupReport = ({ groups }) => {
                 />
               </section>
 
-              <section className="card bg-base-100 border rounded-2xl p-2">
+              <section className="card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2">
                 <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Final Reviewer Evaluation
                 </h3>

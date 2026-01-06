@@ -63,9 +63,9 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
     <div className="relative overflow-x-auto">
       <table className="table w-full min-w-[1500px] font-sans tabular-nums text-sm">
         {/* head */}
-        <thead className="uppercase bg-base-200">
+        <thead className="uppercase bg-base-200 dark:bg-[#222426] dark:text-gray-200">
           <tr>
-            <th className="sticky left-0 bg-base-200 z-10">Transcriber Name</th>
+            <th className="sticky left-0 bg-base-200 dark:bg-[#222426] z-10">Transcriber Name</th>
             <th>
               Task <br /> Submitted
             </th>
@@ -93,7 +93,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
         <tbody className="tabular-nums">
           {usersStatistic.map((user) => (
             <tr className="dark:text-slate-50 " key={user.id}>
-              <td className="sticky left-0 bg-base-100 z-10">
+              <td className="sticky left-0 bg-base-100 dark:bg-[#222426] z-10">
                 <Link href={`/report/user/${user.id}`} className="hover:underline">{user.name}</Link>
               </td>
               <td>{user.noSubmitted}</td>
@@ -162,7 +162,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
             </tr>
           ))}
           <tr>
-            <td className="sticky left-0 bg-base-100 z-10">
+            <td className="sticky left-0 bg-base-100 dark:bg-[#222426] z-10">
               <b>Total</b>
             </td>
             <td>

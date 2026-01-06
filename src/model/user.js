@@ -41,10 +41,14 @@ export const getAllUser = async () => {
 
 // Create new user
 export const createUser = async (_prevState, formData) => {
-  const name = formData.get("name")?.trim();
+  let name = formData.get("name")?.trim();
   const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
   const role = formData.get("role");
+
+  if ((!name || name === email) && email) {
+    name = email.split("@")[0];
+  }
 
   try {
     // Check for duplicates

@@ -1,12 +1,13 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useTransition } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import PaginationControls from "@/components/PaginationControls";
 import UserReportTable from "./UserReportTable";
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
 import { useRouter, usePathname } from "next/navigation";
 import useDebounce from "@/components/hooks/useDebounceState";
-import { getCurrentReportCycle } from "@/utils/report-date-utils";
+import { getCurrentReportCycle, getSiblingReportCycle } from "@/utils/report-date-utils";
 
 const UserReport = ({ searchParams, id, users }) => {
   const [userTaskRecord, setUserTaskRecord] = useState([]);
@@ -18,6 +19,7 @@ const UserReport = ({ searchParams, id, users }) => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
   const debouncedSearchTerm = useDebounce(transcript, 1000);
   const page = searchParams["page"] ?? "1";
   const per_page = searchParams["per_page"] ?? "10";
@@ -121,30 +123,24 @@ const UserReport = ({ searchParams, id, users }) => {
 
   return (
     <div className="h-full">
-      <form className="sticky top-0 z-20 py-1 px-4 gap-2 bg-white flex flex-col md:flex-row justify-center md:items-end border-b border-base-300">
-        <Select
-          title="user_id"
-          label="User"
-          options={users}
-          selectedOption={selectedOption}
-          handleOptionChange={handleOptionChange}
-          isReport={isReport}
-        />
-        <div className="flex flex-col md:flex-row gap-2 md:gap-4">
-          <DateInput
-            label="from"
-            selectedDate={dates.from}
-            handleDateChange={handleDateChange}
+      <form className="sticky top-0 z-20 py-1 px-4 bg-white dark:bg-[#222426] flex flex-wrap gap-4 justify-between items-end border-b border-base-300">
+        <div className="flex flex-wrap items-end gap-2 md:gap-4">
+          <Select
+            title="user_id"
+            label="User"
+            options={users}
+            selectedOption={selectedOption}
+            handleOptionChange={handleOptionChange}
             isReport={isReport}
           />
-          <DateInput
-            label="to"
-            selectedDate={dates.to}
-            handleDateChange={handleDateChange}
-            isReport={isReport}
+          <input
+            name="filter"
+            placeholder="Search transcript"
+            type="text"
+            className="input input-bordered input-sm max-w-xs"
+            value={transcript}
+            onChange={handleFilter}
           />
-        </div>
-        <div className="ml-[22%] md:ml-0 flex flex-col md:flex-row gap-2 md:gap-4">
           <input
             name="password"
             placeholder="Password"
@@ -152,13 +148,52 @@ const UserReport = ({ searchParams, id, users }) => {
             className="input input-bordered input-sm max-w-[120px]"
             onChange={handlePassword}
           />
-          <input
-            name="filter"
-            placeholder="Filter transcript"
-            type="text"
-            className="input input-bordered input-sm max-w-xs"
-            value={transcript}
-            onChange={handleFilter}
+        </div>
+
+        <div className="flex items-end gap-2">
+          <DateInput
+            label="from"
+            selectedDate={dates.from}
+            handleDateChange={handleDateChange}
+            isReport={isReport}
+            labelPrefix={
+              <button
+                type="button"
+                className="btn btn-xs btn-square h-5 w-5 min-h-0"
+                onClick={() =>
+                  startTransition(() => {
+                    setDates((prev) => {
+                      const newDates = getSiblingReportCycle(prev.from, "prev");
+                      return { ...prev, ...newDates };
+                    });
+                  })
+                }
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            }
+          />
+          <DateInput
+            label="to"
+            selectedDate={dates.to}
+            handleDateChange={handleDateChange}
+            isReport={isReport}
+            labelSuffix={
+              <button
+                type="button"
+                className="btn btn-xs btn-square h-5 w-5 min-h-0"
+                onClick={() =>
+                  startTransition(() => {
+                    setDates((prev) => {
+                      const newDates = getSiblingReportCycle(prev.from, "next");
+                      return { ...prev, ...newDates };
+                    });
+                  })
+                }
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            }
           />
         </div>
       </form>
@@ -169,7 +204,7 @@ const UserReport = ({ searchParams, id, users }) => {
           </div>
         ) : (
           <>
-            <section className="card bg-base-100 border rounded-2xl p-2 w-full">
+            <section className="card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2 w-full">
               <UserReportTable
                 userTaskRecord={userTaskRecord}
                 secretAccess={secretAccess}

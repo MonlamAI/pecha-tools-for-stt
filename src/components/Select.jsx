@@ -16,12 +16,12 @@ const Select = ({
         }`}
     >
       <label className="label w-fit pr-2" htmlFor={title}>
-        <span className="label-text text-sm font-semibold">{label}</span>
+        <span className="label-text text-sm font-semibold dark:text-gray-200 uppercase">{label}</span>
       </label>
       <select
         id={title}
         name={title}
-        className="select select-bordered select-sm rounded-md overflow-y-scroll"
+        className="select select-bordered select-sm rounded-md overflow-y-scroll dark:bg-black dark:border-neutral-800"
         required
         onChange={handleOptionChange}
         value={selectedOption}

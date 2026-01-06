@@ -99,7 +99,6 @@ const AddUserModal = ({ groups }) => {
                 type="text"
                 name="name"
                 placeholder="username"
-                required
                 className="input input-bordered w-full"
                 value={username}
                 onChange={handleInputChange}

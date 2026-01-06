@@ -21,15 +21,15 @@ const TaskStats = ({ groupStatByDept, viewScope }) => {
   const scopes = [
     {
       id: "per_group",
-      name: "per group",
+      name: "Per Group",
     },
     {
       id: "per_department",
-      name: "per department",
+      name: "Per Department",
     },
     {
       id: "all_departments",
-      name: "all departments",
+      name: "All Departments",
     },
   ];
 
@@ -126,14 +126,14 @@ const TaskStats = ({ groupStatByDept, viewScope }) => {
   return (
     <>
       {!viewScope && (
-        <div className="flex flex-wrap gap-4 mb-10 justify-center">
+        <div className="flex flex-wrap gap-4 mb-10 justify-left">
           {scopes.map((scope) => (
             <button
               key={scope.id}
               onClick={() => handleScopeChange({ target: { value: scope.id } })}
               className={`px-6 py-2 rounded-md font-bold transition-all duration-200 ${selectedScope === scope.id
-                  ? "bg-teal-600 text-white shadow-md border-2 border-teal-700"
-                  : "bg-[#2DD4BF] text-slate-800 hover:bg-teal-400 border-2 border-transparent"
+                ? "bg-teal-600 text-white shadow-md border-2 border-teal-700"
+                : "bg-[#2DD4BF] text-slate-800 hover:bg-teal-400 border-2 border-transparent dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
                 }`}
             >
               {scope.name.replace("_", " ")}

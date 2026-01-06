@@ -67,7 +67,7 @@ const UserReportTable = ({
       <div className="relative overflow-x-auto">
         <table className="table w-full font-sans tabular-nums text-sm">
           {/* head */}
-          <thead className="text-gray-700 bg-base-200 uppercase">
+          <thead className="text-gray-700 dark:text-gray-200 bg-base-200 dark:bg-[#222426] uppercase">
             <tr>
               <th className="pr-80">Transcript</th>
               <th>Audio</th>

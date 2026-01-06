@@ -60,9 +60,9 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
   return (
     <div className="relative overflow-x-auto">
       <table className="table w-full min-w-[1100px] font-sans tabular-nums text-sm">
-        <thead className="uppercase bg-base-200">
+        <thead className="uppercase bg-base-200 dark:bg-[#222426] dark:text-gray-200">
           <tr>
-            <th className="sticky left-0 bg-base-200 z-10">
+            <th className="sticky left-0 bg-base-200 dark:bg-[#222426] z-10">
               Reviewer Name
             </th>
             <th>Task Reviewed</th>
@@ -77,7 +77,7 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
         <tbody classsName="tabular-nums">
           {reviewersStatistic.map((r) => (
             <tr key={r.id}>
-              <td className="sticky left-0 bg-base-100 font-medium">
+              <td className="sticky left-0 bg-base-100 dark:bg-[#222426] font-medium">
                 <Link
                   href={`/report/user/${r.id}`}
                   className="hover:underline"

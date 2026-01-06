@@ -88,7 +88,7 @@ export async function getOrCreateUser({ username }: { username: string }): Promi
 
   if (!user) {
     user = await prisma.user.create({
-      data: { name: username, email: username, group_id: 0, role: "TRANSCRIBER" },
+      data: { name: username.split("@")[0], email: username, group_id: 0, role: "TRANSCRIBER" },
       select: {
         id: true,
         name: true,

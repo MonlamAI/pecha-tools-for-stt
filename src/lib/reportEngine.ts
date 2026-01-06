@@ -1,5 +1,25 @@
 import levenshtein from "fast-levenshtein";
 
+/* ---------- types ---------- */
+
+interface Task {
+  id: number;
+  state: string;
+  audio_duration?: number;
+  transcriber_id?: number | null;
+  reviewer_id?: number | null;
+  final_reviewer_id?: number | null;
+  transcript?: string | null;
+  reviewed_transcript?: string | null;
+  inference_transcript?: string | null;
+  final_transcript?: string | null;
+  transcriber_is_correct?: boolean | null;
+  reviewer_is_correct?: boolean | null;
+  submitted_at?: Date | null;
+  reviewed_at?: Date | null;
+  finalised_reviewed_at?: Date | null;
+}
+
 /* ---------- helpers ---------- */
 
 /**
@@ -21,9 +41,11 @@ export function tibetanSyllableCount(text?: string | null) {
   return tibetanOnly.split(/[་།]/).filter(Boolean).length;
 }
 
-function inRange(dt: Date | null, from?: Date, to?: Date) {
+function inRange(dt: any, from?: Date, to?: Date) {
   if (!dt) return false;
-  const t = dt.getTime();
+  // Convert to date if it's a string fromprisma
+  const d = dt instanceof Date ? dt : new Date(dt);
+  const t = d.getTime();
   if (from && t < from.getTime()) return false;
   if (to && t > to.getTime()) return false;
   return true;
@@ -38,17 +60,41 @@ export function buildReport({
   to,
 }: {
   users: any[];
-  tasks: any[];
+  tasks: Task[];
   from?: Date;
   to?: Date;
 }) {
+  /* ---------- CACHES (Request Level) ---------- */
+  const syllableCache = new Map<string, number>();
+  const getSyllables = (txt?: string | null): number => {
+    if (!txt) return 0;
+    const cached = syllableCache.get(txt);
+    if (cached !== undefined) return cached;
+
+    const val = tibetanSyllableCount(txt);
+    syllableCache.set(txt, val);
+    return val;
+  };
+
+  const cerCache = new Map<string, number>();
+  const getCer = (a?: string | null, b?: string | null): number => {
+    if (!a || !b) return 0;
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+    const cached = cerCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const val = levenshtein.get(a, b);
+    cerCache.set(key, val);
+    return val;
+  };
+
   /* ---------- TASK MAPS ---------- */
-  const transcriberMap = new Map<number, any[]>();
-  const reviewerMap = new Map<number, any[]>();
-  const finalReviewerMap = new Map<number, any[]>();
+  const transcriberMap = new Map<number, Task[]>();
+  const reviewerMap = new Map<number, Task[]>();
+  const finalReviewerMap = new Map<number, Task[]>();
 
   for (const t of tasks) {
-    if (t.transcriber_id) {
+    if (t.transcriber_id !== null && t.transcriber_id !== undefined) {
       let bucket = transcriberMap.get(t.transcriber_id);
       if (!bucket) {
         bucket = [];
@@ -57,7 +103,7 @@ export function buildReport({
       bucket.push(t);
     }
 
-    if (t.reviewer_id) {
+    if (t.reviewer_id !== null && t.reviewer_id !== undefined) {
       let bucket = reviewerMap.get(t.reviewer_id);
       if (!bucket) {
         bucket = [];
@@ -66,7 +112,7 @@ export function buildReport({
       bucket.push(t);
     }
 
-    if (t.final_reviewer_id) {
+    if (t.final_reviewer_id !== null && t.final_reviewer_id !== undefined) {
       let bucket = finalReviewerMap.get(t.final_reviewer_id);
       if (!bucket) {
         bucket = [];
@@ -108,31 +154,26 @@ export function buildReport({
         ) {
           noSubmitted++;
           submittedSecs += t.audio_duration || 0;
-          transcriberSyllableCount += tibetanSyllableCount(t.transcript);
+          transcriberSyllableCount += getSyllables(t.transcript);
 
           if (t.inference_transcript && t.transcript) {
-            transcriberCer += levenshtein.get(
-              t.inference_transcript,
-              t.transcript
-            );
+            transcriberCer += getCer(t.inference_transcript, t.transcript);
           }
         }
 
         /* reviewed */
         if (
           ["accepted", "finalised"].includes(t.state) &&
-          inRange(t.reviewed_at, from, to)
+          inRange(t.reviewed_at, from, to) &&
+          inRange(t.submitted_at, from, to)
         ) {
           noReviewed++;
           reviewedSecs += t.audio_duration || 0;
-          syllableCount += tibetanSyllableCount(t.reviewed_transcript);
+          syllableCount += getSyllables(t.reviewed_transcript);
           characterCount += t.reviewed_transcript?.length || 0;
 
           if (t.transcript && t.reviewed_transcript) {
-            totalCer += levenshtein.get(
-              t.transcript,
-              t.reviewed_transcript
-            );
+            totalCer += getCer(t.transcript, t.reviewed_transcript);
           }
 
           if (t.transcriber_is_correct === false)
@@ -198,11 +239,8 @@ export function buildReport({
           if (t.state === "finalised") noFinalised++;
 
           if (t.reviewed_transcript && t.final_transcript) {
-            characterCount += t.reviewed_transcript.length;
-            totalCer += levenshtein.get(
-              t.reviewed_transcript,
-              t.final_transcript
-            );
+            characterCount += t.reviewed_transcript?.length || 0;
+            totalCer += getCer(t.reviewed_transcript, t.final_transcript);
 
             if (t.reviewer_is_correct === false)
               noReviewedTranscriptCorrected++;

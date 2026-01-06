@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/service/db";
 import { buildReport, parseLiteralUTC } from "@/lib/reportEngine";
+import { getCache, setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
 
@@ -26,15 +27,26 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const departmentId = Number(searchParams.get("departmentId"));
-    const from = parseLiteralUTC(searchParams.get("from"));
-    const to = parseLiteralUTC(searchParams.get("to"), true);
+    const fromStr = searchParams.get("from");
+    const toStr = searchParams.get("to");
 
-    if (!departmentId) {
+    if (!departmentId || !fromStr || !toStr) {
       return NextResponse.json(
-        { error: "Invalid departmentId" },
+        { error: "Invalid params" },
         { status: 400 }
       );
     }
+
+    // Cache Check
+    const cacheKey = `report:dept:${departmentId}:${fromStr}:${toStr}`;
+    const cached = getCache(cacheKey);
+    if (cached) {
+      // console.log("Serving cached department report", cacheKey);
+      return NextResponse.json(cached);
+    }
+
+    const from = parseLiteralUTC(fromStr);
+    const to = parseLiteralUTC(toStr, true);
 
     /* -------- groups -------- */
 
@@ -130,10 +142,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { users: usersOut, reviewers: reviewersOut, finalReviewers: finalReviewersOut },
-      { status: 200 }
-    );
+    const result = { users: usersOut, reviewers: reviewersOut, finalReviewers: finalReviewersOut };
+
+    // Cache result for 1 minute
+    setCache(cacheKey, result, 60000);
+
+    return NextResponse.json(result, { status: 200 });
   } catch (e: any) {
     console.error(e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

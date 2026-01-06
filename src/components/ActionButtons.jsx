@@ -23,7 +23,7 @@ const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
     "shadow hover:shadow-md transition";
 
   return (
-    <div className="flex flex-wrap justify-center gap-2 md:gap-3 pt-1 pb-8 md:pb-4">
+    <div className="flex flex-wrap justify-center gap-2 md:gap-3 pt-3 pb-8 md:pb-4">
       <button id="submit-button" className={`${btn} text-emerald-600`} onClick={() =>
         updateTaskAndIndex({ action: "submit", transcript, task: tasks[0] })
       }>

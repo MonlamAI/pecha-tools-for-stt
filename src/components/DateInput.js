@@ -17,7 +17,7 @@ const DateInput = ({
     >
       <label className="label w-fit pr-2 gap-2 flex items-bottom leading-none" htmlFor={label}>
         {labelPrefix && <span className="flex items-center">{labelPrefix}</span>}
-        <span className="label-text text-sm font-semibold capitalize">
+        <span className="label-text text-sm font-semibold capitalize dark:text-gray-200 uppercase">
           {label}
         </span>
         {labelSuffix && <span className="flex items-center">{labelSuffix}</span>}
@@ -25,7 +25,7 @@ const DateInput = ({
       <input
         name={label}
         type="datetime-local"
-        className="input input-bordered input-sm rounded-md max-w-xs"
+        className="input input-bordered input-sm rounded-md max-w-xs dark:bg-black dark:border-neutral-800"
         value={selectedDate}
         onChange={handleDateChange}
         max={new Date().toISOString().slice(0, 16)}

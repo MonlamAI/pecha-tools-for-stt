@@ -54,17 +54,16 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
 
   const handleAudioEnded = () => setIsPlaying(false);
 
-  // iOS/macOS Glass Buttons
+  // Simple Theme-Aware Buttons
   const baseBtn =
-    "h-8 w-8 rounded-xl flex items-center justify-center " +
-    "bg-white/70 dark:bg-slate-800/70 backdrop-blur-md " +
-    "border border-white/40 dark:border-white/10 " +
+    "h-8 w-8 rounded-lg flex items-center justify-center " +
+    "bg-slate-100 dark:bg-neutral-700 " +
+    "border border-slate-200 dark:border-white/5 " +
     "text-slate-800 dark:text-slate-100 " +
-    "shadow-sm hover:shadow-md transition-all active:scale-95 relative before:absolute before:inset-0 before:rounded-xl before:bg-gradient-to-b before:from-white/20 before:to-transparent before:pointer-events-none";
+    "hover:bg-slate-200 dark:hover:bg-neutral-600 active:bg-slate-300 dark:active:bg-neutral-800 transition-colors";
 
   const activeBtn =
-    "bg-yellow-300/80 text-black border-yellow-300/60 " +
-    "shadow-[0_6px_16px_rgba(250,204,21,0.45)]";
+    "bg-blue-400 text-black border-transparent shadow-none";
 
   return (
     <>
@@ -83,7 +82,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
 
       {/* Controls */}
       <div className="mt-4 flex items-center justify-center">
-        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/50 dark:bg-neutral-800/50 backdrop-blur-xl shadow-lg border border-white/20 dark:border-white/5">
+        <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/5 shadow-sm">
           {/* Play/Pause & Loop */}
           <div className="flex items-center gap-1.5 px-1 border-r border-neutral-300 dark:border-neutral-700">
             <button onClick={handlePlayPause} className={baseBtn}>
@@ -112,9 +111,9 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
                     audioRef.current.playbackRate = rate;
                     setPlaybackRate(rate);
                   }}
-                  className={`w-9 h-7 text-[10px] md:text-[11px] font-medium rounded-lg transition-all relative before:absolute before:inset-0 before:rounded-lg before:bg-gradient-to-b before:from-white/20 before:to-transparent before:pointer-events-none ${playbackRate === rate
-                    ? "bg-yellow-300/80 text-black shadow-sm"
-                    : "text-slate-700 dark:text-slate-200 hover:bg-white/40 dark:hover:bg-slate-700/40"
+                  className={`w-9 h-7 text-[10px] md:text-[11px] font-medium rounded-md transition-colors ${playbackRate === rate
+                    ? "bg-blue-400 text-black shadow-none"
+                    : "text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 dark:hover:bg-neutral-600"
                     }`}
                 >
                   {rate}×

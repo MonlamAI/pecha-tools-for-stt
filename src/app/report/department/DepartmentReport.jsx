@@ -62,20 +62,21 @@ const DepartmentReport = ({ departments }) => {
      - Set Active Group to the first group
   */
   useEffect(() => {
-    setUsersStatistic({});
-    setReviewersStatistic({});
-    setFinalReviewersStatistic({});
-    setDeptTotalsLoaded(false);
+    // Only reset stats if the department actually changed
+    if (selectDepartment) {
+      setUsersStatistic({});
+      setReviewersStatistic({});
+      setFinalReviewersStatistic({});
+      setDeptTotalsLoaded(false);
+      setShowDeptTotals(false);
 
-    // Default to Groups view
-    setShowDeptTotals(false);
-
-    if (groups.length > 0) {
-      setActiveGroupId(String(groups[0].id));
-    } else {
-      setActiveGroupId("");
+      if (groups.length > 0) {
+        setActiveGroupId(String(groups[0].id));
+      } else {
+        setActiveGroupId("");
+      }
     }
-  }, [groups]);
+  }, [selectDepartment]); // Use selectDepartment instead of groups
 
   /* 
      Effect 2: Handle Date Change 
@@ -115,18 +116,20 @@ const DepartmentReport = ({ departments }) => {
 
         const data = await res.json();
 
-        setUsersStatistic((p) => ({
-          ...p,
-          [gid]: data.users || [],
-        }));
-        setReviewersStatistic((p) => ({
-          ...p,
-          [gid]: data.reviewers || [],
-        }));
-        setFinalReviewersStatistic((p) => ({
-          ...p,
-          [gid]: data.finalReviewers || [],
-        }));
+        if (!controller.signal.aborted) {
+          setUsersStatistic((p) => ({
+            ...p,
+            [gid]: data.users || [],
+          }));
+          setReviewersStatistic((p) => ({
+            ...p,
+            [gid]: data.reviewers || [],
+          }));
+          setFinalReviewersStatistic((p) => ({
+            ...p,
+            [gid]: data.finalReviewers || [],
+          }));
+        }
       } catch (error) {
         if (error.name !== "AbortError") {
           console.error("Failed to fetch group data:", error);
@@ -140,7 +143,7 @@ const DepartmentReport = ({ departments }) => {
 
     fetchGroup();
     return () => controller.abort();
-  }, [activeGroupId, dates, showDeptTotals]);
+  }, [activeGroupId, dates.from, dates.to, showDeptTotals]); // Primative dependencies
 
   /* ================= DEPARTMENT TOTAL ================= */
   const handleLoadDepartmentTotals = async () => {
@@ -206,7 +209,7 @@ const DepartmentReport = ({ departments }) => {
   return (
     <div className="w-full px-4 pb-20 font-sans">
       {/* FILTER BAR */}
-      <form className="sticky top-0 z-30 bg-base-100 border-b border-base-300 py-1 flex flex-wrap gap-4 justify-between items-end">
+      <form className="sticky top-0 z-30 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 py-2 flex flex-wrap gap-4 justify-between items-end">
         <Select
           title="department_id"
           label="Department"
@@ -314,7 +317,7 @@ const DepartmentReport = ({ departments }) => {
             </div>
           ) : (
             <>
-              <section className="card bg-base-100 border rounded-2xl p-2">
+              <section className="card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2">
                 <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Transcriber Performance
                 </h3>
@@ -324,7 +327,7 @@ const DepartmentReport = ({ departments }) => {
                 />
               </section>
 
-              <section className="card bg-base-100 border rounded-2xl p-2">
+              <section className="card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2">
                 <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Reviewer Evaluation
                 </h3>
@@ -335,7 +338,7 @@ const DepartmentReport = ({ departments }) => {
                 />
               </section>
 
-              <section className="card bg-base-100 border rounded-2xl p-2">
+              <section className="card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2">
                 <h3 className="font-sans text-lg mb-2 text-center font-bold uppercase">
                   Final Reviewer Evaluation
                 </h3>
@@ -352,7 +355,7 @@ const DepartmentReport = ({ departments }) => {
 
       {/* DEPT TOTALS: Show ONLY if in Dept View */}
       {showDeptTotals && deptTotalsLoaded && (
-        <section className="mt-8 card bg-base-100 border rounded-2xl p-2">
+        <section className="mt-8 card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2">
           <h3 className="font-sans text-xl mb-3 text-center font-bold uppercase">
             Department Total
           </h3>

@@ -28,7 +28,7 @@ const GroupImportStats = ({ groupStat }) => {
           <div
             key={group.id}
             className={`
-              min-h-[72px]
+              min-h-[52px]
               rounded-2xl
               p-4 md:p-5
               transition-all duration-200
@@ -66,7 +66,7 @@ const GroupImportStats = ({ groupStat }) => {
                   font-semibold
                   px-3 py-1
                   rounded-full
-                  bg-white/20
+                  bg-white/20 dark:bg-black/40
                   backdrop-blur
                 "
               >
