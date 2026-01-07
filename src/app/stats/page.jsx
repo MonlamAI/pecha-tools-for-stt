@@ -1,16 +1,38 @@
-import { getAllGroup, getAllGroupTaskStats } from "@/model/group";
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { getAllGroup } from "@/model/group";
 import { getAllGroupTaskStats as getOptimizedGroupTaskStats } from "@/service/group-service";
-import { STATS_CONFIG } from "@/constants/config";
-import React from "react";
 import StatsContainer from "./StatsContainer";
 
-// Using service layer optimization with caching
-export const revalidate = STATS_CONFIG.CACHE_TIME;
+const Stats = () => {
+  const [groupStatByDept, setGroupStatByDept] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const Stats = async () => {
-  const allGroup = await getAllGroup();
-  // Using optimized service layer function
-  const groupStatByDept = await getOptimizedGroupTaskStats(allGroup);
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const allGroup = await getAllGroup();
+        if (allGroup && !allGroup.error) {
+          const stats = await getOptimizedGroupTaskStats(allGroup);
+          setGroupStatByDept(stats);
+        }
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
 
   return (
     <>

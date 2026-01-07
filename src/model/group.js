@@ -88,6 +88,8 @@ export const deleteGroup = async (id) => {
       },
     });
     revalidatePath("/dashboard/group");
+    revalidatePath("/report/group");
+    revalidatePath("/dashboard/group");
     return { success: "Group deleted successfully" };
   } catch (error) {
     console.error("Error deleting a group:", error);
@@ -119,6 +121,8 @@ export const editGroup = async (id, formData) => {
         department_id: parseInt(departmentId),
       },
     });
+    revalidatePath("/dashboard/group");
+    revalidatePath("/report/group");
     revalidatePath("/dashboard/group");
     return { success: "Group updated successfully", group };
   } catch (error) {

@@ -1,16 +1,42 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { getAllGroup } from "@/model/group";
-import React from "react";
 import GroupDashboard from "./GroupDashboard";
 import { getAllDepartment } from "@/model/department";
-export const dynamic = "force-dynamic";
 
-const Group = async () => {
-  const groupList = await getAllGroup();
-  const departments = await getAllDepartment();
+const Group = () => {
+  const [groupList, setGroupList] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // console.log("group page:", { departments, groupList });
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [groupsData, deptsData] = await Promise.all([
+          getAllGroup(),
+          getAllDepartment()
+        ]);
 
-  // return <pre>{JSON.stringify({ groupList, departments }, null, 2)}</pre>;
+        if (groupsData && !("error" in groupsData)) setGroupList(groupsData);
+        if (deptsData && !("error" in deptsData)) setDepartments(deptsData);
+      } catch (error) {
+        console.error("Error fetching group/dept data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
+
   return (
     <>
       <GroupDashboard groupList={groupList} departments={departments} />

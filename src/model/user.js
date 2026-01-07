@@ -71,6 +71,10 @@ export const createUser = async (_prevState, formData) => {
     });
 
     revalidatePath("/dashboard/user");
+    revalidatePath("/report/department");
+    revalidatePath("/report/group");
+    revalidatePath("/report/user");
+    revalidatePath("/dashboard/user");
     return newUser ? { success: "User created successfully" } : { error: "Error creating user" };
   } catch (error) {
     console.error("Error adding a user:", error);
@@ -138,6 +142,10 @@ export const editUser = async (id, formData) => {
       data: { name, email, group_id: parseInt(groupId), role },
     });
 
+    revalidatePath("/dashboard/user");
+    revalidatePath("/report/department");
+    revalidatePath("/report/group");
+    revalidatePath("/report/user");
     revalidatePath("/dashboard/user");
     return updatedUser ? { success: "User edited successfully" } : { error: "Error editing user" };
   } catch (error) {
