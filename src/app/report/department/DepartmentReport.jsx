@@ -1,6 +1,7 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useQueryState, parseAsString, parseAsBoolean } from "nuqs";
 
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
@@ -22,9 +23,11 @@ const mergeByGroupId = (prev, incoming) => {
 };
 
 const DepartmentReport = ({ departments }) => {
-  const [selectDepartment, setSelectDepartment] = useState("");
-  const [dates, setDates] = useState({ from: "", to: "" });
-  const [activeGroupId, setActiveGroupId] = useState("");
+  const [selectDepartment, setSelectDepartment] = useQueryState("dept", parseAsString.withDefault(""));
+  const [fromDate, setFromDate] = useQueryState("from", parseAsString.withDefault(""));
+  const [toDate, setToDate] = useQueryState("to", parseAsString.withDefault(""));
+  const [activeGroupId, setActiveGroupId] = useQueryState("grp", parseAsString.withDefault(""));
+  const [showDeptTotals, setShowDeptTotals] = useQueryState("showTotals", parseAsBoolean.withDefault(false));
 
   const [deptTotalsLoaded, setDeptTotalsLoaded] = useState(false);
   const [deptTotalsLoading, setDeptTotalsLoading] = useState(false);
@@ -34,16 +37,17 @@ const DepartmentReport = ({ departments }) => {
   const [reviewersStatistic, setReviewersStatistic] = useState({});
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState({});
 
-  // New state to manage exclusive view mode
-  const [showDeptTotals, setShowDeptTotals] = useState(false);
+  // Memoize dates object to keep existing logic compatible
+  const dates = { from: fromDate, to: toDate };
 
   /* ================= INIT DATES ================= */
   useEffect(() => {
-    if (!dates.from && !dates.to) {
+    if (!fromDate && !toDate) {
       const cycle = getCurrentReportCycle();
-      setDates(cycle);
+      setFromDate(cycle.from);
+      setToDate(cycle.to);
     }
-  }, []);
+  }, [fromDate, toDate, setFromDate, setToDate]);
 
   /* ================= GROUPS ================= */
   const groups = useMemo(() => {
@@ -55,15 +59,18 @@ const DepartmentReport = ({ departments }) => {
     );
   }, [selectDepartment, departments]);
 
+  const prevDeptRef = useRef(selectDepartment);
+
   /* 
-     Effect 1: Handle Department (Groups) Change 
-     - Reset all stats
-     - Default to Group View (showDeptTotals = false)
-     - Set Active Group to the first group
+     Effect: Handle Department Change 
+     - Reset stats
+     - Switch to first group of new department
   */
   useEffect(() => {
-    // Only reset stats if the department actually changed
-    if (selectDepartment) {
+    if (!selectDepartment) return;
+
+    if (prevDeptRef.current !== selectDepartment) {
+      // Dept actually changed (not initial load)
       setUsersStatistic({});
       setReviewersStatistic({});
       setFinalReviewersStatistic({});
@@ -75,13 +82,24 @@ const DepartmentReport = ({ departments }) => {
       } else {
         setActiveGroupId("");
       }
+      prevDeptRef.current = selectDepartment;
     }
-  }, [selectDepartment]); // Use selectDepartment instead of groups
+  }, [selectDepartment, groups]);
 
   /* 
-     Effect 2: Handle Date Change 
+     Effect: Default Group Selection
+     - If we have a department but no active group (and not showing totals), 
+       set the first group as active.
+  */
+  useEffect(() => {
+    if (selectDepartment && groups.length > 0 && !activeGroupId && !showDeptTotals) {
+      setActiveGroupId(String(groups[0].id));
+    }
+  }, [selectDepartment, groups, activeGroupId, showDeptTotals]);
+
+  /* 
+     Effect: Handle Date Change 
      - Reset stats to force refetch
-     - Persist current view mode (don't change showDeptTotals or activeGroupId)
   */
   useEffect(() => {
     setUsersStatistic({});
@@ -226,7 +244,7 @@ const DepartmentReport = ({ departments }) => {
             label="from"
             selectedDate={dates.from}
             handleDateChange={(e) =>
-              setDates((p) => ({ ...p, from: e.target.value }))
+              setFromDate(e.target.value)
             }
             isReport
             labelPrefix={
@@ -234,7 +252,9 @@ const DepartmentReport = ({ departments }) => {
                 type="button"
                 className="btn btn-xs btn-square   h-5 w-5 min-h-0"
                 onClick={() => {
-                  setDates(getSiblingReportCycle(dates.from, "prev"));
+                  const cycle = getSiblingReportCycle(dates.from, "prev");
+                  setFromDate(cycle.from);
+                  setToDate(cycle.to);
                 }}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -246,7 +266,7 @@ const DepartmentReport = ({ departments }) => {
             label="to"
             selectedDate={dates.to}
             handleDateChange={(e) =>
-              setDates((p) => ({ ...p, to: e.target.value }))
+              setToDate(e.target.value)
             }
             isReport
             labelSuffix={
@@ -254,7 +274,9 @@ const DepartmentReport = ({ departments }) => {
                 type="button"
                 className="btn btn-xs btn-square  h-5 w-5 min-h-0"
                 onClick={() => {
-                  setDates(getSiblingReportCycle(dates.from, "next"));
+                  const cycle = getSiblingReportCycle(dates.from, "next");
+                  setFromDate(cycle.from);
+                  setToDate(cycle.to);
                 }}
               >
                 <ChevronRight className="w-4 h-4" />

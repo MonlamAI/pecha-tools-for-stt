@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useTransition } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useQueryState, parseAsString } from "nuqs";
 
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
@@ -17,18 +18,22 @@ const GroupReport = ({ groups }) => {
     finalReviewers: [],
   });
 
-  const [selectGroup, setSelectGroup] = useState("");
-  const [dates, setDates] = useState({ from: "", to: "" });
+  const [selectGroup, setSelectGroup] = useQueryState("grp", parseAsString.withDefault(""));
+  const [fromDate, setFromDate] = useQueryState("from", parseAsString.withDefault(""));
+  const [toDate, setToDate] = useQueryState("to", parseAsString.withDefault(""));
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  const dates = { from: fromDate, to: toDate };
+
   /* ================= INIT DATES ================= */
   useEffect(() => {
-    if (!dates.from && !dates.to) {
+    if (!fromDate && !toDate) {
       const cycle = getCurrentReportCycle();
-      setDates(cycle);
+      setFromDate(cycle.from);
+      setToDate(cycle.to);
     }
-  }, []);
+  }, [fromDate, toDate, setFromDate, setToDate]);
 
   /* ================= FETCH GROUP DATA ================= */
   useEffect(() => {
@@ -89,7 +94,7 @@ const GroupReport = ({ groups }) => {
             label="from"
             selectedDate={dates.from}
             handleDateChange={(e) =>
-              setDates((p) => ({ ...p, from: e.target.value }))
+              setFromDate(e.target.value)
             }
             isReport
             labelPrefix={
@@ -98,7 +103,9 @@ const GroupReport = ({ groups }) => {
                 className="btn btn-xs btn-square  h-5 w-5 min-h-0"
                 onClick={() =>
                   startTransition(() => {
-                    setDates(getSiblingReportCycle(dates.from, "prev"));
+                    const cycle = getSiblingReportCycle(dates.from, "prev");
+                    setFromDate(cycle.from);
+                    setToDate(cycle.to);
                   })
                 }
               >
@@ -111,7 +118,7 @@ const GroupReport = ({ groups }) => {
             label="to"
             selectedDate={dates.to}
             handleDateChange={(e) =>
-              setDates((p) => ({ ...p, to: e.target.value }))
+              setToDate(e.target.value)
             }
             isReport
             labelSuffix={
@@ -120,7 +127,9 @@ const GroupReport = ({ groups }) => {
                 className="btn btn-xs btn-square  h-5 w-5 min-h-0"
                 onClick={() =>
                   startTransition(() => {
-                    setDates(getSiblingReportCycle(dates.from, "next"));
+                    const cycle = getSiblingReportCycle(dates.from, "next");
+                    setFromDate(cycle.from);
+                    setToDate(cycle.to);
                   })
                 }
               >

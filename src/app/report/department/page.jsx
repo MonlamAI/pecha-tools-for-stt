@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { getAllDepartment } from "@/model/department";
 import DepartmentReport from "./DepartmentReport";
 
@@ -33,9 +33,13 @@ const Department = () => {
   }
 
   return (
-    <>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    }>
       <DepartmentReport departments={departments} />
-    </>
+    </Suspense>
   );
 };
 
