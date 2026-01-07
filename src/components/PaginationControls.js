@@ -10,6 +10,8 @@ const PaginationControls = ({
   pageCount,
   isReport,
   setTranscript,
+  setPage,
+  setPerPage,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -21,9 +23,13 @@ const PaginationControls = ({
         disabled={!hasPrevPage}
         onClick={() => {
           if (isReport) setTranscript("");
-          router.push(
-            `${pathname}/?page=${Number(page) - 1}&per_page=${per_page}`
-          );
+          if (setPage) {
+            setPage(Number(page) - 1);
+          } else {
+            router.push(
+              `${pathname}/?page=${Number(page) - 1}&per_page=${per_page}`
+            );
+          }
         }}
       >
         Previous
@@ -36,9 +42,13 @@ const PaginationControls = ({
         disabled={!hasNextPage}
         onClick={() => {
           if (isReport) setTranscript("");
-          router.push(
-            `${pathname}/?page=${Number(page) + 1}&per_page=${per_page}`
-          );
+          if (setPage) {
+            setPage(Number(page) + 1);
+          } else {
+            router.push(
+              `${pathname}/?page=${Number(page) + 1}&per_page=${per_page}`
+            );
+          }
         }}
       >
         Next

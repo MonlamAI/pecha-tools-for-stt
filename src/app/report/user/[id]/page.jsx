@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { getAllUser } from "@/model/user";
 import UserReport from "./UserReport";
 
@@ -33,7 +33,15 @@ const User = ({ searchParams, params }) => {
     );
   }
 
-  return <UserReport id={id} users={users} searchParams={searchParams} />;
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    }>
+      <UserReport id={id} users={users} searchParams={searchParams} />
+    </Suspense>
+  );
 };
 
 export default User;

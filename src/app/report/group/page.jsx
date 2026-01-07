@@ -32,7 +32,15 @@ const Group = () => {
         );
     }
 
-    return <GroupReport groups={groups} />;
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <span className="loading loading-spinner loading-lg text-primary"></span>
+            </div>
+        }>
+            <GroupReport groups={groups} />
+        </Suspense>
+    );
 };
 
 export default Group;

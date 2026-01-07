@@ -1,10 +1,11 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
+import { useQueryState, parseAsString } from "nuqs";
 import GroupImportStats from "./GroupImportStats";
 import TaskStats from "./TaskStats";
 
 const StatsContainer = ({ groupStatByDept }) => {
-    const [view, setView] = useState("import_stats");
+    const [view, setView] = useQueryState("view", parseAsString.withDefault("import_stats"));
 
     const navItems = [
         { id: "import_stats", label: "Group Stats" },

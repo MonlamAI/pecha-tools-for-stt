@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { getAllGroup } from "@/model/group";
 import { getAllGroupTaskStats as getOptimizedGroupTaskStats } from "@/service/group-service";
 import StatsContainer from "./StatsContainer";
@@ -35,11 +35,15 @@ const Stats = () => {
   }
 
   return (
-    <>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    }>
       {groupStatByDept && groupStatByDept.length > 0 && (
         <StatsContainer groupStatByDept={groupStatByDept} />
       )}
-    </>
+    </Suspense>
   );
 };
 

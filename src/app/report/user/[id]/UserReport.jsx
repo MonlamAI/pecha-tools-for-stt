@@ -5,46 +5,52 @@ import PaginationControls from "@/components/PaginationControls";
 import UserReportTable from "./UserReportTable";
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
+import { useQueryState, parseAsString, parseAsInteger } from "nuqs";
 import { useRouter, usePathname } from "next/navigation";
 import useDebounce from "@/components/hooks/useDebounceState";
 import { getCurrentReportCycle, getSiblingReportCycle } from "@/utils/report-date-utils";
 
-const UserReport = ({ searchParams, id, users }) => {
+const UserReport = ({ id, users }) => {
   const [userTaskRecord, setUserTaskRecord] = useState([]);
   const [totalTasks, setTotalTasks] = useState(0);
   const [selectedOption, setSelectedOption] = useState(id ? id : "");
   const [secretAccess, setSecretAccess] = useState(false);
-  const [dates, setDates] = useState({ from: "", to: "" });
+
+  const [fromDate, setFromDate] = useQueryState("from", parseAsString.withDefault(""));
+  const [toDate, setToDate] = useQueryState("to", parseAsString.withDefault(""));
+  const [pageState, setPageState] = useQueryState("page", parseAsInteger.withDefault(1));
+  const [perPage, setPerPage] = useQueryState("per_page", parseAsInteger.withDefault(10));
+
   const [transcript, setTranscript] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const debouncedSearchTerm = useDebounce(transcript, 1000);
-  const page = searchParams["page"] ?? "1";
-  const per_page = searchParams["per_page"] ?? "10";
+
+  const dates = { from: fromDate, to: toDate };
+  const page = String(pageState);
+  const per_page = String(perPage);
   const isReport = pathname.includes("report");
   let allUserSpecificTasks = useRef([]);
 
   // Number of items per page
-  const limit = typeof per_page === "string" ? parseInt(per_page) : 10;
+  const limit = perPage;
   // Number of items to skip
-  const skip =
-    typeof page === "string"
-      ? parseInt(page) > 0
-        ? (parseInt(page) - 1) * limit
-        : 0
-      : 0;
+  const skip = (pageState - 1) * limit;
   const end = skip + limit;
 
   /* ================= INIT DATES ================= */
   useEffect(() => {
-    if (!dates.from && !dates.to) {
-      setDates(getCurrentReportCycle());
+    if (!fromDate && !toDate) {
+      const cycle = getCurrentReportCycle();
+      setFromDate(cycle.from);
+      setToDate(cycle.to);
     }
-  }, []);
+  }, [fromDate, toDate, setFromDate, setToDate]);
 
   useEffect(() => {
+    if (!selectedOption) return;
     setIsLoading(true); // Start loading
     async function getUserReportByGroup() {
       try {
@@ -52,16 +58,16 @@ const UserReport = ({ searchParams, id, users }) => {
           id: String(selectedOption || ""),
           limit: String(limit),
           skip: String(skip),
-          from: dates.from || "",
-          to: dates.to || "",
+          from: fromDate || "",
+          to: toDate || "",
         });
         const [tasksRes, countRes] = await Promise.all([
           fetch(`/api/report/user/tasks?${qs.toString()}`, { cache: "no-store" }),
           fetch(
             `/api/report/user/count?${new URLSearchParams({
               id: String(selectedOption || ""),
-              from: dates.from || "",
-              to: dates.to || "",
+              from: fromDate || "",
+              to: toDate || "",
             }).toString()}`,
             { cache: "no-store" }
           ),
@@ -75,13 +81,12 @@ const UserReport = ({ searchParams, id, users }) => {
         setTotalTasks(totalUserSpecificTasks); // Update state with the total count
       } catch (error) {
         console.error("Failed to fetch user report by group:", error);
-        // Optionally, handle the error state in your UI as well
       } finally {
         setIsLoading(false); // End loading regardless of try/catch outcome
       }
     }
     getUserReportByGroup();
-  }, [selectedOption, skip, limit, dates]);
+  }, [selectedOption, skip, limit, fromDate, toDate]);
 
   const handleOptionChange = async (event) => {
     setSelectedOption(event.target.value);
@@ -89,7 +94,9 @@ const UserReport = ({ searchParams, id, users }) => {
   };
 
   const handleDateChange = async (event) => {
-    setDates((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    const { name, value } = event.target;
+    if (name === "from") setFromDate(value);
+    if (name === "to") setToDate(value);
   };
 
   const totalTasksCount = totalTasks;
@@ -162,10 +169,9 @@ const UserReport = ({ searchParams, id, users }) => {
                 className="btn btn-xs btn-square h-5 w-5 min-h-0"
                 onClick={() =>
                   startTransition(() => {
-                    setDates((prev) => {
-                      const newDates = getSiblingReportCycle(prev.from, "prev");
-                      return { ...prev, ...newDates };
-                    });
+                    const cycle = getSiblingReportCycle(dates.from, "prev");
+                    setFromDate(cycle.from);
+                    setToDate(cycle.to);
                   })
                 }
               >
@@ -184,10 +190,9 @@ const UserReport = ({ searchParams, id, users }) => {
                 className="btn btn-xs btn-square h-5 w-5 min-h-0"
                 onClick={() =>
                   startTransition(() => {
-                    setDates((prev) => {
-                      const newDates = getSiblingReportCycle(prev.from, "next");
-                      return { ...prev, ...newDates };
-                    });
+                    const cycle = getSiblingReportCycle(dates.from, "next");
+                    setFromDate(cycle.from);
+                    setToDate(cycle.to);
                   })
                 }
               >
@@ -220,6 +225,8 @@ const UserReport = ({ searchParams, id, users }) => {
                 pageCount={pageCount}
                 isReport={isReport}
                 setTranscript={setTranscript}
+                setPage={setPageState}
+                setPerPage={setPerPage}
               />
             </div>
           </>
