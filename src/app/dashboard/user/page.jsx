@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import UserDashboard from "./UserDashboard";
 import { getAllUser } from "@/model/user";
 import { getAllGroup } from "@/model/group";
@@ -10,24 +10,25 @@ const User = ({ searchParams }) => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [usersData, groupsData] = await Promise.all([
-          getAllUser(),
-          getAllGroup()
-        ]);
+  const fetchData = useCallback(async () => {
+    try {
+      const [usersData, groupsData] = await Promise.all([
+        getAllUser(),
+        getAllGroup()
+      ]);
 
-        if (usersData && !usersData.error) setUsers(usersData);
-        if (groupsData && !groupsData.error) setGroups(groupsData);
-      } catch (error) {
-        console.error("Error fetching user/group data:", error);
-      } finally {
-        setLoading(false);
-      }
+      if (usersData && !usersData.error) setUsers(usersData);
+      if (groupsData && !groupsData.error) setGroups(groupsData);
+    } catch (error) {
+      console.error("Error fetching user/group data:", error);
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -43,6 +44,7 @@ const User = ({ searchParams }) => {
         users={users}
         groups={groups}
         searchParams={searchParams}
+        onDone={fetchData}
       />
     </>
   );

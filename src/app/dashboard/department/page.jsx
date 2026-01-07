@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import DepartmentDashboard from "./DepartmentDashboard";
 import { getAllDepartment } from "@/model/department";
 
@@ -8,21 +8,22 @@ const Department = () => {
   const [departmentList, setDepartmentList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchDepartments() {
-      try {
-        const data = await getAllDepartment();
-        if (data && !data.error) {
-          setDepartmentList(data);
-        }
-      } catch (error) {
-        console.error("Error fetching departments:", error);
-      } finally {
-        setLoading(false);
+  const fetchDepartments = useCallback(async () => {
+    try {
+      const data = await getAllDepartment();
+      if (data && !data.error) {
+        setDepartmentList(data);
       }
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    } finally {
+      setLoading(false);
     }
-    fetchDepartments();
   }, []);
+
+  useEffect(() => {
+    fetchDepartments();
+  }, [fetchDepartments]);
 
   if (loading) {
     return (
@@ -34,7 +35,10 @@ const Department = () => {
 
   return (
     <>
-      <DepartmentDashboard departmentList={departmentList} />
+      <DepartmentDashboard
+        departmentList={departmentList}
+        onDone={fetchDepartments}
+      />
     </>
   );
 };

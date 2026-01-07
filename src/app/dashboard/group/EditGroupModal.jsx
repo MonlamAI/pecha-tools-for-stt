@@ -6,7 +6,7 @@ import { editGroup } from "@/model/group";
 import Select from "@/components/Select";
 import toast from "react-hot-toast";
 
-const EditGroupModal = ({ selectedRow, departments }) => {
+const EditGroupModal = ({ selectedRow, departments, onDone }) => {
   const ref = useRef(null);
   const [departmentId, setDepartmentId] = useState("");
   const router = useRouter();
@@ -28,10 +28,10 @@ const EditGroupModal = ({ selectedRow, departments }) => {
       toast.error(state.error);
     } else if (state?.success) {
       toast.success(state.success);
-      router.refresh();
+      onDone?.();
       window.edit_modal.close();
     }
-  }, [state]);
+  }, [state, onDone]);
 
   const handleDepartmentChange = async (event) => {
     setDepartmentId(event.target.value);

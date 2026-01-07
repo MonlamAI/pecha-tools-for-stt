@@ -11,7 +11,7 @@ import EditUserModal from "./EditUserModal";
 import toast from "react-hot-toast";
 
 
-const UserDashboard = ({ users, groups, searchParams }) => {
+const UserDashboard = ({ users, groups, searchParams, onDone }) => {
   // console.log("UserDashboard:", { users, groups });
   const [selectedRow, setSelectedRow] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,7 +114,7 @@ const UserDashboard = ({ users, groups, searchParams }) => {
                       >
                         Edit
                       </button>
-                      <DeleteUserButton userId={user.id} onDone={() => router.refresh()} />
+                      <DeleteUserButton userId={user.id} onDone={onDone} />
                     </td>
                   </tr>
                 ))
@@ -128,8 +128,8 @@ const UserDashboard = ({ users, groups, searchParams }) => {
             </tbody>
           </table>
         </div>
-        <AddUserModal groups={groups} />
-        <EditUserModal groups={groups} selectedRow={selectedRow} />
+        <AddUserModal groups={groups} onDone={onDone} />
+        <EditUserModal groups={groups} selectedRow={selectedRow} onDone={onDone} />
       </div>
     </>
   );

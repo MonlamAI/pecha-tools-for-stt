@@ -44,7 +44,7 @@ const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
         <BsArrowReturnLeft /> {lang.save}
       </button>
 
-      <button id="trash-button" className={`${btn} text-slate-600`} onClick={() =>
+      <button id="trash-button" className={`${btn} text-red-500`} onClick={() =>
         updateTaskAndIndex({ action: "trash", transcript, task: tasks[0] })
       }>
         <BsTrash /> {lang.trash}

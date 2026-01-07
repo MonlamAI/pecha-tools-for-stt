@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Select from "@/components/Select";
 import toast from "react-hot-toast";
 
-const EditUserModal = ({ groups, selectedRow }) => {
+const EditUserModal = ({ groups, selectedRow, onDone }) => {
   // console.log("EditUserModal: ", { groups, selectedRow });
   const ref = useRef(null);
   const [groupId, setGroupId] = useState("");
@@ -23,10 +23,10 @@ const EditUserModal = ({ groups, selectedRow }) => {
     if (state?.success) {
       toast.success(state.success);
       ref.current?.reset();
-      router.refresh();
+      onDone?.();
       window.edit_modal.close();
     }
-  }, [state, router]);
+  }, [state, onDone]);
 
 
   const handleInputChange = (event) => {

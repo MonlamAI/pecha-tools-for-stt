@@ -4,6 +4,7 @@ import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
 import { utcToIst } from "@/lib/istCurrentTime";
+import { getCache, setCache } from "@/lib/cache";
 
 /* --------------------- TASK FETCHERS --------------------- */
 

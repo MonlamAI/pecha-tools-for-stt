@@ -48,7 +48,7 @@ const StatsContainer = ({ groupStatByDept }) => {
 
             {/* Main Content */}
             <div className="flex-1 p-5 md:p-10">
-                <div className="max-w-7xl">
+                <div className="max-w-7xl mx-auto">
 
                     {/* HEADER BAR */}
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">

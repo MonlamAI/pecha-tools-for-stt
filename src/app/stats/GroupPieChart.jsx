@@ -62,9 +62,10 @@ const GroupPieChart = ({ group }) => {
 
   return (
     <div className="
-      w-[360px]
-      h-[320px]
-      p-4
+      w-full
+      max-w-[400px]
+      min-h-[320px]
+      p-4 sm:p-6
       rounded-2xl
       shadow-sm
       border
@@ -125,16 +126,16 @@ const GroupPieChart = ({ group }) => {
             p-2
             bg-gray-50
             dark:bg-gray-800
-            grid grid-cols-3 gap-1
+            grid grid-cols-2 gap-x-4 gap-y-1.5
           "
         >
           {data.labels.map((label, i) => (
-            <div key={i} className="flex items-center gap-1">
+            <div key={i} className="flex items-center gap-1.5 overflow-hidden">
               <span
-                className="w-2.5 h-2.5 rounded-full"
+                className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: colors[i] }}
               />
-              <span className="text-[11px] dark:text-gray-200">
+              <span className="text-[11px] dark:text-gray-200 truncate">
                 {label}
               </span>
             </div>
