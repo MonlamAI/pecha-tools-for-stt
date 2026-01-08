@@ -32,8 +32,8 @@ const StatsContainer = ({ groupStatByDept }) => {
                         className={`
               px-4 py-2 rounded-lg text-sm font-semibold transition-all
               ${isActive
-                                ? "bg-teal-600 text-white shadow-md scale-105"
-                                : "bg-teal-50 text-teal-700 hover:bg-teal-100 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                                ? "bg-[#0078D7] text-white shadow-md scale-105"
+                                : "bg-[#0078D7]/10 text-[#0078D7] hover:bg-[#0078D7]/20 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
                             }
             `}
                     >

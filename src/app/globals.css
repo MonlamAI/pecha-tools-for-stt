@@ -6,9 +6,7 @@
 
 @font-face {
     font-family: "Monlam";
-    src: url("/font/MonlamTBslim.woff2") format("woff2"),
-        url("/font/MonlamTBslim.woff") format("woff"),
-        url("/font/MonlamTBslim.ttf") format("truetype");
+    src: url("/font/MonlamTBslim.ttf") format("truetype");
     font-weight: normal;
     font-style: normal;
     font-display: swap;
