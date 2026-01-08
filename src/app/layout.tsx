@@ -1,6 +1,6 @@
 import { Toaster } from "react-hot-toast";
 import { Toaster as TaskToaster } from "sonner";
-import { ThemeProvider } from "@/components/provider/ThemeProvider";
+import { ThemeProvider } from "@/provider/ThemeProvider";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import "./globals.css";

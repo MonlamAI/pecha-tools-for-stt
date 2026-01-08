@@ -7,7 +7,7 @@ import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
 import { useQueryState, parseAsString, parseAsInteger } from "nuqs";
 import { useRouter, usePathname } from "next/navigation";
-import useDebounce from "@/components/hooks/useDebounceState";
+import useDebounce from "@/hooks/useDebounceState";
 import { getCurrentReportCycle, getSiblingReportCycle } from "@/utils/report-date-utils";
 
 const UserReport = ({ id, users }) => {
