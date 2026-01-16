@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",   // ⭐ REQUIRED for next-themes + DaisyUI to work correctly
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -25,6 +26,7 @@ const config: Config = {
     rtl: false,
     prefix: "",
     logs: false,
-  }
+  },
 };
+
 export default config;

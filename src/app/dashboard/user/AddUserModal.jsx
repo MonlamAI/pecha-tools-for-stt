@@ -7,7 +7,7 @@ import Select from "@/components/Select";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-const AddUserModal = ({ groups }) => {
+const AddUserModal = ({ groups, onDone }) => {
   const ref = useRef(null);
   const [groupId, setGroupId] = useState("");
   const [role, setRole] = useState("");
@@ -65,10 +65,10 @@ const AddUserModal = ({ groups }) => {
       setUsername("");
       setGroupId("");
       setRole("");
-      router.refresh();
+      onDone?.();
       window.add_modal.close();
     }
-  }, [state, router]);
+  }, [state, onDone]);
 
   return (
     <>
@@ -99,7 +99,6 @@ const AddUserModal = ({ groups }) => {
                 type="text"
                 name="name"
                 placeholder="username"
-                required
                 className="input input-bordered w-full"
                 value={username}
                 onChange={handleInputChange}

@@ -1,33 +1,23 @@
-import React, { useEffect, useRef, useState } from "react";
+"use client";
+import React, { useEffect, useState, useContext } from "react";
 import { BsFillPlayFill, BsFillPauseFill } from "react-icons/bs";
 import { ImLoop } from "react-icons/im";
 import AppContext from "./AppContext";
-import { useContext } from "react";
 
 export const AudioPlayer = ({ tasks, audioRef }) => {
   const { lang } = useContext(AppContext);
-  const [playbackRate, setPlaybackRate] = useState(1); // 1, 1.25, 1.5, 2, 0.5 (default 1)
+
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoopEnabled, setIsLoopEnabled] = useState(false); // [false, true
+  const [isLoopEnabled, setIsLoopEnabled] = useState(false);
+
+  const rates = [0.5, 0.75, 1, 1.25, 1.5];
 
   useEffect(() => {
-    // Set the playback rate on the audio element when tasks change
     if (audioRef.current) {
       audioRef.current.playbackRate = playbackRate;
     }
   }, [tasks, playbackRate]);
-
-  const toggleLoop = () => {
-    const newLoopState = !isLoopEnabled;
-    setIsLoopEnabled(newLoopState);
-    if (newLoopState) {
-      audioRef.current.play();
-      setIsPlaying(true);
-    } else {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    }
-  };
 
   const handlePlayPause = () => {
     if (audioRef.current.paused) {
@@ -39,97 +29,98 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     }
   };
 
-  const rates = [0.5, 0.75, 1, 1.25, 1.5];
-
-  const changePlaybackRate = () => {
-    const currentIndex = rates.indexOf(playbackRate);
-    const nextIndex = (currentIndex + 1) % rates.length;
-    const newRate = rates[nextIndex];
-    audioRef.current.playbackRate = newRate;
-    setPlaybackRate(newRate);
+  const toggleLoop = () => {
+    const next = !isLoopEnabled;
+    setIsLoopEnabled(next);
+    audioRef.current.loop = next;
+    if (next) {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
   };
 
   useEffect(() => {
-    // Add event listener for keyboard shortcuts
-    window.addEventListener("keydown", handleKeyPress);
-    // Remove the event listener when the component unmounts
-    return () => {
-      window.removeEventListener("keydown", handleKeyPress);
+    const handleKeyPress = (e) => {
+      if (e.keyCode === 13 && (e.metaKey || e.ctrlKey || e.altKey)) {
+        handlePlayPause();
+      }
+      if (e.altKey && e.keyCode === 76) {
+        toggleLoop();
+      }
     };
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
 
-  const handleKeyPress = (e) => {
-    // Play/Pause: command + enter , option + enter, ctrl + enter
-    if (e.keyCode === 13 && (e.metaKey || e.ctrlKey || e.altKey)) {
-      handlePlayPause();
-    }
-    // Loop: Alt/option + L key
-    if (e.altKey && e.keyCode === 76) {
-      toggleLoop();
-    }
-  };
+  const handleAudioEnded = () => setIsPlaying(false);
 
-  const handleAudioEnded = () => {
-    setIsPlaying(false);
-  };
+  // Simple Theme-Aware Buttons
+  const baseBtn =
+    "h-8 w-8 rounded-lg flex items-center justify-center " +
+    "bg-slate-100 dark:bg-neutral-700 " +
+    "border border-slate-200 dark:border-white/5 " +
+    "text-slate-800 dark:text-slate-100 " +
+    "hover:bg-slate-200 dark:hover:bg-neutral-600 active:bg-slate-300 dark:active:bg-neutral-800 transition-colors";
+
+  const activeBtn =
+    "bg-blue-400 text-black border-transparent shadow-none";
 
   return (
     <>
+      {/* Native Audio */}
       <audio
         ref={audioRef}
         controls
         loop={isLoopEnabled}
-        className="w-full"
+        className="w-full rounded-xl opacity-90"
         key={tasks[0]?.id}
         onEnded={handleAudioEnded}
         autoPlay
       >
         <source src={tasks[0]?.url} type="audio/mp3" />
       </audio>
-      <div className="flex flex-wrap gap-10 my-2 items-center">
-        <div
-          className="md:tooltip tooltip-bottom"
-          data-tip={`${
-            isPlaying ? "Pause" : "Play"
-          } (command + enter, option + enter, ctrl + enter)`}
-        >
-          <button
-            className="btn btn-outline px-5 py-2.5"
-            onClick={() => handlePlayPause()}
-          >
-            {isPlaying ? <BsFillPauseFill /> : <BsFillPlayFill />}
-          </button>
-        </div>
-        <div className="md:tooltip tooltip-bottom" data-tip="Loop (Alt + l)">
-          <button
-            className={
-              isLoopEnabled
-                ? "btn px-5 py-2.5 bg-yellow-400 hover:bg-yellow-400"
-                : "btn btn-outline px-5 py-2.5"
-            }
-            onClick={() => toggleLoop()}
-          >
-            <ImLoop />
-          </button>
-        </div>
-        <div className="flex flex-wrap item-center font-semibold gap-2 items-center">
-          <label className="text-sm pr-4">{lang.speed}</label>
-          {rates.map((rate) => (
-            <button
-              key={rate}
-              className={
-                playbackRate === rate
-                  ? "btn btn-ghost bg-yellow-400"
-                  : "btn btn-ghost"
-              }
-              onClick={() => {
-                audioRef.current.playbackRate = rate;
-                setPlaybackRate(rate);
-              }}
-            >
-              {rate}X
+
+      {/* Controls */}
+      <div className="mt-4 flex items-center justify-center">
+        <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/5 shadow-sm">
+          {/* Play/Pause & Loop */}
+          <div className="flex items-center gap-1.5 px-1 border-r border-neutral-300 dark:border-neutral-700">
+            <button onClick={handlePlayPause} className={baseBtn}>
+              {isPlaying ? <BsFillPauseFill /> : <BsFillPlayFill />}
             </button>
-          ))}
+
+            <button
+              onClick={toggleLoop}
+              className={`${baseBtn} ${isLoopEnabled ? activeBtn : ""}`}
+            >
+              <ImLoop />
+            </button>
+          </div>
+
+          {/* Speed Control */}
+          <div className="flex items-center gap-1.5 px-1">
+            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60 hidden sm:inline">
+              {lang.speed}
+            </span>
+
+            <div className="flex items-center gap-1">
+              {rates.map((rate) => (
+                <button
+                  key={rate}
+                  onClick={() => {
+                    audioRef.current.playbackRate = rate;
+                    setPlaybackRate(rate);
+                  }}
+                  className={`w-9 h-7 text-[10px] md:text-[11px] font-medium rounded-md transition-colors ${playbackRate === rate
+                    ? "bg-blue-400 text-black shadow-none"
+                    : "text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 dark:hover:bg-neutral-600"
+                    }`}
+                >
+                  {rate}×
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </>

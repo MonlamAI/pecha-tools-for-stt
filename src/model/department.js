@@ -39,6 +39,7 @@ export const createDepartment = async (prevState, formData) => {
       },
     });
     revalidatePath("/dashboard/department");
+    revalidatePath("/dashboard/department");
     return { success: "Department created successfully", department: newDepartment };
   } catch (error) {
     console.error("Error creating a department:", error);
@@ -56,6 +57,7 @@ export const deleteDepartment = async (id) => {
         id,
       },
     });
+    revalidatePath("/dashboard/department");
     revalidatePath("/dashboard/department");
     return { success: "Department deleted successfully" };
   } catch (error) {
@@ -80,6 +82,7 @@ export const editDepartment = async (id, formData) => {
         name: departmentName,
       },
     });
+    revalidatePath("/dashboard/department");
     revalidatePath("/dashboard/department");
     return { success: "Department updated successfully", department };
   } catch (error) {
