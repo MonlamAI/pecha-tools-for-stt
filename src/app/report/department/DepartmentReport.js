@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   generateUserReportByGroup,
   generateReviewerReportbyGroup,
@@ -19,6 +19,7 @@ const DepartmentReport = ({ departments }) => {
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState({});
   const [selectDepartment, setSelectDepartment] = useState("");
   const [dates, setDates] = useState({ from: "", to: "" });
+  const latestRequestRef = useRef(0);
 
   const handleDepartmentChange = async (event) => {
     setSelectDepartment(event.target.value);
@@ -36,6 +37,9 @@ const DepartmentReport = ({ departments }) => {
   }
 
   useEffect(() => {
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
     async function fetchTasks(groups) {
       try {
         const userReports = groups.map((group) =>
@@ -54,6 +58,7 @@ const DepartmentReport = ({ departments }) => {
         const allFinalReviewerReports = await Promise.all(finalReviewerReports);
 
         // Combine the reports into their respective states
+        if (latestRequestRef.current !== requestId) return;
         groups.forEach((group, index) => {
           setUsersStatistic((prev) => ({
             ...prev,
@@ -71,6 +76,7 @@ const DepartmentReport = ({ departments }) => {
       } catch (error) {
         console.error("Error fetching reports:", error);
       } finally {
+        if (latestRequestRef.current !== requestId) return;
         setIsLoading(false); // Ensure loading is false after all operations
       }
     }

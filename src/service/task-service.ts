@@ -236,7 +236,9 @@ export const updateTask = async (
         transcript: changedState.state === rules.trashState ? null : transcript,
         reviewed_transcript: null,
         final_transcript: null,
-        submitted_at: istCurrentTime(),
+        ...(changedState.state === rules.submitState
+          ? { submitted_at: istCurrentTime() }
+          : {}),
         duration,
       };
       break;
@@ -253,7 +255,9 @@ export const updateTask = async (
         )
           ? null
           : transcript,
-        reviewed_at: istCurrentTime(),
+        ...(changedState.state === rules.submitState
+          ? { reviewed_at: istCurrentTime() }
+          : {}),
       };
       break;
     }
@@ -269,7 +273,9 @@ export const updateTask = async (
         )
           ? null
           : transcript,
-        finalised_reviewed_at: istCurrentTime(),
+        ...(changedState.state === rules.submitState
+          ? { finalised_reviewed_at: istCurrentTime() }
+          : {}),
       };
       break;
     }

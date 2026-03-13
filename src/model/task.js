@@ -3,7 +3,7 @@
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
-import { utcToIst } from "@/lib/istCurrentTime";
+import { buildDateFilter } from "@/lib/reportDateRange";
 import { getCache, setCache } from "@/lib/cache";
 
 // get all tasks basd on the search params
@@ -81,7 +81,7 @@ export async function createTasksFromCSV(formData) {
   }
 }
 
-export const getUserSpecificTasksCount = async (id, dates) => {
+export const getUserSpecificTasksCount = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
 
   const user = await prisma.user.findUnique({
@@ -105,6 +105,7 @@ export const getUserSpecificTasksCount = async (id, dates) => {
   let baseWhereCondition = {
     [`${user.role.toLowerCase()}_id`]: parseInt(id),
     state: stateFilter,
+    ...(groupId ? { group_id: parseInt(groupId) } : {}),
   };
 
   let dateFieldName;
@@ -117,11 +118,10 @@ export const getUserSpecificTasksCount = async (id, dates) => {
   }
   // Extend the base condition with date filters if both fromDate and toDate are provided
   if (fromDate && toDate) {
-    // Applies to REVIEWER and FINAL_REVIEWER
-    baseWhereCondition[dateFieldName] = {
-      gte: utcToIst(new Date(fromDate)),
-      lte: utcToIst(new Date(toDate)),
-    };
+    Object.assign(
+      baseWhereCondition,
+      buildDateFilter(dateFieldName, fromDate, toDate)
+    );
   }
 
   try {
@@ -165,10 +165,7 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
         : user.role === "REVIEWER"
         ? "reviewed_at"
         : "finalised_reviewed_at";
-    whereCondition[dateField] = {
-      gte: utcToIst(new Date(fromDate)),
-      lte: utcToIst(new Date(toDate)),
-    };
+    Object.assign(whereCondition, buildDateFilter(dateField, fromDate, toDate));
   }
 
   try {
@@ -241,20 +238,15 @@ export const getCompletedTaskCount = async (id, role, groupId) => {
   }
 };
 
-export const getReviewerTaskCount = async (id, dates) => {
+export const getReviewerTaskCount = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
   const reviewerId = parseInt(id);
 
   // Construct the base query condition
   const baseWhere = {
     reviewer_id: reviewerId,
-    reviewed_at:
-      fromDate && toDate
-        ? {
-            gte: utcToIst(new Date(fromDate)),
-            lte: utcToIst(new Date(toDate)),
-          }
-        : undefined,
+    group_id: parseInt(groupId),
+    ...buildDateFilter("reviewed_at", fromDate, toDate),
   };
 
   try {
@@ -311,13 +303,7 @@ export const getFinalReviewerTaskCount = async (
   const baseWhereCondition = {
     final_reviewer_id: finalReviewerId,
     group_id: parseInt(groupId),
-    finalised_reviewed_at:
-      fromDate && toDate
-        ? {
-            gte: utcToIst(new Date(fromDate)),
-            lte: utcToIst(new Date(toDate)),
-          }
-        : undefined,
+    ...buildDateFilter("finalised_reviewed_at", fromDate, toDate),
   };
 
   try {
@@ -342,17 +328,18 @@ export const getFinalReviewerTaskCount = async (
   }
 };
 
-export const getTranscriberTaskList = async (id, dates) => {
+export const getTranscriberTaskList = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
+  const baseWhere = {
+    transcriber_id: id,
+    group_id: parseInt(groupId),
+  };
   try {
     if (fromDate && toDate) {
       const filteredTasks = await prisma.task.findMany({
         where: {
-          transcriber_id: id,
-          reviewed_at: {
-            gte: utcToIst(new Date(fromDate)),
-            lte: utcToIst(new Date(toDate)),
-          },
+          ...baseWhere,
+          ...buildDateFilter("reviewed_at", fromDate, toDate),
         },
         select: {
           inference_transcript: true,
@@ -365,9 +352,7 @@ export const getTranscriberTaskList = async (id, dates) => {
       return filteredTasks;
     } else {
       const filteredTasks = await prisma.task.findMany({
-        where: {
-          transcriber_id: id,
-        },
+        where: baseWhere,
         select: {
           inference_transcript: true,
           transcript: true,
@@ -384,17 +369,18 @@ export const getTranscriberTaskList = async (id, dates) => {
   }
 };
 
-export const getReviewerTaskList = async (id, dates) => {
+export const getReviewerTaskList = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
+  const baseWhere = {
+    reviewer_id: id,
+    group_id: parseInt(groupId),
+  };
   try {
     if (fromDate && toDate) {
       const filteredTasks = await prisma.task.findMany({
         where: {
-          reviewer_id: id,
-          reviewed_at: {
-            gte: utcToIst(new Date(fromDate)),
-            lte: utcToIst(new Date(toDate)),
-          },
+          ...baseWhere,
+          ...buildDateFilter("reviewed_at", fromDate, toDate),
         },
         select: {
           state: true,
@@ -406,9 +392,7 @@ export const getReviewerTaskList = async (id, dates) => {
       return filteredTasks;
     } else {
       const filteredTasks = await prisma.task.findMany({
-        where: {
-          reviewer_id: id,
-        },
+        where: baseWhere,
         select: {
           state: true,
           reviewed_transcript: true,
@@ -509,14 +493,9 @@ export const getUserSubmittedAndReviewedSecs = async (id, dates, groupId) => {
     const totalSubmittedSecs = await prisma.task.aggregate({
       where: {
         transcriber_id: transcriberId,
+        group_id,
         // Conditionally add date filters if both dates are provided
-        ...(fromDate &&
-          toDate && {
-            submitted_at: {
-              gte: utcToIst(new Date(fromDate)),
-              lte: utcToIst(new Date(toDate)),
-            },
-          }),
+        ...buildDateFilter("submitted_at", fromDate, toDate),
         state: { in: ["submitted", "accepted", "finalised"] },
       },
       _sum: {
@@ -527,14 +506,9 @@ export const getUserSubmittedAndReviewedSecs = async (id, dates, groupId) => {
     const totolReviewedSecs = await prisma.task.aggregate({
       where: {
         transcriber_id: transcriberId,
+        group_id,
         // Conditionally add date filters if both dates are provided
-        ...(fromDate &&
-          toDate && {
-            reviewed_at: {
-              gte: new Date(fromDate),
-              lte: new Date(toDate),
-            },
-          }),
+        ...buildDateFilter("reviewed_at", fromDate, toDate),
         state: { in: ["accepted", "finalised"] },
       },
       _sum: {
@@ -545,14 +519,9 @@ export const getUserSubmittedAndReviewedSecs = async (id, dates, groupId) => {
     const totalTrashedSecs = await prisma.task.aggregate({
       where: {
         transcriber_id: transcriberId,
+        group_id,
         // Conditionally add date filters if both dates are provided
-        ...(fromDate &&
-          toDate && {
-            submitted_at: {
-              gte: new Date(fromDate),
-              lte: new Date(toDate),
-            },
-          }),
+        ...buildDateFilter("submitted_at", fromDate, toDate),
         state: "trashed",
       },
       _sum: {
