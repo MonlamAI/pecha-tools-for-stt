@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   generateUserReportByGroup,
   generateReviewerReportbyGroup,
@@ -16,20 +16,24 @@ const GroupReport = ({ groups }) => {
   const [reviewersStatistic, setReviewersStatistic] = useState([]);
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState([]);
   const [selectGroup, setSelectGroup] = useState("");
-  const [dates, setDates] = useState({ from: "", to: "" });
+  const [draftDates, setDraftDates] = useState({ from: "", to: "" });
+  const [appliedDates, setAppliedDates] = useState({ from: "", to: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const latestRequestRef = useRef(0);
 
   useEffect(() => {
     if (selectGroup) {
+      const requestId = latestRequestRef.current + 1;
+      latestRequestRef.current = requestId;
       setIsLoading(true); // Start loading
       async function fetchData() {
         try {
           // Use Promise.all to wait for all promises to resolve
           const [usersOfGroup, reviewersOfGroup, finalReviewersOfGroup] =
             await Promise.all([
-              generateUserReportByGroup(selectGroup, dates),
-              generateReviewerReportbyGroup(selectGroup, dates),
-              generateFinalReviewerReportbyGroup(selectGroup, dates),
+              generateUserReportByGroup(selectGroup, appliedDates),
+              generateReviewerReportbyGroup(selectGroup, appliedDates),
+              generateFinalReviewerReportbyGroup(selectGroup, appliedDates),
             ]);
 
           // console.log("GroupReport: useEffect: fetchData: ", {
@@ -37,30 +41,46 @@ const GroupReport = ({ groups }) => {
           //   reviewersOfGroup,
           //   finalReviewersOfGroup,
           // });
+          if (latestRequestRef.current !== requestId) return;
           setUsersStatistic(usersOfGroup);
           setReviewersStatistic(reviewersOfGroup);
           setFinalReviewersStatistic(finalReviewersOfGroup);
         } catch (error) {
           console.error("Error fetching group reports:", error);
         } finally {
+          if (latestRequestRef.current !== requestId) return;
           setIsLoading(false); // End loading
         }
       }
       fetchData();
     }
-  }, [selectGroup, dates]);
+  }, [selectGroup, appliedDates]);
 
   const handleGroupChange = async (event) => {
     setSelectGroup(event.target.value);
   };
 
   const handleDateChange = async (event) => {
-    setDates((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    setDraftDates((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  };
+
+  const handleApplyDateFilter = (event) => {
+    event.preventDefault();
+    setAppliedDates(draftDates);
+  };
+
+  const handleResetDateFilter = () => {
+    const emptyDates = { from: "", to: "" };
+    setDraftDates(emptyDates);
+    setAppliedDates(emptyDates);
   };
 
   return (
     <>
-      <form className="sticky top-0 z-20 py-8 bg-base-100 flex flex-col md:flex-row justify-around items-center md:items-end space-y-5 space-x-0 md:space-y-0 md:space-x-10">
+      <form
+        onSubmit={handleApplyDateFilter}
+        className="sticky top-0 z-20 py-8 bg-base-100 flex flex-col md:flex-row justify-around items-center md:items-end space-y-5 space-x-0 md:space-y-0 md:space-x-10"
+      >
         <Select
           title="group_id"
           label="group"
@@ -71,14 +91,26 @@ const GroupReport = ({ groups }) => {
         <div className="flex flex-col md:flex-row gap-2 md:gap-6">
           <DateInput
             label="from"
-            selectedDate={dates.from}
+            selectedDate={draftDates.from}
             handleDateChange={handleDateChange}
           />
           <DateInput
             label="to"
-            selectedDate={dates.to}
+            selectedDate={draftDates.to}
             handleDateChange={handleDateChange}
           />
+        </div>
+        <div className="flex gap-2">
+          <button type="submit" className="btn btn-primary btn-sm">
+            Apply
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={handleResetDateFilter}
+          >
+            Reset
+          </button>
         </div>
       </form>
       <div className="flex flex-col gap-10 justify-center items-center my-10">

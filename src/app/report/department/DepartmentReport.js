@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   generateUserReportByGroup,
   generateReviewerReportbyGroup,
@@ -18,14 +18,27 @@ const DepartmentReport = ({ departments }) => {
   const [reviewersStatistic, setReviewersStatistic] = useState({});
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState({});
   const [selectDepartment, setSelectDepartment] = useState("");
-  const [dates, setDates] = useState({ from: "", to: "" });
+  const [draftDates, setDraftDates] = useState({ from: "", to: "" });
+  const [appliedDates, setAppliedDates] = useState({ from: "", to: "" });
+  const latestRequestRef = useRef(0);
 
   const handleDepartmentChange = async (event) => {
     setSelectDepartment(event.target.value);
   };
 
   const handleDateChange = async (event) => {
-    setDates((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    setDraftDates((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  };
+
+  const handleApplyDateFilter = (event) => {
+    event.preventDefault();
+    setAppliedDates(draftDates);
+  };
+
+  const handleResetDateFilter = () => {
+    const emptyDates = { from: "", to: "" };
+    setDraftDates(emptyDates);
+    setAppliedDates(emptyDates);
   };
 
   function getGroupByDepartmentId(departmentId) {
@@ -36,16 +49,19 @@ const DepartmentReport = ({ departments }) => {
   }
 
   useEffect(() => {
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
     async function fetchTasks(groups) {
       try {
         const userReports = groups.map((group) =>
-          generateUserReportByGroup(group.id, dates)
+          generateUserReportByGroup(group.id, appliedDates)
         );
         const reviewerReports = groups.map((group) =>
-          generateReviewerReportbyGroup(group.id, dates)
+          generateReviewerReportbyGroup(group.id, appliedDates)
         );
         const finalReviewerReports = groups.map((group) =>
-          generateFinalReviewerReportbyGroup(group.id, dates)
+          generateFinalReviewerReportbyGroup(group.id, appliedDates)
         );
 
         // Wait for all promises from all groups to resolve
@@ -54,6 +70,7 @@ const DepartmentReport = ({ departments }) => {
         const allFinalReviewerReports = await Promise.all(finalReviewerReports);
 
         // Combine the reports into their respective states
+        if (latestRequestRef.current !== requestId) return;
         groups.forEach((group, index) => {
           setUsersStatistic((prev) => ({
             ...prev,
@@ -71,6 +88,7 @@ const DepartmentReport = ({ departments }) => {
       } catch (error) {
         console.error("Error fetching reports:", error);
       } finally {
+        if (latestRequestRef.current !== requestId) return;
         setIsLoading(false); // Ensure loading is false after all operations
       }
     }
@@ -95,13 +113,16 @@ const DepartmentReport = ({ departments }) => {
       setReviewersStatistic({});
       setFinalReviewersStatistic({});
     }
-  }, [selectDepartment, dates]);
+  }, [selectDepartment, appliedDates]);
 
   const isEmpty = (obj) => Object.keys(obj).length === 0;
 
   return (
     <>
-      <form className="sticky top-0 z-20 py-8 bg-base-100 flex flex-col md:flex-row justify-around items-center md:items-end space-y-5 space-x-0 md:space-y-0 md:space-x-10">
+      <form
+        onSubmit={handleApplyDateFilter}
+        className="sticky top-0 z-20 py-8 bg-base-100 flex flex-col md:flex-row justify-around items-center md:items-end space-y-5 space-x-0 md:space-y-0 md:space-x-10"
+      >
         <Select
           title="department_id"
           label="department"
@@ -112,14 +133,26 @@ const DepartmentReport = ({ departments }) => {
         <div className="flex flex-col md:flex-row gap-2 md:gap-6">
           <DateInput
             label="from"
-            selectedDate={dates.from}
+            selectedDate={draftDates.from}
             handleDateChange={handleDateChange}
           />
           <DateInput
             label="to"
-            selectedDate={dates.to}
+            selectedDate={draftDates.to}
             handleDateChange={handleDateChange}
           />
+        </div>
+        <div className="flex gap-2">
+          <button type="submit" className="btn btn-primary btn-sm">
+            Apply
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={handleResetDateFilter}
+          >
+            Reset
+          </button>
         </div>
       </form>
       <div className="w-full">
