@@ -13,7 +13,8 @@ const UserReport = ({ searchParams, id, users }) => {
   const [totalTasks, setTotalTasks] = useState(0);
   const [selectedOption, setSelectedOption] = useState(id ? id : "");
   const [secretAccess, setSecretAccess] = useState(false);
-  const [dates, setDates] = useState({ from: "", to: "" });
+  const [draftDates, setDraftDates] = useState({ from: "", to: "" });
+  const [appliedDates, setAppliedDates] = useState({ from: "", to: "" });
   const [transcript, setTranscript] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -23,6 +24,7 @@ const UserReport = ({ searchParams, id, users }) => {
   const per_page = searchParams["per_page"] ?? "10";
   const isReport = pathname.includes("report");
   let allUserSpecificTasks = useRef([]);
+  const latestRequestRef = useRef(0);
 
   // Number of items per page
   const limit = typeof per_page === "string" ? parseInt(per_page) : 10;
@@ -36,6 +38,8 @@ const UserReport = ({ searchParams, id, users }) => {
   const end = skip + limit;
 
   useEffect(() => {
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
     setIsLoading(true); // Start loading
     async function getUserReportByGroup() {
       try {
@@ -43,23 +47,25 @@ const UserReport = ({ searchParams, id, users }) => {
           selectedOption,
           limit,
           skip,
-          dates
+          appliedDates
         );
         const totalUserSpecificTasks = await getUserSpecificTasksCount(
           selectedOption,
-          dates
+          appliedDates
         );
+        if (latestRequestRef.current !== requestId) return;
         setUserTaskRecord(allUserSpecificTasks.current); // Update state with the fetched data
         setTotalTasks(totalUserSpecificTasks); // Update state with the total count
       } catch (error) {
         console.error("Failed to fetch user report by group:", error);
         // Optionally, handle the error state in your UI as well
       } finally {
+        if (latestRequestRef.current !== requestId) return;
         setIsLoading(false); // End loading regardless of try/catch outcome
       }
     }
     getUserReportByGroup();
-  }, [selectedOption, skip, limit, dates]);
+  }, [selectedOption, skip, limit, appliedDates]);
 
   const handleOptionChange = async (event) => {
     setSelectedOption(event.target.value);
@@ -67,7 +73,17 @@ const UserReport = ({ searchParams, id, users }) => {
   };
 
   const handleDateChange = async (event) => {
-    setDates((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    setDraftDates((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  };
+
+  const handleApplyDateFilter = () => {
+    setAppliedDates(draftDates);
+  };
+
+  const handleResetDateFilter = () => {
+    const emptyDates = { from: "", to: "" };
+    setDraftDates(emptyDates);
+    setAppliedDates(emptyDates);
   };
 
   const totalTasksCount = totalTasks;
@@ -113,16 +129,32 @@ const UserReport = ({ searchParams, id, users }) => {
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           <DateInput
             label="from"
-            selectedDate={dates.from}
+            selectedDate={draftDates.from}
             handleDateChange={handleDateChange}
             isReport={isReport}
           />
           <DateInput
             label="to"
-            selectedDate={dates.to}
+            selectedDate={draftDates.to}
             handleDateChange={handleDateChange}
             isReport={isReport}
           />
+          <div className="flex gap-2 items-end">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleApplyDateFilter}
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={handleResetDateFilter}
+            >
+              Reset
+            </button>
+          </div>
         </div>
         <div className="ml-[22%] md:ml-0 flex flex-col md:flex-row gap-4 md:gap-6">
           <input
