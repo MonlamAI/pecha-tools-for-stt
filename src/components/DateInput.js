@@ -1,6 +1,12 @@
 import React from "react";
 
 const DateInput = ({ label, selectedDate, handleDateChange, isReport }) => {
+  const maxLocalDateTime = new Date(
+    Date.now() - new Date().getTimezoneOffset() * 60000
+  )
+    .toISOString()
+    .slice(0, 16);
+
   return (
     <div
       className={`${
@@ -20,7 +26,7 @@ const DateInput = ({ label, selectedDate, handleDateChange, isReport }) => {
         className="input input-bordered max-w-xs"
         value={selectedDate}
         onChange={handleDateChange}
-        max={new Date().toISOString().slice(0, 16)}
+        max={maxLocalDateTime}
         min={"2021-01-01T00:00"}
       />
     </div>

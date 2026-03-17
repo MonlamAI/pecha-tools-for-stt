@@ -2,7 +2,6 @@
 
 import prisma from "@/service/db";
 import { formatTime } from "@/lib/formatTime";
-import { istCurrentTime } from "@/lib/istCurrentTime";
 import { TASK_RULES } from "@/constants/taskRules";
 import type { Prisma, Role, Task, State } from "@prisma/client";
 import { ASSIGN_TASKS, USER_FETCH_TASKS } from "@/constants/config";
@@ -237,7 +236,7 @@ export const updateTask = async (
         reviewed_transcript: null,
         final_transcript: null,
         ...(changedState.state === rules.submitState
-          ? { submitted_at: istCurrentTime() }
+          ? { submitted_at: new Date() }
           : {}),
         duration,
       };
@@ -256,7 +255,7 @@ export const updateTask = async (
           ? null
           : transcript,
         ...(changedState.state === rules.submitState
-          ? { reviewed_at: istCurrentTime() }
+          ? { reviewed_at: new Date() }
           : {}),
       };
       break;
@@ -274,7 +273,7 @@ export const updateTask = async (
           ? null
           : transcript,
         ...(changedState.state === rules.submitState
-          ? { finalised_reviewed_at: istCurrentTime() }
+          ? { finalised_reviewed_at: new Date() }
           : {}),
       };
       break;
