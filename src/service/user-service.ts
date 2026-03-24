@@ -125,9 +125,9 @@ export const getUserHistory = async ({
       group_id: groupId,
     },
     orderBy: [
-      { finalised_reviewed_at: "desc" },
-      { reviewed_at: "desc" },
-      { submitted_at: "desc" },
+      { finalised_reviewed_at: { sort: "desc", nulls: "last" } },
+      { reviewed_at: { sort: "desc", nulls: "last" } },
+      { submitted_at: { sort: "desc", nulls: "last" } },
     ],
     take: MAX_HISTORY,
     select: {
