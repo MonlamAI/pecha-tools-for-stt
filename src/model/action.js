@@ -453,13 +453,13 @@ export const getUserHistory = async (userId, groupId, role) => {
       where: whereCondition,
       orderBy: [
         {
-          finalised_reviewed_at: { sort: "desc", nulls: "last" },
+          finalised_reviewed_at: "desc",
         },
         {
-          reviewed_at: { sort: "desc", nulls: "last" },
+          reviewed_at: "desc",
         },
         {
-          submitted_at: { sort: "desc", nulls: "last" },
+          submitted_at: "desc",
         },
       ],
       select: {
