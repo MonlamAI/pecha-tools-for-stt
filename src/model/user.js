@@ -351,6 +351,7 @@ const getTranscriberSyllableCount = async (id, dates, groupId) => {
     });
 
     return transcriberTasks.reduce((count, task) => {
+      if (!task.transcript) return count;
       return (count += tibetanSyllableCount(task.transcript).length);
     }, 0);
   } catch (error) {
