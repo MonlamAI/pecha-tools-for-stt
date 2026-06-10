@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getTaskWithRevertedState } from "@/model/task";
 import { requireApiUser } from "@/lib/auth/requireUser";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
-export async function POST(request: Request) {
+export const POST = withAccessLog(async (request: Request) => {
   try {
     // [Reason] Role comes from the authenticated session, not the request body.
     const auth = await requireApiUser();
@@ -21,4 +22,4 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
-}
+});

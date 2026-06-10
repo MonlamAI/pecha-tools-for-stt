@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { updateTask, getTasks } from "@/service/task-service";
 import { requireApiUser } from "@/lib/auth/requireUser";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 // import { getTranscribingCount } from "@/service/group-service";
 // import { sendDiscordAlert } from "@/lib/webhookutils";
 // import { TASK_ASSIGN } from "@/constants/config";
 
-export async function POST(request: Request) {
+export const POST = withAccessLog(async (request: Request) => {
   try {
     // [Reason] The acting role is taken from the authenticated session, not the
     // request body, so a user cannot escalate by spoofing `role`.
@@ -44,4 +45,4 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
-}
+});

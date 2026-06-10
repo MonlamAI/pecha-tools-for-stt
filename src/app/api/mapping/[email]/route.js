@@ -2,10 +2,11 @@ export const runtime = "nodejs";
 
 import prisma from "@/service/db";
 import { NextResponse } from "next/server";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
 import { mapping } from "@/../../data/mapping";
 
-export async function GET(request, { params }) {
+export const GET = withAccessLog(async (request, { params }) => {
   if (mapping.has(params.email)) {
     return NextResponse.json(mapping.get(params.email));
   } else {
@@ -33,4 +34,4 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(user);
   }
-}
+});

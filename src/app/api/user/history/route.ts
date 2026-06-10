@@ -5,8 +5,9 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getUserHistory } from "@/service/user-service";
 import { requireApiUser } from "@/lib/auth/requireUser";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
-export async function GET() {
+export const GET = withAccessLog(async () => {
   try {
     const auth = await requireApiUser();
     if ("response" in auth) return auth.response;
@@ -24,4 +25,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});
