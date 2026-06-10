@@ -2,9 +2,11 @@ import React from "react";
 import UserDashboard from "./UserDashboard";
 import { getAllUser } from "@/model/user";
 import { getAllGroup } from "@/model/group";
+import { logPageAccess } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 const User = async ({ searchParams }) => {
+  await logPageAccess("/dashboard/user", { searchParams });
   const users = await getAllUser();
   const groups = await getAllGroup();
 

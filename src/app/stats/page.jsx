@@ -4,11 +4,13 @@ import { STATS_CONFIG } from "@/constants/config";
 import React from "react";
 import GroupImportStats from "./GroupImportStats";
 import TaskStats from "./TaskStats";
+import { logPageAccess } from "@/lib/logger";
 
 // Using service layer optimization with caching
 export const revalidate = STATS_CONFIG.CACHE_TIME;
 
 const Stats = async () => {
+  await logPageAccess("/stats");
   const allGroup = await getBasicGroups();
   // Using optimized service layer function
   const groupStatByDept = await getOptimizedGroupTaskStats(allGroup);

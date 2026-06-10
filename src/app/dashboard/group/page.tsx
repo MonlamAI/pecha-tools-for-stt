@@ -2,9 +2,11 @@ import { getAllGroup } from "@/model/group";
 import React from "react";
 import GroupDashboard from "./GroupDashboard";
 import { getAllDepartment } from "@/model/department";
+import { logPageAccess } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 const Group = async () => {
+  await logPageAccess("/dashboard/group");
   const groupList = await getAllGroup();
   const departments = await getAllDepartment();
 
