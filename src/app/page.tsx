@@ -2,6 +2,7 @@ import Link from "next/link";
 import AudioTranscript from "@/components/AudioTranscript";
 import RightSidebar from "@/components/RightSidebar";
 import languagesObject from "../../data/language";
+import { logPageAccess } from "@/lib/logger/log-page-access";
 import { fetchUserDataBySession, type FetchUserDataResult } from "@/service/user-service";
 
 /*
@@ -11,9 +12,19 @@ import { fetchUserDataBySession, type FetchUserDataResult } from "@/service/user
 export const dynamic = "force-dynamic";
 
 export default async function Home({ searchParams }: { searchParams: any }) {
+  const startedAt = performance.now();
   const { session } = searchParams;
   const language = languagesObject;
   const result: FetchUserDataResult = await fetchUserDataBySession(session);
+
+  // [Reason] Log page-load access with session email identity without changing page behavior
+  await logPageAccess({
+    path: "/",
+    sessionEmail: session,
+    statusCode: 200,
+    durationMs: Math.round(performance.now() - startedAt),
+    searchParams,
+  });
 
   // console.log({ error, userTasks, userDetail, userHistory })
   const routes = [

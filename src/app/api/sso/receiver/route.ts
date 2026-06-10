@@ -6,6 +6,7 @@ import prisma from "@/service/db";
 import { readFile } from "fs/promises";
 import path from "path";
 import type { Role } from "@prisma/client";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
 const ISSUER = process.env.SSO_ISSUER!;
 const AUD = process.env.SSO_AUDIENCE!;
@@ -22,7 +23,7 @@ async function getPortalPublicKey(): Promise<string> {
 
 const ALLOWED_ROLES: Role[] = ["TRANSCRIBER", "REVIEWER", "FINAL_REVIEWER"];
 
-export async function POST(req: Request) {
+export const POST = withAccessLog(async (req: Request) => {
   const form = await req.formData();
   const token = String(form.get("token") || "");
   if (!token) return new NextResponse("Missing token", { status: 400 });
@@ -62,4 +63,4 @@ export async function POST(req: Request) {
     new URL(`/?session=${encodeURIComponent(email)}`, req.url),
     302
   );
-}
+});

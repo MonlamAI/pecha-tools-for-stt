@@ -2,8 +2,9 @@ export const runtime = "nodejs";
 
 import prisma from "@/service/db";
 import { NextResponse } from "next/server";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
-export async function GET() {
+export const GET = withAccessLog(async () => {
   // get all user
   try {
     const users = await prisma.user.findMany({});
@@ -11,9 +12,9 @@ export async function GET() {
   } catch (error) {
     console.error("Error creating post:", error);
   }
-}
+});
 
-export async function PUT(request) {
+export const PUT = withAccessLog(async (request) => {
   try {
     const body = await request.json();
     const { id, name, email, group_id, role } = body;
@@ -81,4 +82,4 @@ export async function PUT(request) {
       { status: 500 }
     );
   }
-}
+});

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getTaskWithRevertedState } from "@/model/task";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
-export async function POST(request: Request) {
+export const POST = withAccessLog(async (request: Request) => {
   try {
     const { task, role } = await request.json();
     if (!task || !role) {
@@ -15,4 +16,4 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
-}
+});

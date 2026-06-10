@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { updateTask, getTasks } from "@/service/task-service";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 // import { getTranscribingCount } from "@/service/group-service";
 // import { sendDiscordAlert } from "@/lib/webhookutils";
 // import { TASK_ASSIGN } from "@/constants/config";
 
-export async function POST(request: Request) {
+export const POST = withAccessLog(async (request: Request) => {
   try {
     const { action, id, transcript, task, role, currentTime } = await request.json();
 
@@ -37,4 +38,4 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
-}
+});
