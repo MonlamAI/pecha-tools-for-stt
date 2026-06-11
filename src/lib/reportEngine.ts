@@ -164,13 +164,12 @@ export function buildReport({
         /* reviewed */
         if (
           ["accepted", "finalised"].includes(t.state) &&
-          inRange(t.reviewed_at, from, to) &&
-          inRange(t.submitted_at, from, to)
+          inRange(t.reviewed_at, from, to)
         ) {
           noReviewed++;
           reviewedSecs += t.audio_duration || 0;
           syllableCount += getSyllables(t.reviewed_transcript);
-          characterCount += t.reviewed_transcript?.length || 0;
+          characterCount += t.transcript?.length || 0;
 
           if (t.transcript && t.reviewed_transcript) {
             totalCer += getCer(t.transcript, t.reviewed_transcript);

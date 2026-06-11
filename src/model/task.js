@@ -3,7 +3,7 @@
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
-import { utcToIst } from "@/lib/istCurrentTime";
+import { buildDateFilter } from "@/lib/reportDateRange";
 import { getCache, setCache } from "@/lib/cache";
 
 /* --------------------- TASK FETCHERS --------------------- */
@@ -101,12 +101,7 @@ export const getUserSpecificTasksCount = async (id, dates) => {
   const whereCondition = {
     [`${role}_id`]: userId,
     state: { in: stateFilter },
-    ...(fromDate && toDate && {
-      [dateField]: {
-        gte: utcToIst(new Date(fromDate)),
-        lte: utcToIst(new Date(toDate)),
-      },
-    }),
+    ...buildDateFilter(dateField, fromDate, toDate),
   };
 
   try {
@@ -146,12 +141,7 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
   const whereCondition = {
     [`${role}_id`]: userId,
     state: { in: stateFilter },
-    ...(fromDate && toDate && {
-      [dateField]: {
-        gte: utcToIst(new Date(fromDate)),
-        lte: utcToIst(new Date(toDate)),
-      },
-    }),
+    ...buildDateFilter(dateField, fromDate, toDate),
   };
 
   try {
@@ -226,13 +216,7 @@ export const getReviewerTaskCount = async (id, dates) => {
   // Construct the base query condition
   const baseWhere = {
     reviewer_id: reviewerId,
-    reviewed_at:
-      fromDate && toDate
-        ? {
-          gte: utcToIst(new Date(fromDate)),
-          lte: utcToIst(new Date(toDate)),
-        }
-        : undefined,
+    ...buildDateFilter("reviewed_at", fromDate, toDate),
   };
 
   try {
@@ -289,13 +273,7 @@ export const getFinalReviewerTaskCount = async (
   const baseWhereCondition = {
     final_reviewer_id: finalReviewerId,
     group_id: parseInt(groupId),
-    finalised_reviewed_at:
-      fromDate && toDate
-        ? {
-          gte: utcToIst(new Date(fromDate)),
-          lte: utcToIst(new Date(toDate)),
-        }
-        : undefined,
+    ...buildDateFilter("finalised_reviewed_at", fromDate, toDate),
   };
 
   try {
@@ -323,39 +301,20 @@ export const getFinalReviewerTaskCount = async (
 export const getTranscriberTaskList = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
   try {
-    if (fromDate && toDate) {
-      const filteredTasks = await prisma.task.findMany({
-        where: {
-          transcriber_id: id,
-          reviewed_at: {
-            gte: utcToIst(new Date(fromDate)),
-            lte: utcToIst(new Date(toDate)),
-          },
-        },
-        select: {
-          inference_transcript: true,
-          transcript: true,
-          reviewed_transcript: true,
-          state: true,
-          transcriber_is_correct: true,
-        },
-      });
-      return filteredTasks;
-    } else {
-      const filteredTasks = await prisma.task.findMany({
-        where: {
-          transcriber_id: id,
-        },
-        select: {
-          inference_transcript: true,
-          transcript: true,
-          reviewed_transcript: true,
-          state: true,
-          transcriber_is_correct: true,
-        },
-      });
-      return filteredTasks;
-    }
+    const filteredTasks = await prisma.task.findMany({
+      where: {
+        transcriber_id: id,
+        ...buildDateFilter("reviewed_at", fromDate, toDate),
+      },
+      select: {
+        inference_transcript: true,
+        transcript: true,
+        reviewed_transcript: true,
+        state: true,
+        transcriber_is_correct: true,
+      },
+    });
+    return filteredTasks;
   } catch (error) {
     console.error("Error fetching transcriber task list:", error);
     return { error: "Failed to fetch transcriber task list. Please try again." };
@@ -365,37 +324,19 @@ export const getTranscriberTaskList = async (id, dates) => {
 export const getReviewerTaskList = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
   try {
-    if (fromDate && toDate) {
-      const filteredTasks = await prisma.task.findMany({
-        where: {
-          reviewer_id: id,
-          reviewed_at: {
-            gte: utcToIst(new Date(fromDate)),
-            lte: utcToIst(new Date(toDate)),
-          },
-        },
-        select: {
-          state: true,
-          reviewed_transcript: true,
-          final_transcript: true,
-          reviewer_is_correct: true,
-        },
-      });
-      return filteredTasks;
-    } else {
-      const filteredTasks = await prisma.task.findMany({
-        where: {
-          reviewer_id: id,
-        },
-        select: {
-          state: true,
-          reviewed_transcript: true,
-          final_transcript: true,
-          reviewer_is_correct: true,
-        },
-      });
-      return filteredTasks;
-    }
+    const filteredTasks = await prisma.task.findMany({
+      where: {
+        reviewer_id: id,
+        ...buildDateFilter("reviewed_at", fromDate, toDate),
+      },
+      select: {
+        state: true,
+        reviewed_transcript: true,
+        final_transcript: true,
+        reviewer_is_correct: true,
+      },
+    });
+    return filteredTasks;
   } catch (error) {
     return { error: "Operation failed. Please try again." };
   }
@@ -464,9 +405,7 @@ export const getUserSubmittedAndReviewedSecs = async (id, dates, groupId) => {
       by: ["state"],
       where: {
         transcriber_id: userId,
-        ...(fromDate && toDate && {
-          submitted_at: { gte: utcToIst(new Date(fromDate)), lte: utcToIst(new Date(toDate)) },
-        }),
+        ...buildDateFilter("submitted_at", fromDate, toDate),
         state: { in: ["submitted", "accepted", "finalised", "trashed"] },
       },
       _sum: { audio_duration: true },

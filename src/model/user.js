@@ -8,9 +8,8 @@ import {
   getReviewerTaskList,
   getTranscriberTaskList,
   getUserSpecificTasksCount,
-  getUserSubmittedAndReviewedSecs,
 } from "./task";
-import { utcToIst } from "@/lib/istCurrentTime";
+import { buildDateFilter } from "@/lib/reportDateRange";
 
 const levenshtein = require("fast-levenshtein");
 
@@ -243,7 +242,7 @@ const getTranscriberCer = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
   const transcriberId = parseInt(id);
 
-  const dateFilter = buildDateFilter(fromDate, toDate);
+  const dateFilter = buildDateFilter("submitted_at", fromDate, toDate);
 
   try {
     const tasks = await prisma.task.findMany({
@@ -275,7 +274,7 @@ function tibetanSyllableCount(text) {
 const getTranscriberSyllableCount = async (id, dates) => {
   const { from: fromDate, to: toDate } = dates;
   const transcriberId = parseInt(id);
-  const dateFilter = buildDateFilter(fromDate, toDate);
+  const dateFilter = buildDateFilter("submitted_at", fromDate, toDate);
 
   try {
     const tasks = await prisma.task.findMany({
@@ -293,18 +292,14 @@ const getTranscriberSyllableCount = async (id, dates) => {
   }
 }
 
-// Build date filter
-const buildDateFilter = (fromDate, toDate) =>
-  fromDate && toDate
-    ? { submitted_at: { gte: utcToIst(new Date(fromDate)), lte: utcToIst(new Date(toDate)) } }
-    : {};
+
 
 // Count reviewed tasks based on submitted_at
 export const getReviewedCountBasedOnSubmittedAt = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
   const transcriberId = parseInt(id);
 
-  const dateFilter = buildDateFilter(fromDate, toDate);
+  const dateFilter = buildDateFilter("submitted_at", fromDate, toDate);
 
   try {
     const count = await prisma.task.count({

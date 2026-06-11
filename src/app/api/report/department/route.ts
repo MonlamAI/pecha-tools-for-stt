@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/service/db";
-import { buildReport, parseLiteralUTC } from "@/lib/reportEngine";
+import { buildReport } from "@/lib/reportEngine";
+import { getReportDateRange } from "@/lib/reportDateRange";
 import { getCache, setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
@@ -45,8 +46,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(cached);
     }
 
-    const from = parseLiteralUTC(fromStr);
-    const to = parseLiteralUTC(toStr, true);
+    const range = getReportDateRange(fromStr, toStr);
+    if (!range) {
+      return NextResponse.json({ error: "Invalid date range" }, { status: 400 });
+    }
+    const { gte: from, lte: to } = range;
 
     /* -------- groups -------- */
 

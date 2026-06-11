@@ -134,12 +134,12 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
                   user.noReviewed
                 )}`}
               >
-                {calculatePercent(user.noTranscriptCorrected, user.noReviewedBasedOnSubmitted)}
+                {calculatePercent(user.noTranscriptCorrected, user.noReviewed)}
               </td>
               <td
                 className={`${glideGreentoRed(
-                  user.noTranscriptCorrected,
-                  user.noReviewedBasedOnSubmitted
+                  user.totalCer,
+                  user.characterCount
                 )}`}
               >
                 {calculatePercent(user.totalCer, user.characterCount)}
@@ -155,7 +155,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
                   user.reviewedInMin,
                   user.trashedInMin,
                   user.syllableCount,
-                  user.noReviewedBasedOnSubmitted,
+                  user.noReviewed,
                   user.transcriberSyllableCount
                 )}
               </td>
@@ -230,7 +230,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
                     (a, b) => a + b.noTranscriptCorrected,
                     0
                   ),
-                  usersStatistic?.reduce((a, b) => a + b.noReviewedBasedOnSubmitted, 0)
+                  usersStatistic?.reduce((a, b) => a + (b.noReviewed || 0), 0)
                 )}
               </b>
             </td>
@@ -263,7 +263,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
                   usersStatistic?.reduce((a, b) => a + b.reviewedInMin, 0),
                   usersStatistic?.reduce((a, b) => a + b.trashedInMin, 0),
                   usersStatistic?.reduce((a, b) => a + b.syllableCount, 0),
-                  usersStatistic?.reduce((a, b) => a + b.noReviewedBasedOnSubmitted, 0)
+                  usersStatistic?.reduce((a, b) => a + (b.noReviewed || 0), 0)
                 )}
               </b>
             </td>

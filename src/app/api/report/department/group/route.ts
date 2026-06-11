@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/service/db";
 import { buildReport } from "@/lib/reportEngine";
-import { utcToIst } from "@/lib/istCurrentTime";
+import { getReportDateRange } from "@/lib/reportDateRange";
 import { getCache, setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
@@ -36,12 +36,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(cached);
     }
 
-    let from = new Date(fromStr);
-    let to = new Date(toStr);
-
-    // Shift dates to match DB storage (IST stored as UTC)
-    from = utcToIst(new Date(from));
-    to = utcToIst(new Date(to));
+    const range = getReportDateRange(fromStr, toStr);
+    if (!range) {
+      return NextResponse.json({ error: "Invalid date range" }, { status: 400 });
+    }
+    const { gte: from, lte: to } = range;
 
     /* ---------------- DB FETCH (2 QUERIES TOTAL) ---------------- */
 
