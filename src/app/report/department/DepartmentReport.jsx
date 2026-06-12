@@ -169,44 +169,57 @@ const DepartmentReport = ({ departments }) => {
 
     // Switch to Department View
     setShowDeptTotals(true);
-    // Optional: Clear active group to visually deselect tabs, 
-    // or keep it to preserve state when switching back?
-    // User requirement: "default should be groups". 
-    // If we deselect, we might need logic to re-select when switching back.
-    // Simpler: Just rely on showDeptTotals for rendering.
     setActiveGroupId("");
 
     if (deptTotalsLoaded || deptTotalsLoading) return;
 
     setDeptTotalsLoading(true);
 
-    const qs = new URLSearchParams({
-      departmentId: selectDepartment,
-      ...(dates.from && { from: dates.from }),
-      ...(dates.to && { to: dates.to }),
-    });
-
     try {
-      const res = await fetch(
-        `/api/report/department?${qs}`,
-        { cache: "no-store" }
-      );
+      // Fetch each group's statistics in parallel
+      const fetchGroupPromises = groups.map(async (group) => {
+        const gid = String(group.id);
+        const qs = new URLSearchParams({
+          groupId: gid,
+          ...(dates.from && { from: dates.from }),
+          ...(dates.to && { to: dates.to }),
+        });
+        const res = await fetch(`/api/report/department/group?${qs}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`Failed to fetch group ${gid}`);
+        const data = await res.json();
+        return { gid, data };
+      });
 
-      const data = await res.json();
+      const results = await Promise.all(fetchGroupPromises);
 
-      setUsersStatistic((p) =>
-        mergeByGroupId(p, data.users)
-      );
-      setReviewersStatistic((p) =>
-        mergeByGroupId(p, data.reviewers)
-      );
-      setFinalReviewersStatistic((p) =>
-        mergeByGroupId(p, data.finalReviewers)
-      );
+      // Merge results into state
+      setUsersStatistic((p) => {
+        const next = { ...p };
+        results.forEach(({ gid, data }) => {
+          next[gid] = data.users || [];
+        });
+        return next;
+      });
+      setReviewersStatistic((p) => {
+        const next = { ...p };
+        results.forEach(({ gid, data }) => {
+          next[gid] = data.reviewers || [];
+        });
+        return next;
+      });
+      setFinalReviewersStatistic((p) => {
+        const next = { ...p };
+        results.forEach(({ gid, data }) => {
+          next[gid] = data.finalReviewers || [];
+        });
+        return next;
+      });
 
       setDeptTotalsLoaded(true);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load department totals:", e);
     } finally {
       setDeptTotalsLoading(false);
     }

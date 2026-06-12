@@ -52,6 +52,8 @@ const UserReport = ({ id, users }) => {
   useEffect(() => {
     if (!selectedOption) return;
     setIsLoading(true); // Start loading
+    const controller = new AbortController();
+
     async function getUserReportByGroup() {
       try {
         const qs = new URLSearchParams({
@@ -62,30 +64,43 @@ const UserReport = ({ id, users }) => {
           to: toDate || "",
         });
         const [tasksRes, countRes] = await Promise.all([
-          fetch(`/api/report/user/tasks?${qs.toString()}`, { cache: "no-store" }),
+          fetch(`/api/report/user/tasks?${qs.toString()}`, {
+            cache: "no-store",
+            signal: controller.signal,
+          }),
           fetch(
             `/api/report/user/count?${new URLSearchParams({
               id: String(selectedOption || ""),
               from: fromDate || "",
               to: toDate || "",
             }).toString()}`,
-            { cache: "no-store" }
+            {
+              cache: "no-store",
+              signal: controller.signal,
+            }
           ),
         ]);
         const [tasks, totalUserSpecificTasks] = await Promise.all([
           tasksRes.json(),
           countRes.json(),
         ]);
-        allUserSpecificTasks.current = Array.isArray(tasks) ? tasks : [];
-        setUserTaskRecord(allUserSpecificTasks.current); // Update state with the fetched data
-        setTotalTasks(totalUserSpecificTasks); // Update state with the total count
+        if (!controller.signal.aborted) {
+          allUserSpecificTasks.current = Array.isArray(tasks) ? tasks : [];
+          setUserTaskRecord(allUserSpecificTasks.current); // Update state with the fetched data
+          setTotalTasks(totalUserSpecificTasks); // Update state with the total count
+        }
       } catch (error) {
-        console.error("Failed to fetch user report by group:", error);
+        if (error.name !== "AbortError") {
+          console.error("Failed to fetch user report by group:", error);
+        }
       } finally {
-        setIsLoading(false); // End loading regardless of try/catch outcome
+        if (!controller.signal.aborted) {
+          setIsLoading(false); // End loading regardless of try/catch outcome
+        }
       }
     }
     getUserReportByGroup();
+    return () => controller.abort();
   }, [selectedOption, skip, limit, fromDate, toDate]);
 
   const handleOptionChange = async (event) => {
