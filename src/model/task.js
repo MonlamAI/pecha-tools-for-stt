@@ -73,7 +73,7 @@ export async function createTasksFromCSV(formData) {
 /* --------------------- USER SPECIFIC TASKS --------------------- */
 
 // Get user-specific task count (optimized)
-export const getUserSpecificTasksCount = async (id, dates) => {
+export const getUserSpecificTasksCount = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
   const userId = parseInt(id);
 
@@ -101,9 +101,9 @@ export const getUserSpecificTasksCount = async (id, dates) => {
   const whereCondition = {
     [`${role}_id`]: userId,
     state: { in: stateFilter },
+    ...(groupId ? { group_id: parseInt(groupId) } : {}),
     ...buildDateFilter(dateField, fromDate, toDate),
   };
-
   try {
     return await prisma.task.count({ where: whereCondition });
   } catch (error) {
@@ -137,7 +137,6 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
       : role === "reviewer"
         ? "reviewed_at"
         : "finalised_reviewed_at";
-
   const whereCondition = {
     [`${role}_id`]: userId,
     state: { in: stateFilter },
@@ -208,14 +207,14 @@ export const getCompletedTaskCount = async (id, role, groupId) => {
   }
 };
 
-
-export const getReviewerTaskCount = async (id, dates) => {
+export const getReviewerTaskCount = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
   const reviewerId = parseInt(id);
 
   // Construct the base query condition
   const baseWhere = {
     reviewer_id: reviewerId,
+    group_id: parseInt(groupId),
     ...buildDateFilter("reviewed_at", fromDate, toDate),
   };
 
@@ -298,12 +297,17 @@ export const getFinalReviewerTaskCount = async (
   }
 };
 
-export const getTranscriberTaskList = async (id, dates) => {
+export const getTranscriberTaskList = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
+  const baseWhere = {
+    transcriber_id: id,
+    group_id: parseInt(groupId),
+  };
   try {
     const filteredTasks = await prisma.task.findMany({
       where: {
         transcriber_id: id,
+        group_id: parseInt(groupId),
         ...buildDateFilter("reviewed_at", fromDate, toDate),
       },
       select: {
@@ -321,12 +325,17 @@ export const getTranscriberTaskList = async (id, dates) => {
   }
 };
 
-export const getReviewerTaskList = async (id, dates) => {
+export const getReviewerTaskList = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
+  const baseWhere = {
+    reviewer_id: id,
+    group_id: parseInt(groupId),
+  };
   try {
     const filteredTasks = await prisma.task.findMany({
       where: {
         reviewer_id: id,
+        group_id: parseInt(groupId),
         ...buildDateFilter("reviewed_at", fromDate, toDate),
       },
       select: {
@@ -405,6 +414,7 @@ export const getUserSubmittedAndReviewedSecs = async (id, dates, groupId) => {
       by: ["state"],
       where: {
         transcriber_id: userId,
+        group_id: parseInt(groupId),
         ...buildDateFilter("submitted_at", fromDate, toDate),
         state: { in: ["submitted", "accepted", "finalised", "trashed"] },
       },

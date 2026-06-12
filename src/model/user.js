@@ -206,12 +206,12 @@ export const generateUsersTaskReport = async (user, dates, groupId) => {
     transcriberSyllableCount,
     transcriberCer,
   ] = await Promise.all([
-    getUserSpecificTasksCount(userId, dates),
+    getUserSpecificTasksCount(userId, dates, groupId),
     getUserSubmittedAndReviewedSecs(userId, dates, groupId),
-    getTranscriberTaskList(userId, dates),
+    getTranscriberTaskList(userId, dates, groupId),
     getReviewedCountBasedOnSubmittedAt(userId, dates, groupId),
-    getTranscriberSyllableCount(userId, dates),
-    getTranscriberCer(userId, dates),
+    getTranscriberSyllableCount(userId, dates, groupId),
+    getTranscriberCer(userId, dates, groupId),
   ]);
 
   const transcriberObj = {
@@ -238,15 +238,18 @@ export const generateUsersTaskReport = async (user, dates, groupId) => {
 /* -------------------- UTILITIES -------------------- */
 
 // Compute CER for user
-const getTranscriberCer = async (id, dates) => {
+const getTranscriberCer = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
   const transcriberId = parseInt(id);
-
   const dateFilter = buildDateFilter("submitted_at", fromDate, toDate);
 
   try {
     const tasks = await prisma.task.findMany({
-      where: { transcriber_id: transcriberId, ...dateFilter },
+      where: {
+        transcriber_id: transcriberId,
+        group_id: parseInt(groupId),
+        ...dateFilter,
+      },
       select: { inference_transcript: true, transcript: true },
     });
 
@@ -271,15 +274,17 @@ function tibetanSyllableCount(text) {
     .filter(Boolean).length;
 }
 
-const getTranscriberSyllableCount = async (id, dates) => {
+const getTranscriberSyllableCount = async (id, dates, groupId) => {
   const { from: fromDate, to: toDate } = dates;
   const transcriberId = parseInt(id);
+  const group_id = parseInt(groupId);
   const dateFilter = buildDateFilter("submitted_at", fromDate, toDate);
 
   try {
     const tasks = await prisma.task.findMany({
       where: {
         transcriber_id: transcriberId,
+        group_id,
         state: { in: ["submitted", "accepted", "finalised"] },
         ...dateFilter,
       },
@@ -295,15 +300,25 @@ const getTranscriberSyllableCount = async (id, dates) => {
 
 
 // Count reviewed tasks based on submitted_at
-export const getReviewedCountBasedOnSubmittedAt = async (id, dates, groupId) => {
+export const getReviewedCountBasedOnSubmittedAt = async (
+  id,
+  dates,
+  groupId
+) => {
   const { from: fromDate, to: toDate } = dates;
   const transcriberId = parseInt(id);
 
+  const group_id = parseInt(groupId);
   const dateFilter = buildDateFilter("submitted_at", fromDate, toDate);
 
   try {
     const count = await prisma.task.count({
-      where: { transcriber_id: transcriberId, state: { in: ["accepted", "finalised"] }, ...dateFilter },
+      where: {
+        transcriber_id: transcriberId,
+        group_id,
+        state: { in: ["accepted", "finalised"] },
+        ...dateFilter,
+      },
     });
     return count;
   } catch (error) {
@@ -347,7 +362,11 @@ export const reviewerOfGroup = async (groupId) => {
 export const generateReviewerReportbyGroup = async (groupId, dates) => {
   try {
     const reviewers = await reviewerOfGroup(groupId);
-    return Promise.all(reviewers.map((reviewer) => generateReviewerTaskReport(reviewer, dates)));
+    return Promise.all(
+      reviewers.map((reviewer) =>
+        generateReviewerTaskReport(reviewer, dates, groupId)
+      )
+    );
   } catch (error) {
     console.error("Error generating reviewer report:", error);
     throw new Error(error);
@@ -355,9 +374,12 @@ export const generateReviewerReportbyGroup = async (groupId, dates) => {
 };
 
 // Generate reviewer task report
-export const generateReviewerTaskReport = async (reviewer, dates) => {
+export const generateReviewerTaskReport = async (reviewer, dates, groupId) => {
   const { id, name } = reviewer;
-  const [reviewerStats, reviewerTasks] = await Promise.all([getReviewerTaskCount(id, dates), getReviewerTaskList(id, dates)]);
+  const [reviewerStats, reviewerTasks] = await Promise.all([
+    getReviewerTaskCount(id, dates, groupId),
+    getReviewerTaskList(id, dates, groupId),
+  ]);
 
   const reviewerObj = {
     id,
