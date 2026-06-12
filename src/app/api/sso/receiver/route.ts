@@ -45,21 +45,17 @@ export async function POST(req: Request) {
   const isValidRole = (ALLOWED_ROLES as string[]).includes(claimRoleRaw);
   const roleFromJwt = (isValidRole ? (claimRoleRaw as Role) : undefined);
 
-  const preferredName =
-    (typeof payload.name === "string" && payload.name.trim()) ||
-    (typeof payload.nickname === "string" && payload.nickname.trim()) ||
-    email;
+  const username = email;
 
   await prisma.user.upsert({
     where: { email },
-    // On update: only refresh role when claim is valid so manual names stay intact
-    update: roleFromJwt ? { role: roleFromJwt } : {},
-    // On create: default to TRANSCRIBER if claim invalid
-    create: { name: preferredName, email, role: roleFromJwt ?? "TRANSCRIBER", group_id: 0 },
+    update: roleFromJwt ? { name: username, role: roleFromJwt } : { name: username },
+    create: { name: username, email, role: roleFromJwt ?? "TRANSCRIBER", group_id: 0 },
   });
 
-  return NextResponse.redirect(
-    new URL(`/?session=${encodeURIComponent(email)}`, req.url),
-    302
-  );
+  // Build absolute URL from forwarded headers to avoid internal hosts like localhost:10000
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const host = req.headers.get("x-forwarded-host") || new URL(req.url).host;
+  const redirectUrl = `${proto}://${host}/?session=${encodeURIComponent(username)}`;
+  return NextResponse.redirect(redirectUrl, 302);
 }

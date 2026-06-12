@@ -7,7 +7,7 @@ import { createGroup } from "@/model/group";
 import Select from "@/components/Select";
 import toast from "react-hot-toast";
 
-const AddGroupModal = ({ departments }) => {
+const AddGroupModal = ({ departments, onDone }) => {
   const [departmentId, setDepartmentId] = useState("");
   const ref = useRef(null);
   const router = useRouter();
@@ -24,7 +24,7 @@ const AddGroupModal = ({ departments }) => {
       // Reset form and close modal
       ref.current?.reset();
       setDepartmentId("");
-      router.refresh();
+      onDone?.();
       window.add_modal.close();
     }
   }, [state]);

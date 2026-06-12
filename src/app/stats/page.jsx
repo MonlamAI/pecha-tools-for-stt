@@ -1,37 +1,49 @@
-import { getBasicGroups } from "@/model/group";
+"use client";
+
+import React, { useState, useEffect, Suspense } from "react";
+import { getAllGroup } from "@/model/group";
 import { getAllGroupTaskStats as getOptimizedGroupTaskStats } from "@/service/group-service";
-import { STATS_CONFIG } from "@/constants/config";
-import React from "react";
-import GroupImportStats from "./GroupImportStats";
-import TaskStats from "./TaskStats";
+import StatsContainer from "./StatsContainer";
 
-// Using service layer optimization with caching
-export const revalidate = STATS_CONFIG.CACHE_TIME;
+const Stats = () => {
+  const [groupStatByDept, setGroupStatByDept] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const Stats = async () => {
-  const allGroup = await getBasicGroups();
-  // Using optimized service layer function
-  const groupStatByDept = await getOptimizedGroupTaskStats(allGroup);
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const allGroup = await getAllGroup();
+        if (allGroup && !allGroup.error) {
+          const stats = await getOptimizedGroupTaskStats(allGroup);
+          setGroupStatByDept(stats);
+        }
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
 
   return (
-    <>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    }>
       {groupStatByDept && groupStatByDept.length > 0 && (
-        <div className="m-5 md:m-10">
-          <div className="text-xl md:text-2xl text-center font-bold">
-            Group stats on imported task
-          </div>
-          {groupStatByDept.map((groupStat, index) => (
-            <div
-              key={index}
-              className="grid grid-cols-2 md:grid-cols-4 gap-5 mt-5"
-            >
-              <GroupImportStats groupStat={groupStat} />
-            </div>
-          ))}
-          <TaskStats groupStatByDept={groupStatByDept} />
-        </div>
+        <StatsContainer groupStatByDept={groupStatByDept} />
       )}
-    </>
+    </Suspense>
   );
 };
 

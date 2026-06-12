@@ -7,7 +7,7 @@ import { deleteDepartment } from "../../../model/department";
 import AddDepartmentModal from "./AddDepartmentModal";
 import EditDepartmentModal from "./EditDepartmentModal";
 
-const DepartmentDashboard = ({ departmentList }) => {
+const DepartmentDashboard = ({ departmentList, onDone }) => {
   const [selectedRow, setSelectedRow] = useState(null);
 
   const handleRemoveDepartment = async (row) => {
@@ -15,11 +15,8 @@ const DepartmentDashboard = ({ departmentList }) => {
     if (noGroup !== 0) {
       window.alert(`Department ${row.name} has ${noGroup} group!`);
     } else {
-      const ok = window.confirm(
-        `Are you sure you want to delete department "${row.name}"? This action cannot be undone.`
-      );
-      if (!ok) return;
       const deletedDepartment = await deleteDepartment(row.id);
+      onDone?.();
     }
   };
 
@@ -76,8 +73,8 @@ const DepartmentDashboard = ({ departmentList }) => {
           </table>
         </div>
       </div>
-      <AddDepartmentModal />
-      <EditDepartmentModal selectedRow={selectedRow} />
+      <AddDepartmentModal onDone={onDone} />
+      <EditDepartmentModal selectedRow={selectedRow} onDone={onDone} />
     </div>
   );
 };

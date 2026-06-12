@@ -5,7 +5,7 @@ import { useFormState } from "react-dom";
 import { editDepartment } from "@/model/department";
 import toast from "react-hot-toast";
 
-const EditDepartmentModal = ({ selectedRow }) => {
+const EditDepartmentModal = ({ selectedRow, onDone }) => {
   const ref = useRef(null);
   const router = useRouter();
 
@@ -26,10 +26,10 @@ const EditDepartmentModal = ({ selectedRow }) => {
       toast.error(state.error);
     } else if (state?.success) {
       toast.success(state.success);
-      router.refresh();
+      onDone?.();
       window.edit_modal.close();
     }
-  }, [state]);
+  }, [state, onDone]);
 
   return (
     <>

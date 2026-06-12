@@ -88,6 +88,8 @@ export const deleteGroup = async (id) => {
       },
     });
     revalidatePath("/dashboard/group");
+    revalidatePath("/report/group");
+    revalidatePath("/dashboard/group");
     return { success: "Group deleted successfully" };
   } catch (error) {
     console.error("Error deleting a group:", error);
@@ -119,6 +121,8 @@ export const editGroup = async (id, formData) => {
         department_id: parseInt(departmentId),
       },
     });
+    revalidatePath("/dashboard/group");
+    revalidatePath("/report/group");
     revalidatePath("/dashboard/group");
     return { success: "Group updated successfully", group };
   } catch (error) {
@@ -244,22 +248,3 @@ function groupByDepartmentId(arr) {
 
   return Object.values(grouped);
 }
-
-// lighter group fetch for stats page
-export const getBasicGroups = async () => {
-  try {
-    const groups = await prisma.group.findMany({
-      select: {
-        id: true,
-        name: true,
-        department_id: true,
-        Department: { select: { name: true } },
-      },
-      orderBy: { department_id: "asc" },
-    });
-    return groups;
-  } catch (error) {
-    console.error("Error getting basic groups:", error);
-    return { error: "Failed to fetch groups. Please try again." };
-  }
-};

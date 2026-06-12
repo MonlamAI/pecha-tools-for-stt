@@ -120,9 +120,9 @@ export default function UploadCsv({ groups }: UploadCsvProps) {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white shadow-md rounded-lg relative">
+    <div className="max-w-md mx-auto p-6 bg-white dark:bg-[#222426] shadow-md rounded-lg relative">
       <div
-        className="absolute right-0 top-0 text-end mt-2 mr-2 cursor-pointer hover:text-black"
+        className="absolute right-0 top-0 text-end mt-2 mr-2 cursor-pointer hover:text-black dark:hover:text-white"
         onClick={() => router.back()}
       >
         <X />
@@ -142,7 +142,7 @@ export default function UploadCsv({ groups }: UploadCsvProps) {
         <div>
           <label
             htmlFor="csvFile"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2"
           >
             Upload CSV File
           </label>
@@ -191,7 +191,7 @@ export default function UploadCsv({ groups }: UploadCsvProps) {
           )}
         </button>
       </form>
-      <span className="text-xs">
+      <span className="text-xs dark:text-gray-200">
         <span className="text-red-500">*</span>Max size 15MB
       </span>
     </div>

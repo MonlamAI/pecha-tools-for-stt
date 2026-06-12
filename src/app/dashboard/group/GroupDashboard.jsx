@@ -7,7 +7,7 @@ import AddGroupModal from "./AddGroupModal";
 import EditGroupModal from "./EditGroupModal";
 import { deleteGroup } from "@/model/group";
 
-const GroupDashboard = ({ groupList, departments }) => {
+const GroupDashboard = ({ groupList, departments, onDone }) => {
   // console.log({ groupList, departments });
   const [selectedRow, setSelectedRow] = useState(null);
 
@@ -19,11 +19,8 @@ const GroupDashboard = ({ groupList, departments }) => {
         `Group ${row.name} has ${noUser} users and ${noTask} tasks!`
       );
     } else {
-      const ok = window.confirm(
-        `Are you sure you want to delete group "${row.name}"? This action cannot be undone.`
-      );
-      if (!ok) return;
       const deletedGroup = await deleteGroup(row.id);
+      onDone?.();
     }
   };
 
@@ -84,8 +81,8 @@ const GroupDashboard = ({ groupList, departments }) => {
           </table>
         </div>
       </div>
-      <AddGroupModal departments={departments} />
-      <EditGroupModal selectedRow={selectedRow} departments={departments} />
+      <AddGroupModal departments={departments} onDone={onDone} />
+      <EditGroupModal selectedRow={selectedRow} departments={departments} onDone={onDone} />
     </div>
   );
 };

@@ -1,0 +1,7 @@
+﻿Task Counts for Group 6:
+imported: 0
+transcribing: 2032
+trashed: 2644
+submitted: 730
+accepted: 19090
+finalised: 963

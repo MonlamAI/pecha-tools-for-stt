@@ -66,12 +66,20 @@ model Task {
   transcriber_is_correct Boolean?
   reviewer_is_correct    Boolean?
 
-  @@index([group_id, state])
+  // Indexes to optimize report queries
+  @@index([group_id])
   @@index([state])
-  @@index([transcriber_id, state])
-  @@index([reviewer_id, state])
-  @@index([final_reviewer_id, state])
+  @@index([transcriber_id])
+  @@index([reviewer_id])
+  @@index([final_reviewer_id])
+  @@index([submitted_at])
+  @@index([reviewed_at])
+  @@index([finalised_reviewed_at])
+
+  // Composite indexes for common filters
+  @@index([group_id, state])
   @@index([transcriber_id, submitted_at])
+  @@index([transcriber_id, reviewed_at])
   @@index([reviewer_id, reviewed_at])
   @@index([final_reviewer_id, finalised_reviewed_at])
 }
@@ -86,4 +94,7 @@ model User {
   reviewer_task       Task[] @relation("ReviewerTasks")
   final_reviewer_task Task[] @relation("FinalReviewerTasks")
   group               Group  @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  // Speed up fetching users by group and role
+  @@index([group_id, role])
 }

@@ -10,14 +10,15 @@ import { getCache, setCache } from "@/lib/cache";
 export type FetchUserDataResult =
   | { error: string }
   | {
-      userDetail: UserRecord;
-      userTasks: any[];
-      userHistory: any[];
-    };
+    userDetail: UserRecord;
+    userTasks: any[];
+    userHistory: any[];
+  };
 
 type UserRecord = {
   id: number;
   name: string;
+  email: string;
   group_id: number;
   role: Role;
   group: { name: string | null } | null;
@@ -68,7 +69,7 @@ export async function fetchUserDataBySession(session: string): Promise<FetchUser
 
 export async function getOrCreateUser({ username }: { username: string }): Promise<UserRecord | { error: string }> {
   // only allow from certain domain? uncomment below
-  if (!username) return { error: "Username not found. Please try again." };
+  if (!username) return { error: "Email not found. Please try again." };
   // if (!username.endsWith("@yourdomain.com")) return { error: "Unauthorized user" };
 
   let user = await prisma.user.findUnique({
@@ -76,6 +77,7 @@ export async function getOrCreateUser({ username }: { username: string }): Promi
     select: {
       id: true,
       name: true,
+      email: true,
       group_id: true,
       role: true,
       group: {
@@ -88,10 +90,11 @@ export async function getOrCreateUser({ username }: { username: string }): Promi
 
   if (!user) {
     user = await prisma.user.create({
-      data: { name: username, email: username, group_id: 0, role: "TRANSCRIBER" },
+      data: { name: username.split("@")[0], email: username, group_id: 0, role: "TRANSCRIBER" },
       select: {
         id: true,
         name: true,
+        email: true,
         group_id: true,
         role: true,
         group: {

@@ -6,7 +6,7 @@ import { useFormState } from "react-dom";
 import { createDepartment } from "@/model/department";
 import toast from "react-hot-toast";
 
-const AddDepartmentModal = () => {
+const AddDepartmentModal = ({ onDone }) => {
   const ref = useRef(null);
   const router = useRouter();
 
@@ -21,10 +21,10 @@ const AddDepartmentModal = () => {
       toast.success(state.success);
       // Reset form and close modal
       ref.current?.reset();
-      router.refresh();
+      onDone?.();
       window.add_modal.close();
     }
-  }, [state]);
+  }, [state, onDone]);
   return (
     <>
       <dialog id="add_modal" className="modal">
