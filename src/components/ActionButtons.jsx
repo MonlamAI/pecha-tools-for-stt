@@ -18,7 +18,7 @@ const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
   }, []);
 
   const btn =
-    "flex items-center gap-2 px-6 py-2 rounded-xl backdrop-blur-md " +
+    "flex items-center gap-2 px-6 py-2.5 text-lg rounded-xl backdrop-blur-md " +
     "bg-white/70 dark:bg-neutral-800/60 border border-white/40 dark:border-slate-600/40 " +
     "shadow hover:shadow-md transition";
 

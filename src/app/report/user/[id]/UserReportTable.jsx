@@ -98,11 +98,10 @@ const UserReportTable = ({
             {userTaskRecord.map((task) => (
               <tr key={task.id}>
                 <td
-                  className={`border-l-4 ${
-                    task.transcriber_is_correct
+                  className={`border-l-4 ${task.transcriber_is_correct
                       ? "border-green-500"
                       : "border-red-500"
-                  }`}
+                    }`}
                 >
                   <div className="grid gap-2 mb-2">
                     <strong>Submitted:</strong>
