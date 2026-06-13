@@ -50,6 +50,14 @@ async function fetchUserHistoryApi({ userId, groupId, role }: any) {
   return res.json();
 }
 
+const fontSizes = [
+  { label: "A-", class: "text-lg", leading: "leading-7" },
+  { label: "A", class: "text-xl", leading: "leading-8" },
+  { label: "A+", class: "text-2xl", leading: "leading-9" },
+  { label: "A++", class: "text-3xl", leading: "leading-10" },
+  { label: "A+++", class: "text-4xl", leading: "leading-[3.2rem]" },
+];
+
 const AudioTranscript = ({
   tasks,
   userDetail,
@@ -71,6 +79,23 @@ const AudioTranscript = ({
   const [isLoading, setIsLoading] = useState(true);
   const { id: userId, group_id: groupId, role } = userDetail as any;
   const currentTimeRef: any = useRef(null);
+
+  const [fontSizeIndex, setFontSizeIndex] = useState(2); // default to text-2xl
+
+  useEffect(() => {
+    const savedIndex = localStorage.getItem("pecha_stt_font_size_index");
+    if (savedIndex !== null) {
+      const parsed = parseInt(savedIndex, 10);
+      if (parsed >= 0 && parsed < fontSizes.length) {
+        setFontSizeIndex(parsed);
+      }
+    }
+  }, []);
+
+  const handleFontSizeChange = (index: number) => {
+    setFontSizeIndex(index);
+    localStorage.setItem("pecha_stt_font_size_index", String(index));
+  };
 
   useEffect(() => {
     setUserProgress();
@@ -198,22 +223,22 @@ const AudioTranscript = ({
                   shadow-lg
                 "
               >
-                <div className="text-sm font-medium">
+                <div className="text-base font-semibold">
                   <span className="opacity-60">{lang.transcriber}:</span>{" "}
-                  <span className="font-semibold">
+                  <span className="font-bold">
                     {taskList[0]?.transcriber?.name || "-"}
                   </span>
                 </div>
 
                 <div className="hidden md:block h-5 w-px bg-neutral-300 dark:bg-neutral-600" />
 
-                <div className="text-sm font-medium">
+                <div className="text-base font-semibold">
                   <span className="opacity-60">{lang.reviewer}:</span>{" "}
-                  <span className="font-semibold">
+                  <span className="font-bold">
                     {taskList[0]?.reviewer?.name || "-"}
                   </span>
                   {role === "TRANSCRIBER" && taskList[0]?.reviewer && (
-                    <span className="ml-2 text-red-500">(Rejected)</span>
+                    <span className="ml-2 text-red-500 font-bold">(Rejected)</span>
                   )}
                 </div>
               </div>
@@ -232,21 +257,40 @@ const AudioTranscript = ({
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
                   rows={6}
-                  className="
+                  className={`
                     w-full resize-none rounded-xl
                     bg-white dark:bg-neutral-800   
                     border border-neutral-300 dark:border-neutral-700
                     p-6 md:p-9
-                    text-base leading-8
+                    ${fontSizes[fontSizeIndex].class} ${fontSizes[fontSizeIndex].leading}
                     text-neutral-900 dark:text-neutral-100
                     focus:outline-none focus:ring-2 focus:ring-#222426
                     antialiased
-                  "
+                  `}
                 />
 
 
-                {/* FILE BADGE */}
-                <div className="mt-0.5 flex justify-end">
+                {/* FOOTER BAR (FONT SIZE & FILE BADGE) */}
+                <div className="mt-1 flex flex-wrap justify-between items-center gap-2 px-2 pb-1">
+                  {/* Font Size Adjuster */}
+                  <div className="flex items-center gap-1.5 bg-white/70 dark:bg-neutral-800/60 border border-white/40 dark:border-white/10 px-3 py-1 rounded-full backdrop-blur shadow-sm select-none">
+                    <span className="text-xs opacity-65 mr-1 font-semibold">Size:</span>
+                    {fontSizes.map((size, index) => (
+                      <button
+                        key={size.label}
+                        onClick={() => handleFontSizeChange(index)}
+                        className={`text-xs px-2 py-0.5 rounded-full transition-all cursor-pointer ${
+                          fontSizeIndex === index
+                            ? "bg-neutral-950 text-white dark:bg-neutral-100 dark:text-neutral-950 font-bold"
+                            : "hover:bg-neutral-200 dark:hover:bg-neutral-700/60 opacity-80"
+                        }`}
+                      >
+                        {size.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* FILE BADGE */}
                   <div
                     className="
                         inline-flex items-center gap-2

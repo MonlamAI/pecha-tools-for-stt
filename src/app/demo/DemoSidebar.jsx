@@ -94,16 +94,16 @@ const DemoSidebar = ({
                   role === "TRANSCRIBER"
                     ? "No. of task submitted by you"
                     : role === "REVIEWER"
-                    ? "No. of task reviewed by you"
-                    : "No. of task finalised by you"
+                      ? "No. of task reviewed by you"
+                      : "No. of task finalised by you"
                 }
               >
                 <label className="text-sm font-bold mb-2">
                   {role === "TRANSCRIBER"
                     ? lang.submitted
                     : role === "REVIEWER"
-                    ? lang.reviewed
-                    : lang.final_reviewed}
+                      ? lang.reviewed
+                      : lang.final_reviewed}
                 </label>
                 <span className=" text-right">{userHistory?.length}</span>
               </div>
@@ -114,16 +114,16 @@ const DemoSidebar = ({
                     role === "TRANSCRIBER"
                       ? "No. of task reviewed by reviewer"
                       : role === "REVIEWER"
-                      ? "No. of task finalised by final reviewer"
-                      : ""
+                        ? "No. of task finalised by final reviewer"
+                        : ""
                   }
                 >
                   <label className="text-sm font-bold mb-2">
                     {role === "TRANSCRIBER"
                       ? lang.reviewed
                       : role === "REVIEWER"
-                      ? lang.final_reviewed
-                      : ""}
+                        ? lang.final_reviewed
+                        : ""}
                   </label>
                   <span className=" text-right">0</span>
                 </div>
@@ -140,8 +140,8 @@ const DemoSidebar = ({
                   {role === "TRANSCRIBER"
                     ? lang.total_assigned
                     : role === "REVIEWER"
-                    ? lang.total_submitted
-                    : "Total Accepted"}
+                      ? lang.total_submitted
+                      : "Total Accepted"}
                 </label>
                 <span className="text-right">{totalTaskCount}</span>
               </div>
@@ -168,12 +168,12 @@ const DemoSidebar = ({
                           ? task.transcript
                           : task.inference_transcript
                         : role === "REVIEWER"
-                        ? task.reviewed_transcript !== null
-                          ? task.reviewed_transcript
-                          : task.transcript
-                        : task.final_transcript !== null
-                        ? task.final_transcript
-                        : task.reviewed_transcript}
+                          ? task.reviewed_transcript !== null
+                            ? task.reviewed_transcript
+                            : task.transcript
+                          : task.final_transcript !== null
+                            ? task.final_transcript
+                            : task.reviewed_transcript}
                     </p>
                     <div
                       className="tooltip tooltip-left"
@@ -182,8 +182,8 @@ const DemoSidebar = ({
                       {(task.state === "submitted" ||
                         task.state === "accepted" ||
                         task.state === "finalised") && (
-                        <BsCheckLg size="1rem" />
-                      )}
+                          <BsCheckLg size="1rem" />
+                        )}
                       {task.state === "trashed" && <BsTrash size="1rem" />}
                     </div>
                   </div>

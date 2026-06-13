@@ -56,7 +56,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
 
   // Simple Theme-Aware Buttons
   const baseBtn =
-    "h-8 w-8 rounded-lg flex items-center justify-center " +
+    "h-9 w-9 rounded-lg flex items-center justify-center " +
     "bg-slate-100 dark:bg-neutral-700 " +
     "border border-slate-200 dark:border-white/5 " +
     "text-slate-800 dark:text-slate-100 " +
@@ -99,7 +99,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
 
           {/* Speed Control */}
           <div className="flex items-center gap-1.5 px-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60 hidden sm:inline">
+            <span className="text-xs uppercase font-bold tracking-wider opacity-60 hidden sm:inline">
               {lang.speed}
             </span>
 
@@ -111,7 +111,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
                     audioRef.current.playbackRate = rate;
                     setPlaybackRate(rate);
                   }}
-                  className={`w-9 h-7 text-[10px] md:text-[11px] font-medium rounded-md transition-colors ${playbackRate === rate
+                  className={`w-10 h-8 text-xs md:text-sm font-medium rounded-md transition-colors ${playbackRate === rate
                     ? "bg-blue-400 text-black shadow-none"
                     : "text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-neutral-700 hover:bg-slate-200 dark:hover:bg-neutral-600"
                     }`}
