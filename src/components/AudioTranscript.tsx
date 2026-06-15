@@ -51,11 +51,11 @@ async function fetchUserHistoryApi({ userId, groupId, role }: any) {
 }
 
 const fontSizes = [
-  { label: "A-", class: "text-lg", leading: "leading-7" },
-  { label: "A", class: "text-xl", leading: "leading-8" },
-  { label: "A+", class: "text-2xl", leading: "leading-9" },
-  { label: "A++", class: "text-3xl", leading: "leading-10" },
-  { label: "A+++", class: "text-4xl", leading: "leading-[3.2rem]" },
+  { label: "A-", class: "text-lg", leading: "leading-[2.1rem]" },
+  { label: "A", class: "text-xl", leading: "leading-[2.4rem]" },
+  { label: "A+", class: "text-2xl", leading: "leading-[2.8rem]" },
+  { label: "A++", class: "text-3xl", leading: "leading-[3.3rem]" },
+  { label: "A+++", class: "text-4xl", leading: "leading-[3.9rem]" },
 ];
 
 const AudioTranscript = ({
@@ -256,7 +256,7 @@ const AudioTranscript = ({
                 <textarea
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
-                  rows={6}
+                  rows={5}
                   className={`
                     w-full resize-none rounded-xl
                     bg-white dark:bg-neutral-800   
@@ -279,11 +279,10 @@ const AudioTranscript = ({
                       <button
                         key={size.label}
                         onClick={() => handleFontSizeChange(index)}
-                        className={`text-xs px-2 py-0.5 rounded-full transition-all cursor-pointer ${
-                          fontSizeIndex === index
-                            ? "bg-neutral-950 text-white dark:bg-neutral-100 dark:text-neutral-950 font-bold"
-                            : "hover:bg-neutral-200 dark:hover:bg-neutral-700/60 opacity-80"
-                        }`}
+                        className={`text-xs px-2 py-0.5 rounded-full transition-all cursor-pointer ${fontSizeIndex === index
+                          ? "bg-neutral-950 text-white dark:bg-neutral-100 dark:text-neutral-950 font-bold"
+                          : "hover:bg-neutral-200 dark:hover:bg-neutral-700/60 opacity-80"
+                          }`}
                       >
                         {size.label}
                       </button>
