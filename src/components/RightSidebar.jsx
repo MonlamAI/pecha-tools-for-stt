@@ -26,7 +26,7 @@ function SidebarContent({ children }) {
                 ❌
               </button>
             ) : (
-              <BurgerIcon setShowSidebar={setShowSidebar} className="pointer-events-auto" />
+              <BurgerIcon setShowSidebar={setShowSidebar} className="pointer-events-auto mr-14" />
             )}
           </div>
           :

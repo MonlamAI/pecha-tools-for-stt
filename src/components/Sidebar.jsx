@@ -111,15 +111,23 @@ const Sidebar = ({
             <Row label={lang.total_assigned} value={totalTaskCount} />
           </Section>
 
-          {/* LANGUAGE */}
-          <Section title={lang.language} horizontal>
-            <LanguageToggle />
-          </Section>
-
-          {/* THEME */}
-          <Section title={lang.theme} horizontal>
-            <ThemeToggle />
-          </Section>
+          {/* LANGUAGE & THEME */}
+          <section className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2">
+                <h3 className="uppercase text-[0.75rem] font-bold tracking-wide opacity-70">
+                  {lang.language}
+                </h3>
+                <LanguageToggle />
+              </div>
+              <div className="flex flex-col gap-2">
+                <h3 className="uppercase text-[0.75rem] font-bold tracking-wide opacity-70">
+                  {lang.theme}
+                </h3>
+                <ThemeToggle />
+              </div>
+            </div>
+          </section>
 
           {/* HISTORY */}
           <Section title={lang.history} grow>
@@ -139,7 +147,7 @@ const Sidebar = ({
                     transition-all
                   "
                 >
-                  <p className="leading-relaxed line-clamp-2">
+                  <p className="leading-relaxed line-clamp-2.2">
                     {role === "TRANSCRIBER"
                       ? task.transcript ?? task.inference_transcript
                       : role === "REVIEWER"
