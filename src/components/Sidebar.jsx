@@ -45,85 +45,98 @@ const Sidebar = ({
       <div className="drawer-content flex flex-col items-stretch lg:items-center">
         <div className="w-full navbar bg-neutral-900 text-white lg:hidden">
           <label htmlFor="my-drawer-3" className="btn btn-square btn-ghost">
-            ☰
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              className="inline-block w-6 h-6 stroke-current"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              ></path>
+            </svg>
           </label>
-          <div className="flex-1 px-2 font-semibold">Pecha STT Tool</div>
+          <div className="flex-1 px-2 text-[1rem] font-bold">Pecha STT Tool</div>
         </div>
         {children}
       </div>
 
       {/* SIDEBAR */}
-      <div className="drawer-side">
+      <div className="drawer-side z-40">
         <label htmlFor="my-drawer-3" className="drawer-overlay lg:hidden"></label>
-        <div className="drawer-content flex flex-col lg:items-center">
-          <input
-            id="my-drawer-3"
-            type="checkbox"
-            className="drawer-toggle"
-          />
+        <aside
+          className="
+          w-[85vw] max-w-sm lg:w-80 h-screen
+          bg-white dark:bg-neutral-900
+          shadow-[20px_0_50px_rgba(0,0,0,0.1)]
+          dark:shadow-[20px_0_50px_rgba(0,0,0,0.3)]
+          border-r border-neutral-200 dark:border-neutral-800
+          flex flex-col text-[0.9rem]
+        "
+        >
 
-          <aside
-            className="
-            w-[85vw] max-w-sm lg:w-80 h-screen
-            bg-white dark:bg-neutral-900
-            shadow-[20px_0_50px_rgba(0,0,0,0.1)]
-            dark:shadow-[20px_0_50px_rgba(0,0,0,0.3)]
-            border-r border-neutral-200 dark:border-neutral-800
-            flex flex-col
-          "
-          >
+          <Section title={lang.project}>
+            <Row label={lang.user} value={userDetail.email} />
+            <Row label={lang.group} value={userDetail.group.name} />
+            <Row label={lang.task} value={taskList[0]?.id} />
+          </Section>
 
-            <Section title={lang.project}>
-              <Row label={lang.user} value={userDetail.email} />
-              <Row label={lang.group} value={userDetail.group.name} />
-              <Row label={lang.task} value={taskList[0]?.id} />
-            </Section>
+          {/* TARGET */}
+          <Section title={lang.target}>
+            <Row
+              label={
+                role === "TRANSCRIBER"
+                  ? lang.submitted
+                  : role === "REVIEWER"
+                    ? lang.reviewed
+                    : lang.final_reviewed
+              }
+              value={completedTaskCount}
+            />
 
-            {/* TARGET */}
-            <Section title={lang.target}>
+            {(role === "TRANSCRIBER" || role === "REVIEWER") && (
               <Row
                 label={
                   role === "TRANSCRIBER"
-                    ? lang.submitted
-                    : role === "REVIEWER"
-                      ? lang.reviewed
-                      : lang.final_reviewed
+                    ? lang.reviewed
+                    : lang.final_reviewed
                 }
-                value={completedTaskCount}
+                value={totalTaskPassed}
               />
+            )}
 
-              {(role === "TRANSCRIBER" || role === "REVIEWER") && (
-                <Row
-                  label={
-                    role === "TRANSCRIBER"
-                      ? lang.reviewed
-                      : lang.final_reviewed
-                  }
-                  value={totalTaskPassed}
-                />
-              )}
+            <Row label={lang.total_assigned} value={totalTaskCount} />
+          </Section>
 
-              <Row label={lang.total_assigned} value={totalTaskCount} />
-            </Section>
+          {/* LANGUAGE & THEME */}
+          <section className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2">
+                <h3 className="uppercase text-[0.75rem] font-bold tracking-wide opacity-70">
+                  {lang.language}
+                </h3>
+                <LanguageToggle />
+              </div>
+              <div className="flex flex-col gap-2">
+                <h3 className="uppercase text-[0.75rem] font-bold tracking-wide opacity-70">
+                  {lang.theme}
+                </h3>
+                <ThemeToggle />
+              </div>
+            </div>
+          </section>
 
-            {/* LANGUAGE */}
-            <Section title={lang.language} horizontal>
-              <LanguageToggle />
-            </Section>
-
-            {/* THEME */}
-            <Section title={lang.theme} horizontal>
-              <ThemeToggle />
-            </Section>
-
-            {/* HISTORY */}
-            <Section title={lang.history} grow>
-              <div className="space-y-2">
-                {userHistory.map((task) => (
-                  <div
-                    key={task.id}
-                    onClick={() => handleHistoryClick(task)}
-                    className="
+          {/* HISTORY */}
+          <Section title={lang.history} grow>
+            <div className="space-y-2">
+              {userHistory.map((task) => (
+                <div
+                  key={task.id}
+                  onClick={() => handleHistoryClick(task)}
+                  className="
                     group cursor-pointer
                     rounded-xl
                     p-3
@@ -133,31 +146,30 @@ const Sidebar = ({
                     shadow-sm hover:shadow-md
                     transition-all
                   "
-                  >
-                    <p className="text-sm leading-snug line-clamp-2">
-                      {role === "TRANSCRIBER"
-                        ? task.transcript ?? task.inference_transcript
-                        : role === "REVIEWER"
-                          ? task.reviewed_transcript ?? task.transcript
-                          : task.final_transcript ?? task.reviewed_transcript}
-                    </p>
+                >
+                  <p className="leading-relaxed line-clamp-2.2">
+                    {role === "TRANSCRIBER"
+                      ? task.transcript ?? task.inference_transcript
+                      : role === "REVIEWER"
+                        ? task.reviewed_transcript ?? task.transcript
+                        : task.final_transcript ?? task.reviewed_transcript}
+                  </p>
 
-                    <div className="mt-2 flex justify-end text-neutral-500">
-                      {(task.state === "submitted" ||
-                        task.state === "accepted" ||
-                        task.state === "finalised") && (
-                          <BsCheckLg className="text-green-600" />
-                        )}
-                      {task.state === "trashed" && (
-                        <BsTrash className="text-red-600" />
+                  <div className="mt-2 flex justify-end text-neutral-500">
+                    {(task.state === "submitted" ||
+                      task.state === "accepted" ||
+                      task.state === "finalised") && (
+                        <BsCheckLg className="text-green-600" />
                       )}
-                    </div>
+                    {task.state === "trashed" && (
+                      <BsTrash className="text-red-600" />
+                    )}
                   </div>
-                ))}
-              </div>
-            </Section>
-          </aside>
-        </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        </aside>
       </div>
     </div>
   );
@@ -173,7 +185,7 @@ const Section = ({ title, children, horizontal = false, grow = false }) => (
       ${grow ? "flex-1 overflow-y-auto" : ""}
     `}
   >
-    <h3 className="uppercase text-xs font-bold tracking-wide mb-3 opacity-70">
+    <h3 className="uppercase text-[0.75rem] font-bold tracking-wide mb-3 opacity-70">
       {title}
     </h3>
 
@@ -186,7 +198,6 @@ const Section = ({ title, children, horizontal = false, grow = false }) => (
 const Row = ({ label, value }) => (
   <div className="
     flex justify-between items-center
-    text-sm
     py-1.5
     border-b border-neutral-200/70 dark:border-neutral-800/70
     last:border-b-0

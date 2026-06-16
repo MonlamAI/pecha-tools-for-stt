@@ -15,22 +15,24 @@ function SidebarContent({ children }) {
 
   return (
     <>
-      <div className="fixed z-50 flex justify-between items-center gap-4 px-4 top-2 w-full">
+      <div className="fixed z-50 flex justify-between items-center gap-4 px-4 top-2 w-full pointer-events-none">
         {isSessionPage ?
-          <div className="flex w-full justify-end">
+          <div className="flex w-full justify-end pointer-events-none">
             {showSidebar ? (
               <button
-                className="flex items-center text-3xl text-white cursor-pointer"
+                className="flex items-center text-3xl text-white cursor-pointer pointer-events-auto"
                 onClick={() => setShowSidebar((prev) => !prev)}
               >
                 ❌
               </button>
             ) : (
-              <BurgerIcon setShowSidebar={setShowSidebar} />
+              <BurgerIcon setShowSidebar={setShowSidebar} className="pointer-events-auto mr-14" />
             )}
           </div>
           :
-          <ThemeToggle />}
+          <div className="pointer-events-auto">
+            <ThemeToggle />
+          </div>}
       </div>
 
       <div
