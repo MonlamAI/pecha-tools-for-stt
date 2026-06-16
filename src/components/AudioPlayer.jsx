@@ -38,6 +38,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
       });
     } else {
       audio.pause();
+      setIsPlaying(false);
     }
   }, [audioRef, notifyPlaybackFailure]);
 
@@ -45,16 +46,15 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const newLoopState = !isLoopEnabled;
-    setIsLoopEnabled(newLoopState);
+    const next = !isLoopEnabled;
+    setIsLoopEnabled(next);
+    audio.loop = next;
 
-    if (newLoopState) {
+    if (next) {
       setPlaybackError(null);
       await safeAudioPlay(audio, "loop-toggle", {
         onFailure: notifyPlaybackFailure,
       });
-    } else {
-      audio.pause();
     }
   }, [audioRef, isLoopEnabled, notifyPlaybackFailure]);
 
@@ -193,6 +193,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
         key={taskId}
         preload="auto"
         playsInline
+        autoPlay
       >
         {audioUrl ? (
           detectedMimeType ? (
