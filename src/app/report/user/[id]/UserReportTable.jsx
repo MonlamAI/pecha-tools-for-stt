@@ -2,6 +2,7 @@ import { revertTaskState } from "@/model/action";
 import React, { useState, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { FaLongArrowAltUp, FaLongArrowAltDown } from "react-icons/fa";
+import { getAudioMimeTypeFromUrl } from "@/utils/audio-utils";
 
 const UserReportTable = ({
   userTaskRecord,
@@ -95,7 +96,9 @@ const UserReportTable = ({
             </tr>
           </thead>
           <tbody>
-            {userTaskRecord.map((task) => (
+            {userTaskRecord.map((task) => {
+              const audioMimeType = getAudioMimeTypeFromUrl(task.url);
+              return (
               <tr key={task.id}>
                 <td
                   className={`border-l-4 ${task.transcriber_is_correct
@@ -121,8 +124,17 @@ const UserReportTable = ({
                   )}
                 </td>
                 <td>
-                  <audio controls controlsList="nodownload">
-                    <source src={task.url} type="audio/mpeg" />
+                  <audio
+                    controls
+                    controlsList="nodownload"
+                    preload="metadata"
+                    playsInline
+                  >
+                    {audioMimeType ? (
+                      <source src={task.url} type={audioMimeType} />
+                    ) : (
+                      <source src={task.url} />
+                    )}
                   </audio>
                 </td>
                 <td>{task.state}</td>
@@ -155,7 +167,8 @@ const UserReportTable = ({
                 <td>{task.transcriptSyllableCount}</td>
                 <td>{task.reviewedSyllableCount}</td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>
