@@ -63,6 +63,148 @@ type SafePlayOptions = {
   onFailure?: (message: string) => void;
 };
 
+type AudioSourceSelection =
+  | "currentSrc"
+  | "src"
+  | "sourceElement"
+  | "none"
+  | "fallback";
+
+type AudioSourceResolution = {
+  currentSrc: string;
+  src: string;
+  sourceElementSrc: string;
+  resolvedUrl: string;
+  selectedFrom: AudioSourceSelection;
+};
+
+// [Reason] Support both <audio src> and <audio><source></audio> when validating playback.
+function resolveAudioSource(audio: HTMLAudioElement): AudioSourceResolution {
+  const currentSrc = audio.currentSrc ?? "";
+  const src = audio.src ?? "";
+  const sourceElementSrc = audio.querySelector("source")?.src ?? "";
+
+  if (currentSrc) {
+    return {
+      currentSrc,
+      src,
+      sourceElementSrc,
+      resolvedUrl: currentSrc,
+      selectedFrom: "currentSrc",
+    };
+  }
+
+  if (src) {
+    return {
+      currentSrc,
+      src,
+      sourceElementSrc,
+      resolvedUrl: src,
+      selectedFrom: "src",
+    };
+  }
+
+  if (sourceElementSrc) {
+    return {
+      currentSrc,
+      src,
+      sourceElementSrc,
+      resolvedUrl: sourceElementSrc,
+      selectedFrom: "sourceElement",
+    };
+  }
+
+  return {
+    currentSrc,
+    src,
+    sourceElementSrc,
+    resolvedUrl: "",
+    selectedFrom: "none",
+  };
+}
+
+function logSourceResolution(
+  context: string,
+  resolution: AudioSourceResolution,
+  extra: Record<string, unknown> = {}
+): void {
+  logAudioDiagnostic("source-resolution", {
+    context,
+    currentSrc: resolution.currentSrc || "(empty)",
+    src: resolution.src || "(empty)",
+    sourceElementSrc: resolution.sourceElementSrc || "(empty)",
+    selectedFrom: resolution.selectedFrom,
+    resolvedUrl: resolution.resolvedUrl || "(empty)",
+    ...extra,
+  });
+}
+
+function audioFallbackUrl(resolution: AudioSourceResolution): string {
+  return (
+    resolution.resolvedUrl ||
+    resolution.currentSrc ||
+    resolution.src ||
+    resolution.sourceElementSrc ||
+    "(unknown)"
+  );
+}
+
+async function attemptAudioPlay(
+  audio: HTMLAudioElement,
+  context: string,
+  resolution: AudioSourceResolution,
+  usedFallback: boolean,
+  options: SafePlayOptions
+): Promise<boolean> {
+  const { showToastOnFailure = true, onFailure } = options;
+
+  try {
+    await audio.play();
+    logAudioDiagnostic("play-resolved", {
+      context,
+      currentSrc: resolution.currentSrc || "(empty)",
+      src: resolution.src || "(empty)",
+      sourceElementSrc: resolution.sourceElementSrc || "(empty)",
+      selectedFrom: usedFallback ? "fallback" : resolution.selectedFrom,
+      usedFallback,
+      url: audio.currentSrc || audioFallbackUrl(resolution),
+      readyState: audio.readyState,
+    });
+    return true;
+  } catch (error) {
+    const isAutoplayPolicy =
+      error instanceof DOMException && error.name === "NotAllowedError";
+    const allSourcesEmpty =
+      !resolution.currentSrc &&
+      !resolution.src &&
+      !resolution.sourceElementSrc;
+
+    console.error(AUDIO_LOG_PREFIX, "play rejected", {
+      context,
+      currentSrc: resolution.currentSrc || "(empty)",
+      src: resolution.src || "(empty)",
+      sourceElementSrc: resolution.sourceElementSrc || "(empty)",
+      selectedFrom: usedFallback ? "fallback" : resolution.selectedFrom,
+      usedFallback,
+      url: audio.currentSrc || audioFallbackUrl(resolution),
+      readyState: audio.readyState,
+      networkState: audio.networkState,
+      error,
+      isAutoplayPolicy,
+    });
+
+    if (showToastOnFailure && !isAutoplayPolicy) {
+      onFailure?.(
+        allSourcesEmpty
+          ? "No audio URL is available."
+          : "Unable to play audio. Try again or use the built-in player controls."
+      );
+    }
+
+    return false;
+  }
+}
+
 /** Wrap audio.play() with promise handling and structured logging. */
 export async function safeAudioPlay(
   audio: HTMLAudioElement | null | undefined,
@@ -78,40 +220,23 @@ export async function safeAudioPlay(
     return false;
   }
 
-  if (!audio.src) {
-    const message = "No audio URL is available.";
-    console.error(AUDIO_LOG_PREFIX, "play failed: missing src", { context });
-    if (showToastOnFailure) onFailure?.(message);
-    return false;
+  const resolution = resolveAudioSource(audio);
+  logSourceResolution(context, resolution);
+
+  if (resolution.resolvedUrl) {
+    return attemptAudioPlay(audio, context, resolution, false, options);
   }
 
-  try {
-    await audio.play();
-    logAudioDiagnostic("play-resolved", {
-      context,
-      url: audio.src,
-      readyState: audio.readyState,
-    });
-    return true;
-  } catch (error) {
-    const isAutoplayPolicy =
-      error instanceof DOMException && error.name === "NotAllowedError";
+  // [Reason] Last-resort path when URL detection is wrong but the element can still play.
+  logAudioDiagnostic("play-fallback", {
+    context,
+    currentSrc: resolution.currentSrc || "(empty)",
+    src: resolution.src || "(empty)",
+    sourceElementSrc: resolution.sourceElementSrc || "(empty)",
+    selectedFrom: "none",
+    usedFallback: true,
+    message: "No URL resolved from validation; attempting direct audio.play()",
+  });
 
-    console.error(AUDIO_LOG_PREFIX, "play rejected", {
-      context,
-      url: audio.src,
-      readyState: audio.readyState,
-      networkState: audio.networkState,
-      error,
-      isAutoplayPolicy,
-    });
-
-    if (showToastOnFailure && !isAutoplayPolicy) {
-      onFailure?.(
-        "Unable to play audio. Try again or use the built-in player controls."
-      );
-    }
-
-    return false;
-  }
+  return attemptAudioPlay(audio, context, resolution, true, options);
 }
