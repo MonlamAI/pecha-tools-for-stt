@@ -7,7 +7,7 @@ import {
   getReviewerTaskCount,
   getReviewerTaskList,
   getTranscriberTaskList,
-  getUserSpecificTasksCount,
+  getUserSpecificTasksCount,getUserSubmittedAndReviewedSecs,
 } from "./task";
 import { buildDateFilter } from "@/lib/reportDateRange";
 
