@@ -11,6 +11,10 @@ services:
         value: 18.20.3  # Use Node 18 LTS
       - key: NODE_ENV
         value: production
+
+      - key: APP_VERSION # This is the version of the application/health check
+        value: 1.0.0
+
       - key: DATABASE_URL
         fromDatabase:
           name: stt-pg
