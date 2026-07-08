@@ -20,7 +20,7 @@ function SidebarContent({ children }) {
           <div className="flex w-full justify-end pointer-events-none">
             {showSidebar ? (
               <button
-                className="flex items-center text-3xl text-white cursor-pointer pointer-events-auto"
+                className="flex items-center text-3xl text-white cursor-pointer pointer-events-auto mr-14"
                 onClick={() => setShowSidebar((prev) => !prev)}
               >
                 ❌
