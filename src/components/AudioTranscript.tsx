@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { AudioPlayer } from "./AudioPlayer";
 import ActionButtons from "./ActionButtons";
 import Sidebar from "@/components/Sidebar";
@@ -97,6 +97,16 @@ const AudioTranscript = ({
     localStorage.setItem("pecha_stt_font_size_index", String(index));
   };
 
+  // [Reason] Stabilize progress fetch so the task-list effect can depend on it without re-running every render.
+  const setUserProgress = useCallback(async () => {
+    try {
+      const data = await fetchUserProgress({ userId, role, groupId });
+      setUserTaskStats(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [userId, role, groupId]);
+
   useEffect(() => {
     setUserProgress();
     currentTimeRef.current = new Date().toISOString();
@@ -121,16 +131,7 @@ const AudioTranscript = ({
     } else {
       setIsLoading(false);
     }
-  }, [taskList]);
-
-  const setUserProgress = async () => {
-    try {
-      const data = await fetchUserProgress({ userId, role, groupId });
-      setUserTaskStats(data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  }, [taskList, role, setUserProgress]);
 
   const updateTaskAndIndex = async ({ action, transcript, task }: any) => {
     try {
