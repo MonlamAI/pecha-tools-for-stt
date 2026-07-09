@@ -178,10 +178,14 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     "bg-slate-100 dark:bg-neutral-700 " +
     "border border-slate-200 dark:border-white/5 " +
     "text-slate-800 dark:text-slate-100 " +
-    "hover:bg-slate-200 dark:hover:bg-neutral-600 active:bg-slate-300 dark:active:bg-neutral-800 transition-colors";
+    "hover:bg-slate-200 dark:hover:bg-neutral-600 active:bg-slate-300 dark:active:bg-neutral-800 " +
+    "transition-colors duration-300";
 
-  const activeBtn =
-    "bg-blue-400 text-black border-transparent shadow-none";
+  // [Reason] Loop ON inverts colors per theme to match Font Increase active styling.
+  const activeLoopBtn =
+    "h-9 w-9 rounded-lg flex items-center justify-center " +
+    "bg-neutral-950 text-white dark:bg-neutral-100 dark:text-neutral-950 " +
+    "border border-transparent transition-colors duration-300";
 
   return (
     <>
@@ -223,7 +227,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
             <button
               type="button"
               onClick={toggleLoop}
-              className={`${baseBtn} ${isLoopEnabled ? activeBtn : ""}`}
+              className={isLoopEnabled ? activeLoopBtn : baseBtn}
               disabled={!audioUrl}
             >
               <ImLoop />
