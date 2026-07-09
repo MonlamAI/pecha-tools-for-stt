@@ -80,13 +80,14 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.playbackRate = playbackRate;
+      // [Reason] Re-apply loop preference when a new task/audio element loads.
+      audioRef.current.loop = isLoopEnabled;
     }
-  }, [audioRef, playbackRate, taskId]);
+  }, [audioRef, playbackRate, taskId, isLoopEnabled]);
 
   useEffect(() => {
     setIsPlaying(false);
     setPlaybackError(null);
-    setIsLoopEnabled(false);
   }, [taskId, audioUrl]);
 
   useEffect(() => {
