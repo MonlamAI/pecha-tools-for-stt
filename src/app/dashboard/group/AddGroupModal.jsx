@@ -15,6 +15,13 @@ const AddGroupModal = ({ departments, onDone }) => {
   // Initialize useFormState with createGroup
   const [state, formAction] = useFormState(createGroup, null);
 
+  // [Reason] Ref keeps latest onDone without re-running the form-state effect on callback identity changes.
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
+
   // Handle Server Action results
   useEffect(() => {
     if (state?.error) {
@@ -24,7 +31,7 @@ const AddGroupModal = ({ departments, onDone }) => {
       // Reset form and close modal
       ref.current?.reset();
       setDepartmentId("");
-      onDone?.();
+      onDoneRef.current?.();
       window.add_modal.close();
     }
   }, [state]);

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/service/db";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 let cachedHealth: any = null;
 let cachedAt = 0;
 
