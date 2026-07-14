@@ -27,7 +27,8 @@ const AddGroupModal = ({ departments, onDone }) => {
       onDone?.();
       window.add_modal.close();
     }
-  }, [state]);
+    // [Reason] Include `onDone` (memoized via useCallback in the page component and passed through unchanged) so the effect always calls the current callback without a stale closure.
+  }, [state, onDone]);
 
   const handleDepartmentChange = async (event) => {
     setDepartmentId(event.target.value);
