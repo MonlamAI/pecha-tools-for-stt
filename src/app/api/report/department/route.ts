@@ -3,6 +3,7 @@ import prisma from "@/service/db";
 import { buildReport } from "@/lib/reportEngine";
 import { getReportDateRange } from "@/lib/reportDateRange";
 import { getCache, setCache } from "@/lib/cache";
+import { requireFinalReviewerApi } from "@/lib/auth/requireUser";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,9 @@ function inRange(dt: Date | null, from?: Date, to?: Date) {
 /* ---------------- API ---------------- */
 
 export async function GET(req: NextRequest) {
+  // [Reason] Reports are admin-only (FINAL_REVIEWER).
+  const auth = await requireFinalReviewerApi();
+  if ("response" in auth) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
 

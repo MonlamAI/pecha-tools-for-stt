@@ -1,9 +1,13 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { parse } from "papaparse";
 import prisma from "@/service/db";
 import { Prisma } from "@prisma/client";
+import { requireFinalReviewerApi } from "@/lib/auth/requireUser";
 
 export async function POST(req: NextRequest) {
+  // [Reason] CSV import is admin-only (FINAL_REVIEWER).
+  const auth = await requireFinalReviewerApi();
+  if ("response" in auth) return auth.response;
   try {
     // Reset sequence before processing
     const result = await prisma.$queryRaw`

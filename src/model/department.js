@@ -2,6 +2,8 @@
 
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
+// [Reason] Admin authorization source for department-management mutations.
+import { getSessionUser } from "@/lib/auth/requireUser";
 
 export const getAllDepartment = async () => {
   try {
@@ -26,6 +28,9 @@ export const getAllDepartment = async () => {
 };
 
 export const createDepartment = async (prevState, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may create departments.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const departmentName = formData.get("name")?.trim();
   try {
     // guard: prevent duplicate department names
@@ -51,6 +56,9 @@ export const createDepartment = async (prevState, formData) => {
 };
 
 export const deleteDepartment = async (id) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may delete departments.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   try {
     const department = await prisma.department.delete({
       where: {
@@ -67,6 +75,9 @@ export const deleteDepartment = async (id) => {
 };
 
 export const editDepartment = async (id, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may edit departments.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const departmentName = formData.get("name")?.trim();
   try {
     // guard: prevent duplicate on rename

@@ -7,8 +7,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pecha Stt Tool",
-  description: "Tool by OpenPecha for STT",
+  // [Reason] Product branding updated from Pecha → Monlam Tools
+  title: "Monlam Tools",
+  description: "Monlam Tools for Speech-to-Text",
 };
 
 export default function RootLayout({

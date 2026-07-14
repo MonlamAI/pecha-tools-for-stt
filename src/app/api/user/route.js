@@ -2,8 +2,12 @@ export const runtime = "nodejs";
 
 import prisma from "@/service/db";
 import { NextResponse } from "next/server";
+import { requireFinalReviewerApi } from "@/lib/auth/requireUser";
 
 export async function GET() {
+  // [Reason] Listing all users is admin-only (FINAL_REVIEWER).
+  const auth = await requireFinalReviewerApi();
+  if ("response" in auth) return auth.response;
   // get all user
   try {
     const users = await prisma.user.findMany({});
@@ -14,6 +18,9 @@ export async function GET() {
 }
 
 export async function PUT(request) {
+  // [Reason] Updating a user is admin-only (FINAL_REVIEWER).
+  const auth = await requireFinalReviewerApi();
+  if ("response" in auth) return auth.response;
   try {
     const body = await request.json();
     const { id, name, email, group_id, role } = body;

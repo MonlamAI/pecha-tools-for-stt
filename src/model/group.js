@@ -2,6 +2,8 @@
 
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
+// [Reason] Admin authorization source for group-management mutations.
+import { getSessionUser } from "@/lib/auth/requireUser";
 export const getTranscribingcount = async (group_id) => {
   try {
     const taskCount = await prisma.group.findUnique({
@@ -53,6 +55,9 @@ export const getAllGroup = async () => {
 };
 
 export const createGroup = async (prevState, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may create groups.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {
@@ -81,6 +86,9 @@ export const createGroup = async (prevState, formData) => {
 };
 
 export const deleteGroup = async (id) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may delete groups.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   try {
     const group = await prisma.group.delete({
       where: {
@@ -98,6 +106,9 @@ export const deleteGroup = async (id) => {
 };
 
 export const editGroup = async (id, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may edit groups.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   try {

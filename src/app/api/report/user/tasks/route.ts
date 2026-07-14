@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserSpecificTasks } from "@/model/task";
+import { requireFinalReviewerApi } from "@/lib/auth/requireUser";
 
 export async function GET(req: NextRequest) {
+  // [Reason] Reports are admin-only (FINAL_REVIEWER).
+  const auth = await requireFinalReviewerApi();
+  if ("response" in auth) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
