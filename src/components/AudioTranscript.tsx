@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { AudioPlayer } from "./AudioPlayer";
 import ActionButtons from "./ActionButtons";
 import Sidebar from "@/components/Sidebar";
@@ -97,6 +97,16 @@ const AudioTranscript = ({
     localStorage.setItem("pecha_stt_font_size_index", String(index));
   };
 
+  // [Reason] Memoize so it can be a stable dependency of the effect (and reused by updateTaskAndIndex) without changing behavior.
+  const setUserProgress = useCallback(async () => {
+    try {
+      const data = await fetchUserProgress({ userId, role, groupId });
+      setUserTaskStats(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [userId, role, groupId]);
+
   useEffect(() => {
     setUserProgress();
     currentTimeRef.current = new Date().toISOString();
@@ -121,16 +131,8 @@ const AudioTranscript = ({
     } else {
       setIsLoading(false);
     }
-  }, [taskList]);
-
-  const setUserProgress = async () => {
-    try {
-      const data = await fetchUserProgress({ userId, role, groupId });
-      setUserTaskStats(data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    // [Reason] Include `role` and the memoized `setUserProgress` so the effect uses current values without a stale closure.
+  }, [taskList, role, setUserProgress]);
 
   const updateTaskAndIndex = async ({ action, transcript, task }: any) => {
     try {

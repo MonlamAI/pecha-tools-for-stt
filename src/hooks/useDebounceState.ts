@@ -11,7 +11,8 @@ const useDebounce = (value: string, delay: number) => {
     return () => {
       clearTimeout(handler);
     };
-  }, [value]);
+    // [Reason] Include `delay` so changing the debounce interval reschedules the timeout instead of using a stale delay.
+  }, [value, delay]);
 
   return debouncedValue;
 };

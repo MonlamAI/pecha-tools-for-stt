@@ -145,7 +145,8 @@ function DeleteUserButton({ userId, onDone }) {
       toast.success(state.success);
       onDone?.();
     }
-  }, [state]);
+    // [Reason] Include `onDone` (memoized in the parent via useCallback) so the effect always calls the current callback without a stale closure.
+  }, [state, onDone]);
   return (
     <form action={formAction}>
       <input type="hidden" name="id" value={userId} readOnly />
