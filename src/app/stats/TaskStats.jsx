@@ -1,22 +1,10 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import GroupPieChart from "./GroupPieChart";
 
 const TaskStats = ({ groupStatByDept, viewScope }) => {
   const [selectedScope, setSelectedScope] = useState(viewScope || "all_departments");
   const [statsList, setStatsList] = useState([]);
-
-  useEffect(() => {
-    if (viewScope) {
-      handleScopeChange({ target: { value: viewScope } });
-    }
-  }, [viewScope]);
-
-  useEffect(() => {
-    if (groupStatByDept && !viewScope) {
-      calculateStatsAllDepartments();
-    }
-  }, [groupStatByDept]);
 
   const scopes = [
     {
@@ -33,23 +21,14 @@ const TaskStats = ({ groupStatByDept, viewScope }) => {
     },
   ];
 
-  const handleScopeChange = async (event) => {
-    setSelectedScope(event.target.value);
-    if (event.target.value === "per_group") {
-      calculateStatsPerGroup();
-    } else if (event.target.value === "per_department") {
-      calculateStatsPerDepartment();
-    } else if (event.target.value === "all_departments") {
-      calculateStatsAllDepartments();
-    }
-  };
-
-  const calculateStatsPerGroup = () => {
+  // [Reason] Memoize so the function has a stable identity and can be safely listed in effect deps without recreating on every render.
+  const calculateStatsPerGroup = useCallback(() => {
     const groupStat = [].concat(...groupStatByDept);
     setStatsList(groupStat);
-  };
+  }, [groupStatByDept]);
 
-  const calculateStatsPerDepartment = () => {
+  // [Reason] Memoize so it can be a stable dependency of the scope-change handler and effects.
+  const calculateStatsPerDepartment = useCallback(() => {
     // Create an object to store the sums for each department_id
     const departmentSums = {};
 
@@ -97,9 +76,10 @@ const TaskStats = ({ groupStatByDept, viewScope }) => {
       ...departmentSums[department_id],
     }));
     setStatsList(sumsArray);
-  };
+  }, [groupStatByDept]);
 
-  const calculateStatsAllDepartments = () => {
+  // [Reason] Memoize so it can be a stable dependency of the scope-change handler and the initial-load effect.
+  const calculateStatsAllDepartments = useCallback(() => {
     const groupStat = [].concat(...groupStatByDept);
     const allDepartmentStats = groupStat.reduce(
       (accumulator, currentItem) => {
@@ -121,7 +101,33 @@ const TaskStats = ({ groupStatByDept, viewScope }) => {
       }
     );
     setStatsList([allDepartmentStats]);
-  };
+  }, [groupStatByDept]);
+
+  // [Reason] Memoize the handler so effects/onClick share a stable reference; depends only on the memoized calculators.
+  const handleScopeChange = useCallback(async (event) => {
+    setSelectedScope(event.target.value);
+    if (event.target.value === "per_group") {
+      calculateStatsPerGroup();
+    } else if (event.target.value === "per_department") {
+      calculateStatsPerDepartment();
+    } else if (event.target.value === "all_departments") {
+      calculateStatsAllDepartments();
+    }
+  }, [calculateStatsPerGroup, calculateStatsPerDepartment, calculateStatsAllDepartments]);
+
+  // [Reason] Re-apply the forced scope whenever it or the (memoized) handler changes, keeping deps complete without stale closures.
+  useEffect(() => {
+    if (viewScope) {
+      handleScopeChange({ target: { value: viewScope } });
+    }
+  }, [viewScope, handleScopeChange]);
+
+  // [Reason] Recompute the default "all departments" view when data changes; deps now include viewScope and the memoized calculator.
+  useEffect(() => {
+    if (groupStatByDept && !viewScope) {
+      calculateStatsAllDepartments();
+    }
+  }, [groupStatByDept, viewScope, calculateStatsAllDepartments]);
 
   return (
     <>

@@ -37,8 +37,8 @@ const DepartmentReport = ({ departments }) => {
   const [reviewersStatistic, setReviewersStatistic] = useState({});
   const [finalReviewersStatistic, setFinalReviewersStatistic] = useState({});
 
-  // Memoize dates object to keep existing logic compatible
-  const dates = { from: fromDate, to: toDate };
+  // [Reason] Actually memoize the dates object so its identity is stable across renders, preventing effects that depend on it from re-running every render.
+  const dates = useMemo(() => ({ from: fromDate, to: toDate }), [fromDate, toDate]);
 
   /* ================= INIT DATES ================= */
   useEffect(() => {
@@ -84,7 +84,8 @@ const DepartmentReport = ({ departments }) => {
       }
       prevDeptRef.current = selectDepartment;
     }
-  }, [selectDepartment, groups]);
+    // [Reason] Include the (stable) nuqs setters used inside the effect to satisfy exhaustive-deps without altering behavior.
+  }, [selectDepartment, groups, setActiveGroupId, setShowDeptTotals]);
 
   /* 
      Effect: Default Group Selection
@@ -95,7 +96,8 @@ const DepartmentReport = ({ departments }) => {
     if (selectDepartment && groups.length > 0 && !activeGroupId && !showDeptTotals) {
       setActiveGroupId(String(groups[0].id));
     }
-  }, [selectDepartment, groups, activeGroupId, showDeptTotals]);
+    // [Reason] Include the (stable) nuqs setter used inside the effect to satisfy exhaustive-deps without altering behavior.
+  }, [selectDepartment, groups, activeGroupId, showDeptTotals, setActiveGroupId]);
 
   /* 
      Effect: Handle Date Change 
@@ -164,7 +166,8 @@ const DepartmentReport = ({ departments }) => {
   }, [activeGroupId, dates.from, dates.to, showDeptTotals]); // Primative dependencies
 
   /* ================= DEPARTMENT TOTAL ================= */
-  const handleLoadDepartmentTotals = async () => {
+  // [Reason] Memoize so it has a stable identity usable in the auto-fetch effect deps and onClick, avoiding stale closures and re-creation each render.
+  const handleLoadDepartmentTotals = useCallback(async () => {
     if (!selectDepartment) return;
 
     // Switch to Department View
@@ -223,14 +226,15 @@ const DepartmentReport = ({ departments }) => {
     } finally {
       setDeptTotalsLoading(false);
     }
-  };
+  }, [selectDepartment, deptTotalsLoaded, deptTotalsLoading, groups, dates.from, dates.to, setShowDeptTotals, setActiveGroupId]);
 
   /* Auto-fetch Department Totals when in Department View and dates change */
+  // [Reason] Depend on the memoized loader (which itself tracks dates/groups) and include deptTotalsLoading for complete, loop-free deps.
   useEffect(() => {
     if (showDeptTotals && selectDepartment && !deptTotalsLoaded && !deptTotalsLoading) {
       handleLoadDepartmentTotals();
     }
-  }, [showDeptTotals, selectDepartment, deptTotalsLoaded, dates]);
+  }, [showDeptTotals, selectDepartment, deptTotalsLoaded, deptTotalsLoading, handleLoadDepartmentTotals]);
 
   const activeGroup = groups.find(
     (g) => String(g.id) === activeGroupId
