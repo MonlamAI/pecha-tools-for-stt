@@ -12,6 +12,7 @@ import { verifyGoogleIdToken } from "@/lib/auth/verifyIdToken";
 import { getOrCreateUser } from "@/service/user-service";
 import { createSessionToken } from "@/lib/auth/session";
 import {
+  APP_BASE_URL,
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_SECONDS,
   OAUTH_STATE_COOKIE,
@@ -20,8 +21,10 @@ import {
 
 // [Reason] Any failure returns the user to /login with a generic error rather
 // than leaking details; the transient OAuth cookies are cleared on the way out.
-function failToLogin(req: NextRequest, code: string) {
-  const url = new URL("/login", req.url);
+// [Reason] Use APP_BASE_URL so redirects stay on the public host behind Render's proxy
+// (req.url is the internal upstream, e.g. localhost:10000).
+function failToLogin(code: string) {
+  const url = new URL("/login", APP_BASE_URL);
   url.searchParams.set("error", code);
   const res = NextResponse.redirect(url, 302);
   res.cookies.set(OAUTH_STATE_COOKIE, "", { path: "/", maxAge: 0 });
@@ -36,27 +39,27 @@ export async function GET(req: NextRequest) {
   const oauthError = searchParams.get("error");
 
   // User denied consent or Google returned an error.
-  if (oauthError) return failToLogin(req, "access_denied");
+  if (oauthError) return failToLogin("access_denied");
 
   // [Reason] CSRF check: the state echoed by Google must equal the one we set
   // in the HttpOnly cookie when starting the login.
   const expectedState = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
   if (!code || !state || !expectedState || state !== expectedState) {
-    return failToLogin(req, "invalid_state");
+    return failToLogin("invalid_state");
   }
 
   // Exchange the authorization code for tokens (server-side, uses client secret).
   const tokens = await exchangeCodeForTokens(code);
-  if (!tokens?.id_token) return failToLogin(req, "token_exchange_failed");
+  if (!tokens?.id_token) return failToLogin("token_exchange_failed");
 
   // [Reason] Cryptographically validate the id_token before trusting any claim.
   const identity = await verifyGoogleIdToken(tokens.id_token);
-  if (!identity) return failToLogin(req, "invalid_token");
+  if (!identity) return failToLogin("invalid_token");
 
   // [Reason] Provision/lookup via the EXISTING STT logic (default role
   // TRANSCRIBER, group_id 0). STT DB remains the source of truth.
   const user = await getOrCreateUser({ username: identity.email });
-  if (!user || "error" in user) return failToLogin(req, "user_provisioning_failed");
+  if (!user || "error" in user) return failToLogin("user_provisioning_failed");
 
   const token = await createSessionToken({ userId: user.id, email: user.email });
 
@@ -64,7 +67,9 @@ export async function GET(req: NextRequest) {
   const rawReturnTo = req.cookies.get(RETURN_TO_COOKIE)?.value || "/";
   const returnTo = rawReturnTo.startsWith("/") ? rawReturnTo : "/";
 
-  const res = NextResponse.redirect(new URL(returnTo, req.url), 302);
+  // [Reason] Resolve against APP_BASE_URL (public env URL), not req.url, so
+  // Render's internal host (localhost:10000) never appears in Location.
+  const res = NextResponse.redirect(new URL(returnTo, APP_BASE_URL), 302);
   // [Reason] HTTP-only signed session cookie; Secure in prod, Lax so the
   // top-level OAuth redirect can set it while blocking cross-site CSRF.
   res.cookies.set(SESSION_COOKIE_NAME, token, {
