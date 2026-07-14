@@ -59,7 +59,8 @@ const Sidebar = ({
               ></path>
             </svg>
           </label>
-          <div className="flex-1 px-2 text-[1rem] font-bold">Pecha STT Tool</div>
+          {/* [Reason] Product branding updated from Pecha → Monlam Tools */}
+          <div className="flex-1 px-2 text-[1rem] font-bold">Monlam Tools</div>
         </div>
         {children}
       </div>

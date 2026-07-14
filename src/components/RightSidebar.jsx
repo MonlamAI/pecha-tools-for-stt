@@ -1,17 +1,17 @@
 "use client";
 import { useState, Suspense } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import BurgerIcon from "./BurgerIcon";
 import ThemeToggle from "./ThemeToggle";
 
 function SidebarContent({ children }) {
   const [showSidebar, setShowSidebar] = useState(false);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
-  const session = searchParams.get("session");
-  // Hide toggle if on dashboard OR if session param exists
-  const isSessionPage = pathname?.includes("/dashboard") || !!session;
+  // [Reason] Auth now uses a session cookie, not a `?session=` param. Show the
+  // burger toggle on the worker (/stt) and dashboard pages instead.
+  const isSessionPage =
+    pathname?.includes("/dashboard") || pathname?.includes("/stt");
 
   return (
     <>

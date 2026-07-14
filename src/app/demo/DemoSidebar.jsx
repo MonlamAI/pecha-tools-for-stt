@@ -51,7 +51,8 @@ const DemoSidebar = ({
                 </svg>
               </label>
             </div>
-            <div className="flex-1 px-2 mx-2">Pecha STT Tool</div>
+            {/* [Reason] Product branding updated from Pecha → Monlam Tools */}
+            <div className="flex-1 px-2 mx-2">Monlam Tools</div>
           </div>
           {children}
         </div>

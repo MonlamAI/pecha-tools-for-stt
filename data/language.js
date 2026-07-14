@@ -1,6 +1,7 @@
   let languagesObject = {
     en: {
-      title: "Pecha STT Tool",
+      // [Reason] Product branding updated from Pecha → Monlam Tools
+      title: "Monlam Tools",
       project: "Project Info",
       user: "User",
       group: "Group",

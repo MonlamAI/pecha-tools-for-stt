@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
 import { buildDateFilter } from "@/lib/reportDateRange";
 import { getCache, setCache } from "@/lib/cache";
+// [Reason] Admin authorization source for CSV task import.
+import { getSessionUser } from "@/lib/auth/requireUser";
 
 /* --------------------- TASK FETCHERS --------------------- */
 
@@ -40,6 +42,9 @@ export const getTotalTaskCount = async () => {
 /* --------------------- TASK CREATION --------------------- */
 
 export async function createTasksFromCSV(formData) {
+  // [Reason] Admin-only: only FINAL_REVIEWER may bulk-import tasks.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { count: 0, error: "Forbidden" };
   let tasksToCreate = [];
   try {
     const groupId = parseInt(formData.get("group_id"));

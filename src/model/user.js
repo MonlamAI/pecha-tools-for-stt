@@ -11,6 +11,8 @@ import {
   getUserSubmittedAndReviewedSecs,
 } from "./task";
 import { buildDateFilter } from "@/lib/reportDateRange";
+// [Reason] Admin authorization source for user-management mutations.
+import { getSessionUser } from "@/lib/auth/requireUser";
 
 const levenshtein = require("fast-levenshtein");
 
@@ -41,6 +43,9 @@ export const getAllUser = async () => {
 
 // Create new user
 export const createUser = async (_prevState, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may create users.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   let name = formData.get("name")?.trim();
   const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
@@ -85,6 +90,9 @@ export const createUser = async (_prevState, formData) => {
 
 // Delete user
 export const deleteUser = async (id) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may delete users.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   try {
     const taskCount = await prisma.task.count({
       where: {
@@ -121,6 +129,9 @@ export const deleteUserByForm = async (_prevState, formData) => {
 
 // Edit user
 export const editUser = async (id, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may edit users.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const name = formData.get("name")?.trim();
   const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");

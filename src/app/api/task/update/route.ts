@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import { updateTask, getTasks } from "@/service/task-service";
+import { requireApiUser } from "@/lib/auth/requireUser";
 // import { getTranscribingCount } from "@/service/group-service";
 // import { sendDiscordAlert } from "@/lib/webhookutils";
 // import { TASK_ASSIGN } from "@/constants/config";
 
 export async function POST(request: Request) {
   try {
-    const { action, id, transcript, task, role, currentTime } = await request.json();
+    // [Reason] The acting role is taken from the authenticated session, not the
+    // request body, so a user cannot escalate by spoofing `role`.
+    const auth = await requireApiUser();
+    if ("response" in auth) return auth.response;
+    const role = auth.user.role;
 
-    if (!action || !id || !task || !role) {
+    const { action, id, transcript, task, currentTime } = await request.json();
+
+    if (!action || !id || !task) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 

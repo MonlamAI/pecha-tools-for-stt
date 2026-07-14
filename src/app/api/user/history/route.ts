@@ -1,18 +1,19 @@
+export const runtime = "nodejs";
+
+// [Reason] Identity derives from the authenticated session, not client query
+// params. History query logic (getUserHistory) is unchanged.
 import { NextResponse } from "next/server";
 import { getUserHistory } from "@/service/user-service";
+import { requireApiUser } from "@/lib/auth/requireUser";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = Number(searchParams.get("userId"));
-    const groupId = Number(searchParams.get("groupId"));
-    const role = searchParams.get("role") as any;
+    const auth = await requireApiUser();
+    if ("response" in auth) return auth.response;
+    const { id: userId, group_id: groupId, role } = auth.user;
 
-    if (!userId || !groupId || !role) {
-      return NextResponse.json(
-        { error: "Missing userId, groupId or role" },
-        { status: 400 }
-      );
+    if (!groupId) {
+      return NextResponse.json({ error: "No group assigned" }, { status: 400 });
     }
 
     const result = await getUserHistory({ userId, groupId, role });
@@ -24,5 +25,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
-
