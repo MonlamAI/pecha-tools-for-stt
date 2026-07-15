@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useMemo, useState, useRef } from "react";
+// [Reason] Import useCallback since handleLoadDepartmentTotals is now memoized with it; missing import caused a "useCallback is not defined" ReferenceError.
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQueryState, parseAsString, parseAsBoolean } from "nuqs";
 
