@@ -150,16 +150,23 @@ const AudioTranscript = ({
       }
 
       toast.success(result?.msg?.success || "Success");
-      await setUserProgress();
 
-      try {
-        const latestHistory = await fetchUserHistoryApi({
-          userId,
-          groupId,
-          role,
-        });
-        setHistoryList(latestHistory);
-      } catch { }
+      // [Reason] progress and history are independent of each other and both only
+      // depend on the completed update, so run them concurrently to cut post-submit
+      // waiting (previously awaited sequentially). Each keeps its own error handling.
+      await Promise.all([
+        setUserProgress(),
+        (async () => {
+          try {
+            const latestHistory = await fetchUserHistoryApi({
+              userId,
+              groupId,
+              role,
+            });
+            setHistoryList(latestHistory);
+          } catch { }
+        })(),
+      ]);
 
       handleTaskListUpdate(action, task.id);
     } catch {
