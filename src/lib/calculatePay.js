@@ -6,9 +6,9 @@ export const calculatePay = (
   reviewedCount, // this is Task Reviewed (from table)
   transcriberSyllableCount
 ) => {
-  const stt_ab_groups = [1, 2, 5, 24, 26, 31]; // audio groups
-  // const stt_ab_groups = [1, 2, 7, 24, 26, 31];
-  const stt_cs_groups = [3, 4, 6]; // mv groups
+  const stt_ab_groups = [1, 5, 24, 26, 31]; // audio groups
+  // const stt_ab_groups = [1, 7, 24, 26, 31];
+  const stt_cs_groups = [2, 3, 4, 6]; // mv groups
   const stt_tt_groups = [11]; // tibetan-teaching groups
   const stt_gr_groups = [32, 33];
   groupID = Number(groupID);
