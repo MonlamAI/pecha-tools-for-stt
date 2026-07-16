@@ -1,7 +1,10 @@
 import { headers } from "next/headers";
 import { resolveClientIpFromHeaders } from "../resolve-client-ip";
 import { logAccess, type AccessLogPayload } from "./access-logger";
-import { resolveSessionIdentity } from "./resolve-session-identity";
+import {
+  resolveAuthLogIdentity,
+  runWithLoggingContext,
+} from "./resolve-auth-identity";
 
 const MAX_QUERY_PARAM_VALUE_LENGTH = 256;
 const TRUNCATION_SUFFIX = "...[truncated]";
@@ -52,6 +55,9 @@ function getEnvironment(): string | undefined {
 
 export type LogPageAccessInput = {
   path: string;
+  /**
+   * @deprecated Ignored. Identity is resolved from the authenticated session cookie.
+   */
   sessionEmail?: string | null;
   statusCode?: number;
   durationMs: number;
@@ -63,26 +69,31 @@ export type LogPageAccessInput = {
 export async function logPageAccess(input: LogPageAccessInput): Promise<void> {
   try {
     const headersList = headers();
-    const sessionIdentity = await resolveSessionIdentity(input.sessionEmail);
+    // [Reason] Page access identity comes only from the verified auth session, not ?session=
+    // [Reason] Bind ALS + requestId registry so later page/service logs inherit the user
+    const identity = await resolveAuthLogIdentity();
 
-    const payload: AccessLogPayload = {
-      method: "GET",
-      path: input.path,
-      statusCode: input.errorMessage ? 500 : (input.statusCode ?? 200),
-      durationMs: input.durationMs,
-      email: sessionIdentity.email,
-      emailSource: sessionIdentity.emailSource,
-      userId: sessionIdentity.userId,
-      userIdSource: sessionIdentity.userIdSource,
-      identityVerified: false,
-      queryParams: buildQueryParamsFromSearchParams(input.searchParams),
-      userAgent: sanitizeUserAgent(headersList.get("user-agent")),
-      ip: resolveClientIpFromHeaders(headersList),
-      environment: getEnvironment(),
-      ...(input.errorMessage ? { error: input.errorMessage } : {}),
-    };
+    runWithLoggingContext(identity, undefined, () => {
+      const payload: AccessLogPayload = {
+        method: "GET",
+        path: input.path,
+        statusCode: input.errorMessage ? 500 : (input.statusCode ?? 200),
+        durationMs: input.durationMs,
+        email: identity.email,
+        emailSource: identity.emailSource,
+        userId: identity.userId,
+        userIdSource: identity.userIdSource,
+        identityVerified: identity.identityVerified,
+        queryParams: buildQueryParamsFromSearchParams(input.searchParams),
+        userAgent: sanitizeUserAgent(headersList.get("user-agent")),
+        ip: resolveClientIpFromHeaders(headersList),
+        environment: getEnvironment(),
+        ...(input.errorMessage ? { error: input.errorMessage } : {}),
+      };
 
-    logAccess(payload);
+      logAccess(payload);
+    });
+    // [Reason] Registry entry remains keyed by requestId after ALS exits for the rest of the render
   } catch {
     // Never fail page render when access logging fails
   }

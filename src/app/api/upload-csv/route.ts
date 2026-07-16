@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
 import { parse } from "papaparse";
 import prisma from "@/service/db";
 import { Prisma } from "@prisma/client";
 import { requireFinalReviewerApi } from "@/lib/auth/requireUser";
 import { withAccessLog } from "@/lib/logger/with-access-log";
 
-export const POST = withAccessLog(async (req: NextRequest) => {
+// [Reason] Use Request (not NextRequest) so the handler matches withAccessLog's typed signature
+export const POST = withAccessLog(async (req: Request) => {
   // [Reason] CSV import is admin-only (FINAL_REVIEWER).
   const auth = await requireFinalReviewerApi();
   if ("response" in auth) return auth.response;

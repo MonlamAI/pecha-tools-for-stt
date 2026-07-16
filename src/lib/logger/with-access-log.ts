@@ -1,7 +1,11 @@
-import { logAccess, type AccessLogPayload, type UserIdSource } from "./access-logger";
+import { logAccess, type AccessLogPayload } from "./access-logger";
 import { logError } from "./error-logger";
 import { resolveClientIp } from "../resolve-client-ip";
-import { getSessionParamFromRequest, resolveSessionIdentity } from "./resolve-session-identity";
+import {
+  resolveAuthLogIdentity,
+  runWithLoggingContext,
+  type AuthLogIdentity,
+} from "./resolve-auth-identity";
 
 type RouteContext = {
   params: Record<string, string | string[]>;
@@ -12,17 +16,9 @@ type WrappedRouteHandler = (
   context?: RouteContext
 ) => Promise<Response | undefined> | Response | undefined;
 
-type ApiUserIdentity = {
-  userId: number | null;
-  userIdSource: UserIdSource;
-};
-
-type AccessIdentity = {
-  userId: number | null;
-  userIdSource: UserIdSource;
-  email: string | null;
-  emailSource: AccessLogPayload["emailSource"];
-  identityVerified: false;
+export type WithAccessLogOptions = {
+  // [Reason] Label S2S/webhook callers when no authenticated user session is present
+  service?: string;
 };
 
 const MAX_QUERY_PARAM_VALUE_LENGTH = 256;
@@ -89,79 +85,6 @@ function resolveRoutePattern(
   return route === pathname ? undefined : route;
 }
 
-function parsePositiveUserId(value: unknown): number | null {
-  if (value == null) {
-    return null;
-  }
-  const parsed = Number(value);
-  if (Number.isFinite(parsed) && parsed > 0) {
-    return parsed;
-  }
-  return null;
-}
-
-// [Reason] Preserve existing API identity sources before session email lookup
-async function resolveApiUserIdentity(request: Request): Promise<ApiUserIdentity> {
-  const unresolved: ApiUserIdentity = { userId: null, userIdSource: null };
-
-  try {
-    const url = new URL(request.url);
-
-    const fromQuery = parsePositiveUserId(url.searchParams.get("userId"));
-    if (fromQuery != null) {
-      return { userId: fromQuery, userIdSource: "query_param" };
-    }
-
-    const fromHeader = parsePositiveUserId(request.headers.get("x-user-id"));
-    if (fromHeader != null) {
-      return { userId: fromHeader, userIdSource: "header" };
-    }
-
-    const fromSessionHeader = parsePositiveUserId(request.headers.get("x-session-user-id"));
-    if (fromSessionHeader != null) {
-      return { userId: fromSessionHeader, userIdSource: "session" };
-    }
-
-    const method = request.method.toUpperCase();
-    if (method === "GET" || method === "HEAD") {
-      return unresolved;
-    }
-
-    const contentType = request.headers.get("content-type") ?? "";
-    if (!contentType.includes("application/json")) {
-      return unresolved;
-    }
-
-    const cloned = request.clone();
-    const body = (await cloned.json()) as Record<string, unknown>;
-    for (const key of ["userId", "id"]) {
-      const parsed = parsePositiveUserId(body[key]);
-      if (parsed != null) {
-        return { userId: parsed, userIdSource: "request_body" };
-      }
-    }
-  } catch {
-    // Never fail the request when userId cannot be resolved
-  }
-
-  return unresolved;
-}
-
-// [Reason] Merge API userId sources with optional ?session= email DB lookup for access logs
-async function resolveAccessIdentity(request: Request): Promise<AccessIdentity> {
-  const apiIdentity = await resolveApiUserIdentity(request);
-  const sessionParam = getSessionParamFromRequest(request);
-  const sessionIdentity = await resolveSessionIdentity(sessionParam);
-
-  return {
-    userId: apiIdentity.userId ?? sessionIdentity.userId,
-    userIdSource: apiIdentity.userIdSource ?? sessionIdentity.userIdSource,
-    email: sessionIdentity.email,
-    emailSource: sessionIdentity.emailSource,
-    identityVerified: false,
-  };
-}
-
 function getEnvironment(): string | undefined {
   const env = process.env.NODE_ENV;
   if (env === "development" || env === "production" || env === "test") {
@@ -177,7 +100,7 @@ function getResponseStatusCode(response: Response | undefined): number {
 function buildAccessLogPayload(input: {
   request: Request;
   context?: RouteContext;
-  identity: AccessIdentity;
+  identity: AuthLogIdentity;
   response?: Response;
   durationMs: number;
   errorMessage?: string;
@@ -190,6 +113,7 @@ function buildAccessLogPayload(input: {
     email: input.identity.email,
     emailSource: input.identity.emailSource,
     identityVerified: input.identity.identityVerified,
+    service: input.identity.service ?? null,
     method: input.request.method,
     path,
     route: resolveRoutePattern(path, input.context?.params),
@@ -203,48 +127,51 @@ function buildAccessLogPayload(input: {
   };
 }
 
-// [Reason] Wrap App Router handlers to emit structured access logs without changing route logic
+// [Reason] Wrap App Router handlers to emit structured access logs and bind ALS for nested loggers
 export function withAccessLog(
-  handler: (...args: [Request, RouteContext?]) => Promise<Response | undefined> | Response | undefined
+  handler: (...args: [Request, RouteContext?]) => Promise<Response | undefined> | Response | undefined,
+  options: WithAccessLogOptions = {}
 ): WrappedRouteHandler {
   return async (request: Request, context?: RouteContext) => {
     const startedAt = performance.now();
-    const identity = await resolveAccessIdentity(request);
+    const path = new URL(request.url).pathname;
+    // [Reason] Resolve user from verified session; fall back to service label for S2S routes
+    const identity = await resolveAuthLogIdentity(request, {
+      service: options.service,
+      path,
+      // [Reason] Invalid/expired cookies on gated routes are audited by middleware via /api/internal/auth-audit
+      auditInvalidSession: false,
+    });
 
-    try {
-      const response = await handler(request, context);
-      const payload = buildAccessLogPayload({
-        request,
-        context,
-        identity,
-        response,
-        durationMs: Math.round(performance.now() - startedAt),
-      });
-      logAccess(payload);
-      return response;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const payload = buildAccessLogPayload({
-        request,
-        context,
-        identity,
-        durationMs: Math.round(performance.now() - startedAt),
-        errorMessage,
-      });
-      logAccess(payload);
-      // [Reason] Removed temporary debug instrumentation after confirming fix
-      // [Reason] Ensure unhandled route exceptions are also written to the error log without changing responses
-      logError(error, {
-        method: request.method,
-        path: new URL(request.url).pathname,
-        route: resolveRoutePattern(new URL(request.url).pathname, context?.params),
-        userId: identity.userId,
-        userIdSource: identity.userIdSource,
-        email: identity.email,
-        emailSource: identity.emailSource,
-      });
-      // [Reason] Rethrow so Next.js error handling remains unchanged after access log is written
-      throw error;
-    }
+    return runWithLoggingContext(identity, request, async () => {
+      try {
+        const response = await handler(request, context);
+        const payload = buildAccessLogPayload({
+          request,
+          context,
+          identity,
+          response,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+        logAccess(payload);
+        return response;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const payload = buildAccessLogPayload({
+          request,
+          context,
+          identity,
+          durationMs: Math.round(performance.now() - startedAt),
+          errorMessage,
+        });
+        logAccess(payload);
+        logError(error, {
+          method: request.method,
+          path,
+          route: resolveRoutePattern(path, context?.params),
+        });
+        throw error;
+      }
+    });
   };
 }

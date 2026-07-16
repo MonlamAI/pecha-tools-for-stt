@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { Writable } from "stream";
 import pino, { type Logger, type LoggerOptions } from "pino";
-import { resolveRequestId } from "../resolve-request-id";
+import { resolveLoggingBindings } from "../resolve-logging-bindings";
 
 // [Reason] Centralize log output under logs/nextjs for rotation and ops tooling
 export const LOG_DIR = path.join(process.cwd(), "logs", "nextjs");
@@ -298,10 +298,9 @@ export function createLogger(options: CreateLoggerOptions): Logger {
       level,
       // [Reason] Omit default pid/hostname bindings from access, app, and error log lines
       base: undefined,
-      // [Reason] Attach requestId from ALS or middleware-forwarded headers without changing caller APIs
+      // [Reason] Auto-attach requestId + auth/service identity from ALS/registry on every log line
       mixin() {
-        const requestId = resolveRequestId();
-        return requestId ? { requestId } : {};
+        return resolveLoggingBindings();
       },
       ...extra,
     },

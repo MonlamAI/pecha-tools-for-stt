@@ -16,10 +16,9 @@ export default async function Home() {
   if (!user) redirect("/login");
   const admin = isFinalReviewer(user);
 
-  // [Reason] Log page-load access with session email identity without changing page behavior
+  // [Reason] Log page-load access; identity is resolved from the verified auth session
   await logPageAccess({
     path: "/",
-    sessionEmail: user.email,
     statusCode: 200,
     durationMs: Math.round(performance.now() - startedAt),
   });

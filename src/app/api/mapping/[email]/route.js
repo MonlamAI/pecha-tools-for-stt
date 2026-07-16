@@ -6,6 +6,7 @@ import { withAccessLog } from "@/lib/logger/with-access-log";
 
 import { mapping } from "@/../../data/mapping";
 
+// [Reason] External mapping lookup is S2S — emit service identity with identityVerified: false
 export const GET = withAccessLog(async (request, { params }) => {
   if (mapping.has(params.email)) {
     return NextResponse.json(mapping.get(params.email));
@@ -34,4 +35,4 @@ export const GET = withAccessLog(async (request, { params }) => {
 
     return NextResponse.json(user);
   }
-});
+}, { service: "mapping" });

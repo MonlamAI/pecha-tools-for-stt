@@ -27,6 +27,8 @@ const PUBLIC_PATHS = [
   "/api/auth/session",
   // [Reason] Google OAuth login initiator must be reachable before a session exists.
   "/api/auth/google/login",
+  // [Reason] Edge middleware posts invalid-session audits here (Node Pino logger).
+  "/api/internal/auth-audit",
 ];
 
 // Integration endpoints that authenticate via their own mechanism (API key /
@@ -40,6 +42,33 @@ const INTEGRATION_API_PREFIXES = [
 function isBypassed(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   return INTEGRATION_API_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
+// [Reason] Edge cannot write Pino files; fire-and-forget audit to the Node logger route
+function auditInvalidSession(req: NextRequest, requestId: string, pathname: string): void {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 16) {
+    return;
+  }
+
+  const auditUrl = new URL("/api/internal/auth-audit", req.nextUrl.origin);
+  void fetch(auditUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${secret}`,
+      [REQUEST_ID_HEADER]: requestId,
+    },
+    // [Reason] Never forward cookies/tokens — only audit metadata
+    body: JSON.stringify({
+      event: "invalid_session",
+      reason: "expired_or_invalid_cookie",
+      path: pathname,
+      method: req.method,
+    }),
+  }).catch(() => {
+    // Best-effort audit must never affect auth gating
+  });
 }
 
 export async function middleware(req: NextRequest) {
@@ -68,6 +97,11 @@ export async function middleware(req: NextRequest) {
     return withRequestId(
       NextResponse.next({ request: { headers: requestHeaders } })
     );
+  }
+
+  // [Reason] Cookie was sent but failed verification → expired/tampered session for audit trail
+  if (token) {
+    auditInvalidSession(req, requestId, pathname);
   }
 
   // Unauthenticated: APIs get 401 JSON; pages redirect to login with returnTo.
