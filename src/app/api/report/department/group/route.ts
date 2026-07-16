@@ -5,6 +5,8 @@ import { getReportDateRange } from "@/lib/reportDateRange";
 import { getCache, setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
+// [Fix] Force dynamic rendering since this route reads request.url/searchParams and must not be statically optimized
+export const dynamic = "force-dynamic";
 
 /* ---------------- helpers ---------------- */
 

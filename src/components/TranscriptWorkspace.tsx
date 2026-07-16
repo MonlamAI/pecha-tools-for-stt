@@ -44,7 +44,11 @@ const TranscriptWorkspace = ({
   // [Reason] Reinitialize transcript only when the active task identity or role
   // changes. Keying on task.id (not the taskList reference) prevents resets during
   // Save and during typing, matching the previous behavior exactly. The role-specific
-  // fallback logic is preserved verbatim (no getInitialTranscript()).
+  // fallback logic is preserved verbatim (no getInitialTranscript()). Intentionally
+  // NOT depending on the full `task` object: React/parent state can recreate a new
+  // task object with the same id (e.g. after Save), and depending on `task` would
+  // reset this effect and wipe unsaved edits. task?.id is the correct, minimal
+  // dependency for "active task changed".
   useEffect(() => {
     if (!task) return;
     switch (role) {
@@ -58,6 +62,7 @@ const TranscriptWorkspace = ({
         setTranscript(task?.reviewed_transcript);
         break;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id, role]);
 
   const handleFontSizeChange = (index: number) => {

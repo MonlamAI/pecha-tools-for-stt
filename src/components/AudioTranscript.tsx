@@ -1,5 +1,7 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+// [Reason] useCallback needed to give setUserProgress a stable identity so it
+// can be safely added to the useEffect dependency array below.
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { AudioPlayer } from "./AudioPlayer";
 // [Reason] Transcript editor state moved into TranscriptWorkspace to isolate
 // keystroke re-renders from AudioTranscript's siblings (Sidebar/AudioPlayer/header).
@@ -75,9 +77,25 @@ const AudioTranscript = ({
   const { id: userId, group_id: groupId, role } = userDetail as any;
   const currentTimeRef: any = useRef(null);
 
+  // [Reason] Wrapped in useCallback so this function has a stable identity
+  // across renders (deps are only the primitives it actually captures). This
+  // lets the useEffect below safely list it as a dependency without causing
+  // the effect to re-run on every render.
+  const setUserProgress = useCallback(async () => {
+    try {
+      const data = await fetchUserProgress({ userId, role, groupId });
+      setUserTaskStats(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [userId, role, groupId]);
+
   // [Reason] Transcript initialization moved into TranscriptWorkspace (keyed on
   // task.id + role). This effect keeps only the progress/timer/loading behavior it
-  // previously had, unchanged.
+  // previously had, unchanged. setUserProgress is now stable (useCallback), so
+  // adding it here satisfies exhaustive-deps without changing when the effect runs:
+  // it still only re-executes on mount, on taskList changes, or if user identity
+  // (userId/role/groupId) changes.
   useEffect(() => {
     setUserProgress();
     currentTimeRef.current = new Date().toISOString();
@@ -87,16 +105,7 @@ const AudioTranscript = ({
     } else {
       setIsLoading(false);
     }
-  }, [taskList]);
-
-  const setUserProgress = async () => {
-    try {
-      const data = await fetchUserProgress({ userId, role, groupId });
-      setUserTaskStats(data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  }, [taskList, setUserProgress]);
 
   const updateTaskAndIndex = async ({ action, transcript, task }: any) => {
     try {
