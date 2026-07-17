@@ -1,17 +1,28 @@
 "use client";
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import BurgerIcon from "./BurgerIcon";
 import ThemeToggle from "./ThemeToggle";
 
 function SidebarContent({ children }) {
   const [showSidebar, setShowSidebar] = useState(false);
+  // [Reason] Option A: mount heavy sidebar children (Google Sheets iframe) only after
+  // the first open, then keep them mounted so reopen does not reload Sheets.
+  const [hasOpenedOnce, setHasOpenedOnce] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const session = searchParams.get("session");
   // Hide toggle if on dashboard OR if session param exists
   const isSessionPage = pathname?.includes("/dashboard") || !!session;
+
+  // [Reason] Latch open-once without nesting setState inside the toggle updater.
+  // Guard with !hasOpenedOnce so reopening the sidebar does not call setState again.
+  useEffect(() => {
+    if (showSidebar && !hasOpenedOnce) {
+      setHasOpenedOnce(true);
+    }
+  }, [showSidebar, hasOpenedOnce]);
 
   return (
     <>
@@ -39,7 +50,9 @@ function SidebarContent({ children }) {
         className={`top-0 right-0 w-[90vw] md:w-[50vw] bg-[#54606e] md:p-5 p-1 text-white fixed h-full z-40  ease-in-out duration-300 ${showSidebar ? "translate-x-0 " : "translate-x-full"
           }`}
       >
-        <div className="h-full flex flex-col space-y-2">{children}</div>
+        <div className="h-full flex flex-col space-y-2">
+          {hasOpenedOnce ? children : null}
+        </div>
       </div>
     </>
   );
