@@ -62,8 +62,9 @@ export async function POST(req: NextRequest) {
     const tasks: Prisma.TaskCreateManyInput[] = parsedResult.data
       .map((row) => ({
         group_id: groupId,
+        // [Reason] Match Task.inference_transcript VarChar(2500) column limit
         inference_transcript: row.inference_transcript
-          ? row.inference_transcript.slice(0, 500)
+          ? row.inference_transcript.slice(0, 2500)
           : null,
         file_name: row.file_name?.slice(0, 255) || "",
         url: row.url || "",

@@ -45,10 +45,11 @@ model Task {
   group_id               Int
   group                  Group     @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   state                  State     @default(transcribing)
-  inference_transcript   String?   @db.VarChar(500)
-  transcript             String?   @db.VarChar(500)
-  reviewed_transcript    String?   @db.VarChar(500)
-  final_transcript       String?   @db.VarChar(500)
+  // [Reason] Raise limit so longer STT transcripts can be saved on submit
+  inference_transcript   String?   @db.VarChar(2500)
+  transcript             String?   @db.VarChar(2500)
+  reviewed_transcript    String?   @db.VarChar(2500)
+  final_transcript       String?   @db.VarChar(2500)
   file_name              String    @unique @db.VarChar(255)
   url                    String    @unique @db.Text
   transcriber_id         Int?
