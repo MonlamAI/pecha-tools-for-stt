@@ -56,10 +56,9 @@ export async function GET(req: NextRequest) {
   const identity = await verifyGoogleIdToken(tokens.id_token);
   if (!identity) return failToLogin("invalid_token");
 
-  // [Reason] Provision/lookup via the EXISTING STT logic (default role
-  // TRANSCRIBER, group_id 0). STT DB remains the source of truth.
+  // [Reason] Lookup only — email must already exist in the User table.
   const user = await getOrCreateUser({ username: identity.email });
-  if (!user || "error" in user) return failToLogin("user_provisioning_failed");
+  if (!user || "error" in user) return failToLogin("not_allowed");
 
   const token = await createSessionToken({ userId: user.id, email: user.email });
 

@@ -25,12 +25,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  // [Reason] Provision/lookup via the EXISTING STT logic (default role
-  // TRANSCRIBER, group_id 0). STT DB remains the source of truth.
+  // [Reason] Lookup only — email must already exist in the User table.
   const user = await getOrCreateUser({ username: identity.email });
   if (!user || "error" in user) {
     return NextResponse.json(
-      { error: (user as any)?.error || "Unable to load user" },
+      { error: (user as any)?.error || "User is not allowed to log in." },
       { status: 403 }
     );
   }

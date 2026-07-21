@@ -68,11 +68,10 @@ export async function fetchUserDataBySession(session: string): Promise<FetchUser
 }
 
 export async function getOrCreateUser({ username }: { username: string }): Promise<UserRecord | { error: string }> {
-  // only allow from certain domain? uncomment below
+  // [Reason] Only pre-registered emails in the User table may log in; do not auto-create.
   if (!username) return { error: "Email not found. Please try again." };
-  // if (!username.endsWith("@yourdomain.com")) return { error: "Unauthorized user" };
 
-  let user = await prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { email: username },
     select: {
       id: true,
@@ -88,22 +87,9 @@ export async function getOrCreateUser({ username }: { username: string }): Promi
     },
   });
 
+  // [Reason] Reject Google/SSO identities that were never added by an admin.
   if (!user) {
-    user = await prisma.user.create({
-      data: { name: username.split("@")[0], email: username, group_id: 0, role: "TRANSCRIBER" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        group_id: true,
-        role: true,
-        group: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
+    return { error: "User is not allowed to log in." };
   }
   return user;
 }
