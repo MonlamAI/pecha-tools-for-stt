@@ -7,6 +7,8 @@ import { requireFinalReviewerApi } from "@/lib/auth/requireUser";
 import { withAccessLog } from "@/lib/logger/with-access-log";
 
 export const runtime = "nodejs";
+// [Fix] Force dynamic rendering since this route reads request.url/searchParams and must not be statically optimized
+export const dynamic = "force-dynamic";
 
 /* ---------------- helpers ---------------- */
 
