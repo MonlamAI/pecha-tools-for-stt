@@ -6,6 +6,7 @@ import prisma from "@/service/db";
 import { readFile } from "fs/promises";
 import path from "path";
 import type { Role } from "@prisma/client";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
 const ISSUER = process.env.SSO_ISSUER!;
 const AUD = process.env.SSO_AUDIENCE!;
@@ -22,7 +23,8 @@ async function getPortalPublicKey(): Promise<string> {
 
 const ALLOWED_ROLES: Role[] = ["TRANSCRIBER", "REVIEWER", "FINAL_REVIEWER"];
 
-export async function POST(req: Request) {
+// [Reason] Portal SSO is service-authenticated via signed JWT — not a browser session cookie
+export const POST = withAccessLog(async (req: Request) => {
   const form = await req.formData();
   const token = String(form.get("token") || "");
   if (!token) return new NextResponse("Missing token", { status: 400 });
@@ -58,4 +60,4 @@ export async function POST(req: Request) {
   const host = req.headers.get("x-forwarded-host") || new URL(req.url).host;
   const redirectUrl = `${proto}://${host}/?session=${encodeURIComponent(username)}`;
   return NextResponse.redirect(redirectUrl, 302);
-}
+}, { service: "sso_receiver" });

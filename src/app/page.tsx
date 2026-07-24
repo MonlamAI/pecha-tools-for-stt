@@ -5,14 +5,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser, isFinalReviewer } from "@/lib/auth/requireUser";
 import { TOOLS } from "@/data/tools";
+import { logPageAccess } from "@/lib/logger/log-page-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const startedAt = performance.now();
   // Middleware already enforces auth; this is defense-in-depth + gives us the user.
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const admin = isFinalReviewer(user);
+
+  // [Reason] Log page-load access; identity is resolved from the verified auth session
+  await logPageAccess({
+    path: "/",
+    statusCode: 200,
+    durationMs: Math.round(performance.now() - startedAt),
+  });
 
   // [Reason] Build the tile list: the shared worker tools plus an admin-only
   // "Admin" entry. Non-admins never see the Admin tile.
