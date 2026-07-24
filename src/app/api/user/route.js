@@ -3,8 +3,9 @@ export const runtime = "nodejs";
 import prisma from "@/service/db";
 import { NextResponse } from "next/server";
 import { requireFinalReviewerApi } from "@/lib/auth/requireUser";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
-export async function GET() {
+export const GET = withAccessLog(async () => {
   // [Reason] Listing all users is admin-only (FINAL_REVIEWER).
   const auth = await requireFinalReviewerApi();
   if ("response" in auth) return auth.response;
@@ -15,9 +16,9 @@ export async function GET() {
   } catch (error) {
     console.error("Error creating post:", error);
   }
-}
+});
 
-export async function PUT(request) {
+export const PUT = withAccessLog(async (request) => {
   // [Reason] Updating a user is admin-only (FINAL_REVIEWER).
   const auth = await requireFinalReviewerApi();
   if ("response" in auth) return auth.response;
@@ -88,4 +89,4 @@ export async function PUT(request) {
       { status: 500 }
     );
   }
-}
+});

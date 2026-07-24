@@ -1,7 +1,11 @@
 "use client";
+// [Reason] useCallback needed to give setUserProgress a stable identity so it
+// can be safely added to the useEffect dependency array below.
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { AudioPlayer } from "./AudioPlayer";
-import ActionButtons from "./ActionButtons";
+// [Reason] Transcript editor state moved into TranscriptWorkspace to isolate
+// keystroke re-renders from AudioTranscript's siblings (Sidebar/AudioPlayer/header).
+import TranscriptWorkspace from "./TranscriptWorkspace";
 import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
 import AppContext from "./AppContext";
@@ -50,14 +54,6 @@ async function fetchUserHistoryApi({ userId, groupId, role }: any) {
   return res.json();
 }
 
-const fontSizes = [
-  { label: "A-", class: "text-lg", leading: "leading-[2.1rem]" },
-  { label: "A", class: "text-xl", leading: "leading-[2.4rem]" },
-  { label: "A+", class: "text-2xl", leading: "leading-[2.8rem]" },
-  { label: "A++", class: "text-3xl", leading: "leading-[3.3rem]" },
-  { label: "A+++", class: "text-4xl", leading: "leading-[3.9rem]" },
-];
-
 const AudioTranscript = ({
   tasks,
   userDetail,
@@ -67,7 +63,8 @@ const AudioTranscript = ({
   const [languageSelected, setLanguageSelected] = useState("bo");
   const lang = language[languageSelected];
   const [taskList, setTaskList] = useState<any>(tasks);
-  const [transcript, setTranscript] = useState("");
+  // [Reason] transcript + font-size state now live in TranscriptWorkspace so that
+  // typing does not re-render this component or its non-editor children.
   const [historyList, setHistoryList] = useState<Task[]>(userHistory || []);
   const [userTaskStats, setUserTaskStats] = useState({
     completedTaskCount: 0,
@@ -80,24 +77,10 @@ const AudioTranscript = ({
   const { id: userId, group_id: groupId, role } = userDetail as any;
   const currentTimeRef: any = useRef(null);
 
-  const [fontSizeIndex, setFontSizeIndex] = useState(2); // default to text-2xl
-
-  useEffect(() => {
-    const savedIndex = localStorage.getItem("pecha_stt_font_size_index");
-    if (savedIndex !== null) {
-      const parsed = parseInt(savedIndex, 10);
-      if (parsed >= 0 && parsed < fontSizes.length) {
-        setFontSizeIndex(parsed);
-      }
-    }
-  }, []);
-
-  const handleFontSizeChange = (index: number) => {
-    setFontSizeIndex(index);
-    localStorage.setItem("pecha_stt_font_size_index", String(index));
-  };
-
-  // [Reason] Memoize so it can be a stable dependency of the effect (and reused by updateTaskAndIndex) without changing behavior.
+  // [Reason] Wrapped in useCallback so this function has a stable identity
+  // across renders (deps are only the primitives it actually captures). This
+  // lets the useEffect below safely list it as a dependency without causing
+  // the effect to re-run on every render.
   const setUserProgress = useCallback(async () => {
     try {
       const data = await fetchUserProgress({ userId, role, groupId });
@@ -107,32 +90,22 @@ const AudioTranscript = ({
     }
   }, [userId, role, groupId]);
 
+  // [Reason] Transcript initialization moved into TranscriptWorkspace (keyed on
+  // task.id + role). This effect keeps only the progress/timer/loading behavior it
+  // previously had, unchanged. setUserProgress is now stable (useCallback), so
+  // adding it here satisfies exhaustive-deps without changing when the effect runs:
+  // it still only re-executes on mount, on taskList changes, or if user identity
+  // (userId/role/groupId) changes.
   useEffect(() => {
     setUserProgress();
     currentTimeRef.current = new Date().toISOString();
 
     if (taskList?.length) {
       setIsLoading(false);
-      switch (role) {
-        case "TRANSCRIBER":
-          setTranscript(
-            taskList[0]?.transcript || taskList[0]?.inference_transcript
-          );
-          break;
-        case "REVIEWER":
-          setTranscript(
-            taskList[0]?.reviewed_transcript || taskList[0]?.transcript
-          );
-          break;
-        case "FINAL_REVIEWER":
-          setTranscript(taskList[0]?.reviewed_transcript);
-          break;
-      }
     } else {
       setIsLoading(false);
     }
-    // [Reason] Include `role` and the memoized `setUserProgress` so the effect uses current values without a stale closure.
-  }, [taskList, role, setUserProgress]);
+  }, [taskList, setUserProgress]);
 
   const updateTaskAndIndex = async ({ action, transcript, task }: any) => {
     try {
@@ -152,16 +125,23 @@ const AudioTranscript = ({
       }
 
       toast.success(result?.msg?.success || "Success");
-      await setUserProgress();
 
-      try {
-        const latestHistory = await fetchUserHistoryApi({
-          userId,
-          groupId,
-          role,
-        });
-        setHistoryList(latestHistory);
-      } catch { }
+      // [Reason] progress and history are independent of each other and both only
+      // depend on the completed update, so run them concurrently to cut post-submit
+      // waiting (previously awaited sequentially). Each keeps its own error handling.
+      await Promise.all([
+        setUserProgress(),
+        (async () => {
+          try {
+            const latestHistory = await fetchUserHistoryApi({
+              userId,
+              groupId,
+              role,
+            });
+            setHistoryList(latestHistory);
+          } catch { }
+        })(),
+      ]);
 
       handleTaskListUpdate(action, task.id);
     } catch {
@@ -252,69 +232,14 @@ const AudioTranscript = ({
                 </div>
               </div>
 
-              {/* TRANSCRIPT CARD */}
-              <div className="relative rounded-xl bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-lg p-2">
-
-                <textarea
-                  value={transcript}
-                  onChange={(e) => setTranscript(e.target.value)}
-                  rows={5}
-                  className={`
-                    w-full resize-none rounded-xl
-                    bg-white dark:bg-neutral-800   
-                    border border-neutral-300 dark:border-neutral-700
-                    p-6 md:p-9
-                    ${fontSizes[fontSizeIndex].class} ${fontSizes[fontSizeIndex].leading}
-                    text-neutral-900 dark:text-neutral-100
-                    focus:outline-none focus:ring-2 focus:ring-#222426
-                    antialiased
-                  `}
-                />
-
-
-                {/* FOOTER BAR (FONT SIZE & FILE BADGE) */}
-                <div className="mt-1 flex flex-wrap justify-between items-center gap-2 px-2 pb-1">
-                  {/* Font Size Adjuster */}
-                  <div className="flex items-center gap-1.5 bg-white/70 dark:bg-neutral-800/60 border border-white/40 dark:border-white/10 px-3 py-1 rounded-full backdrop-blur shadow-sm select-none">
-                    <span className="text-xs opacity-65 mr-1 font-semibold">Size:</span>
-                    {fontSizes.map((size, index) => (
-                      <button
-                        key={size.label}
-                        onClick={() => handleFontSizeChange(index)}
-                        className={`text-xs px-2 py-0.5 rounded-full transition-all cursor-pointer ${fontSizeIndex === index
-                          ? "bg-neutral-950 text-white dark:bg-neutral-100 dark:text-neutral-950 font-bold"
-                          : "hover:bg-neutral-200 dark:hover:bg-neutral-700/60 opacity-80"
-                          }`}
-                      >
-                        {size.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* FILE BADGE */}
-                  <div
-                    className="
-                        inline-flex items-center gap-2
-                        text-xs px-3 py-1.5
-                        rounded-full
-                        bg-white/70 dark:bg-neutral-800/60
-                        border border-white/40 dark:border-white/10
-                        backdrop-blur
-                        shadow-sm
-                      "
-                  >
-                    📄 {taskList[0]?.url.split("/").pop()}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* ACTION BUTTONS */}
-              <ActionButtons
-                updateTaskAndIndex={updateTaskAndIndex}
+              {/* TRANSCRIPT EDITOR + ACTION BUTTONS */}
+              {/* [Reason] Transcript editing UI is isolated in TranscriptWorkspace so
+                  keystrokes only re-render this subtree, not the surrounding page. */}
+              <TranscriptWorkspace
+                task={taskList[0]}
                 tasks={taskList}
-                transcript={transcript}
                 role={role}
+                updateTaskAndIndex={updateTaskAndIndex}
               />
             </div>
           </div>
