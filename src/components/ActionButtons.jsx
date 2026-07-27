@@ -3,7 +3,13 @@ import React, { useContext, useEffect } from "react";
 import { BsCheckLg, BsXLg, BsArrowReturnLeft, BsTrash } from "react-icons/bs";
 import AppContext from "./AppContext";
 
-const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
+const ActionButtons = ({
+  updateTaskAndIndex,
+  tasks,
+  transcript,
+  transcriptMarks,
+  role,
+}) => {
   const { lang } = useContext(AppContext);
 
   useEffect(() => {
@@ -22,30 +28,37 @@ const ActionButtons = ({ updateTaskAndIndex, tasks, transcript, role }) => {
     "bg-white/70 dark:bg-neutral-800/60 border border-white/40 dark:border-slate-600/40 " +
     "shadow hover:shadow-md transition";
 
+  const payload = (action) => ({
+    action,
+    transcript,
+    task: tasks[0],
+    transcript_marks: action === "reject" ? transcriptMarks ?? null : null,
+  });
+
   return (
     <div className="flex flex-wrap justify-center gap-2 md:gap-3 pt-3 pb-8 md:pb-4">
       <button id="submit-button" className={`${btn} text-emerald-600`} onClick={() =>
-        updateTaskAndIndex({ action: "submit", transcript, task: tasks[0] })
+        updateTaskAndIndex(payload("submit"))
       }>
         <BsCheckLg /> {lang.submit}
       </button>
 
       {role !== "TRANSCRIBER" && (
         <button id="reject-button" className={`${btn} text-red-500`} onClick={() =>
-          updateTaskAndIndex({ action: "reject", transcript, task: tasks[0] })
+          updateTaskAndIndex(payload("reject"))
         }>
           <BsXLg /> {lang.reject}
         </button>
       )}
 
       <button id="save-button" className={`${btn} text-yellow-600`} onClick={() =>
-        updateTaskAndIndex({ action: "save", transcript, task: tasks[0] })
+        updateTaskAndIndex(payload("save"))
       }>
         <BsArrowReturnLeft /> {lang.save}
       </button>
 
       <button id="trash-button" className={`${btn} text-red-500`} onClick={() =>
-        updateTaskAndIndex({ action: "trash", transcript, task: tasks[0] })
+        updateTaskAndIndex(payload("trash"))
       }>
         <BsTrash /> {lang.trash}
       </button>

@@ -60,6 +60,11 @@ export const createGroup = async (prevState, formData) => {
   if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
+  const payCategory = formData.get("pay_category");
+  const validCategories = ["AB", "MV", "TT", "GR"];
+  if (!validCategories.includes(payCategory)) {
+    return { error: "Please select a valid pay category (AB, MV, TT, or GR)" };
+  }
   try {
     // guard: prevent duplicate group names within the same department
     const exists = await prisma.group.findFirst({
@@ -72,6 +77,7 @@ export const createGroup = async (prevState, formData) => {
       data: {
         name: groupName,
         department_id: parseInt(departmentId),
+        pay_category: payCategory,
       },
     });
     revalidatePath("/dashboard/group");
@@ -111,6 +117,11 @@ export const editGroup = async (id, formData) => {
   if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
+  const payCategory = formData.get("pay_category");
+  const validCategories = ["AB", "MV", "TT", "GR"];
+  if (!validCategories.includes(payCategory)) {
+    return { error: "Please select a valid pay category (AB, MV, TT, or GR)" };
+  }
   try {
     // guard: prevent duplicate on rename/move
     const exists = await prisma.group.findFirst({
@@ -130,6 +141,7 @@ export const editGroup = async (id, formData) => {
       data: {
         name: groupName,
         department_id: parseInt(departmentId),
+        pay_category: payCategory,
       },
     });
     revalidatePath("/dashboard/group");

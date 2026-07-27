@@ -255,7 +255,8 @@ export const updateTask = async (
   transcript,
   task,
   role,
-  currentTime
+  currentTime,
+  transcriptMarks = null
 ) => {
   const changeState = await changeTaskState(task, role, action);
   let duration = null;
@@ -270,6 +271,25 @@ export const updateTask = async (
     let timeDiff = endTime - startTime;
     duration = formatTime(timeDiff);
   }
+
+  const marksPayload =
+    action === "reject" &&
+    transcriptMarks &&
+    Array.isArray(transcriptMarks.ranges) &&
+    transcriptMarks.ranges.length > 0 &&
+    (role === "REVIEWER" || role === "FINAL_REVIEWER")
+      ? {
+          by: role,
+          text: transcript,
+          ranges: transcriptMarks.ranges,
+        }
+      : null;
+
+  const existing = await prisma.Task.findUnique({
+    where: { id },
+    select: { reviewer_id: true, final_reviewer_id: true },
+  });
+
   switch (role) {
     case "TRANSCRIBER":
       try {
@@ -282,6 +302,9 @@ export const updateTask = async (
             transcript: changeState.state === "trashed" ? null : transcript,
             reviewed_transcript: null,
             final_transcript: null,
+            transcript_marks: null,
+            is_resubmission:
+              action === "submit" && Boolean(existing?.reviewer_id),
             submitted_at: new Date(),
             duration: duration,
           },
@@ -318,6 +341,10 @@ export const updateTask = async (
               changeState.state === "transcribing"
                 ? null
                 : transcript,
+            transcript_marks:
+              action === "reject" ? marksPayload : null,
+            is_resubmission:
+              action === "submit" && Boolean(existing?.final_reviewer_id),
             reviewed_at: new Date(),
           },
         });
@@ -353,6 +380,9 @@ export const updateTask = async (
               changeState.state === "submitted"
                 ? null
                 : transcript,
+            transcript_marks:
+              action === "reject" ? marksPayload : null,
+            is_resubmission: false,
             finalised_reviewed_at: new Date(),
           },
         });

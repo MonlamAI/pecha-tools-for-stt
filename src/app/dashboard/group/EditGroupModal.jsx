@@ -1,17 +1,16 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useFormState } from "react-dom";
 import { editGroup } from "@/model/group";
 import Select from "@/components/Select";
 import toast from "react-hot-toast";
+import { PAY_CATEGORIES } from "@/constants/payCategories";
 
 const EditGroupModal = ({ selectedRow, departments, onDone }) => {
   const ref = useRef(null);
   const [departmentId, setDepartmentId] = useState("");
-  const router = useRouter();
+  const [payCategory, setPayCategory] = useState("");
 
-  // Create a wrapper function for editGroup with the selectedRow ID
   const editGroupWithId = (prevState, formData) => {
     if (selectedRow?.id) {
       return editGroup(selectedRow.id, formData);
@@ -19,10 +18,8 @@ const EditGroupModal = ({ selectedRow, departments, onDone }) => {
     return { error: "No group selected" };
   };
 
-  // Initialize useFormState with the wrapper function
   const [state, formAction] = useFormState(editGroupWithId, null);
 
-  // Handle Server Action results
   useEffect(() => {
     if (state?.error) {
       toast.error(state.error);
@@ -33,18 +30,11 @@ const EditGroupModal = ({ selectedRow, departments, onDone }) => {
     }
   }, [state, onDone]);
 
-  const handleDepartmentChange = async (event) => {
-    setDepartmentId(event.target.value);
-  };
-
   useEffect(() => {
-    // let isMounted = true;
     if (selectedRow?.Department !== null) {
       setDepartmentId(selectedRow?.Department?.id);
     }
-    // return () => {
-    //   isMounted = false;
-    // };
+    setPayCategory(selectedRow?.pay_category || "");
   }, [selectedRow]);
 
   return (
@@ -133,9 +123,24 @@ const EditGroupModal = ({ selectedRow, departments, onDone }) => {
               label="Department"
               options={departments}
               selectedOption={departmentId}
-              handleOptionChange={handleDepartmentChange}
+              handleOptionChange={(e) => setDepartmentId(e.target.value)}
+            />
+            <Select
+              title="pay_category"
+              label="Pay Category"
+              options={PAY_CATEGORIES}
+              selectedOption={payCategory}
+              handleOptionChange={(e) => setPayCategory(e.target.value)}
             />
           </div>
+          {payCategory && (
+            <p className="text-sm text-base-content/70 -mt-2 mb-2">
+              {
+                PAY_CATEGORIES.find((c) => c.id === payCategory)
+                  ?.description
+              }
+            </p>
+          )}
           <button
             type="submit"
             className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"

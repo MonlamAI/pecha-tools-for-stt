@@ -18,18 +18,11 @@ const levenshtein = require("fast-levenshtein");
 
 /* -------------------- USERS -------------------- */
 
-// Get all users with counts and group info
+// Get all users with group info (task counts omitted — unused by callers and expensive)
 export const getAllUser = async () => {
   try {
     const users = await prisma.user.findMany({
       include: {
-        _count: {
-          select: {
-            transcriber_task: true,
-            reviewer_task: true,
-            final_reviewer_task: true,
-          },
-        },
         group: true,
       },
       orderBy: { id: "asc" },
