@@ -7,6 +7,7 @@ import type { Prisma, Role, Task, State } from "@prisma/client";
 import { ASSIGN_TASKS, USER_FETCH_TASKS } from "@/constants/config";
 import { getNumberOfAssignedTask } from "@/model/action";
 import { getCache, setCache } from "@/lib/cache";
+import { sendSlackMessage } from "@/lib/slack";
 
 export type TranscriptMarks = {
   by: "REVIEWER" | "FINAL_REVIEWER";
@@ -399,6 +400,51 @@ export const updateTask = async (
 
   // console.log('updateTask', { updatedTask, data, id })
   if (updatedTask) {
+    // [Reason] Alert managers when any group's transcription queue hits exactly 100 or 0
+    if (action === "submit" && role === "TRANSCRIBER") {
+      try {
+        const group = await prisma.group.findUnique({
+          where: { id: updatedTask.group_id },
+          select: {
+            name: true,
+            _count: {
+              select: {
+                tasks: { where: { state: "transcribing" } },
+              },
+            },
+          },
+        });
+
+        const remainingTasks = group?._count.tasks ?? 0;
+        if (group && [100, 0].includes(remainingTasks)) {
+          const recipients = await prisma.user.findMany({
+            where: {
+              role: "FINAL_REVIEWER",
+              slack_user_id: { not: null },
+            },
+            select: { slack_user_id: true },
+          });
+
+          const message =
+            `📢 Group Queue Update\n\n` +
+            `Group: ${group.name}\n\n` +
+            `There are now ${remainingTasks} transcription tasks remaining in this group.`;
+
+          for (const recipient of recipients) {
+            const slackUserId = recipient.slack_user_id?.trim();
+            if (!slackUserId) continue;
+            try {
+              await sendSlackMessage(slackUserId, message);
+            } catch (error) {
+              console.error("Failed to send Slack queue notification:", error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to send Slack queue notification:", error);
+      }
+    }
+
     return { msg: taskToastMsg(action), updatedTask };
   }
   return { error: "Error updating task" };

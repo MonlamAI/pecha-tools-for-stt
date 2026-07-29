@@ -13,6 +13,7 @@ const EditUserModal = ({ groups, selectedRow, onDone }) => {
   const [role, setRole] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState("");
+  const [slackUserId, setSlackUserId] = useState("");
   const [error, setError] = useState("");
 
   const router = useRouter();
@@ -53,6 +54,8 @@ const EditUserModal = ({ groups, selectedRow, onDone }) => {
       setGroupId(userGroupId);
       setRole(userRole);
       setUsername(name);
+      // [Reason] Prefill optional Slack Member ID used for queue notifications
+      setSlackUserId(selectedRow?.slack_user_id ?? "");
       setIsLoading(false);
     }
     return () => {
@@ -175,6 +178,29 @@ const EditUserModal = ({ groups, selectedRow, onDone }) => {
                 selectedOption={role}
                 handleOptionChange={handleRoleChange}
               />
+              <div className="sm:col-span-2">
+                <label className="label" htmlFor="slack_user_id">
+                  <span className="label-text text-base font-semibold">
+                    Slack Member ID
+                  </span>
+                </label>
+                <input
+                  id="slack_user_id"
+                  type="text"
+                  name="slack_user_id"
+                  placeholder="e.g. U0AN39ECNH3"
+                  maxLength={20}
+                  className="input input-bordered w-full"
+                  value={slackUserId}
+                  onChange={(e) => setSlackUserId(e.target.value)}
+                />
+                <label className="label">
+                  <span className="label-text-alt opacity-70">
+                    Optional. Final Reviewers with a Slack ID receive group
+                    queue-empty notifications. Leave blank to disable.
+                  </span>
+                </label>
+              </div>
             </div>
             <button
               type="submit"

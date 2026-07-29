@@ -15,12 +15,8 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
-<<<<<<< HEAD
     "@slack/web-api": "^8.0.0",
-    "auth0-js": "^9.32.0",
-=======
     "auth0-js": "^10.2.0",
->>>>>>> origin/staging
     "chart.js": "^4.4.0",
     "chartjs-plugin-datalabels": "^2.2.0",
     "csv-parser": "^3.0.0",
