@@ -18,13 +18,15 @@ enum PayCategory {
 }
 
 model Group {
-  id            Int         @id @default(autoincrement())
-  name          String      @db.VarChar(255)
-  pay_category  PayCategory @default(MV)
-  users         User[]
-  tasks         Task[]
-  Department    Department? @relation(fields: [department_id], references: [id])
-  department_id Int?
+  id                   Int         @id @default(autoincrement())
+  name                 String      @db.VarChar(255)
+  pay_category         PayCategory @default(MV)
+  // [Reason] Per-group flag for Slack queue milestone DMs (default off for existing groups)
+  notification_enabled Boolean     @default(false)
+  users                User[]
+  tasks                Task[]
+  Department           Department? @relation(fields: [department_id], references: [id])
+  department_id        Int?
 }
 
 model Department {

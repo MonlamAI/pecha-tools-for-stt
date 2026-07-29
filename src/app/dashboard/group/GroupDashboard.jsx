@@ -5,12 +5,15 @@ import React, { useState } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
 import AddGroupModal from "./AddGroupModal";
 import EditGroupModal from "./EditGroupModal";
-import { deleteGroup } from "@/model/group";
+import { deleteGroup, setGroupNotificationEnabled } from "@/model/group";
 import { PAY_CATEGORY_LABELS } from "@/constants/payCategories";
+import toast from "react-hot-toast";
 
 const GroupDashboard = ({ groupList, departments, onDone }) => {
   // console.log({ groupList, departments });
   const [selectedRow, setSelectedRow] = useState(null);
+  // [Reason] Track which group toggle is saving so only that row is disabled
+  const [togglingGroupId, setTogglingGroupId] = useState(null);
 
   const handleRemoveGroup = async (row) => {
     const noUser = row._count.users;
@@ -28,6 +31,28 @@ const GroupDashboard = ({ groupList, departments, onDone }) => {
   const handleEditGroup = async (row) => {
     setSelectedRow(row);
     window.edit_modal.showModal();
+  };
+
+  // [Reason] Persist Slack notification flag immediately when the admin toggles it
+  const handleNotificationToggle = async (row, enabled) => {
+    setTogglingGroupId(row.id);
+    try {
+      const result = await setGroupNotificationEnabled(row.id, enabled);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(
+        result?.success ||
+          (enabled ? "Slack notifications enabled" : "Slack notifications disabled")
+      );
+      await onDone?.();
+    } catch (error) {
+      console.error("Failed to update notification setting:", error);
+      toast.error("Failed to update notification setting");
+    } finally {
+      setTogglingGroupId(null);
+    }
   };
 
   return (
@@ -50,6 +75,7 @@ const GroupDashboard = ({ groupList, departments, onDone }) => {
                 <th className="px-6 py-3">Department name</th>
                 <th className="px-6 py-3">No. Users</th>
                 <th className="px-6 py-3">No. Tasks</th>
+                <th className="px-6 py-3">Slack Notifications</th>
                 <th className="px-6 py-3">Action</th>
               </tr>
             </thead>
@@ -64,6 +90,18 @@ const GroupDashboard = ({ groupList, departments, onDone }) => {
                   <td className="px-6 py-4">{row.Department?.name}</td>
                   <td className="px-6 py-4">{row._count.users || 0}</td>
                   <td className="px-6 py-4">{row._count.tasks || 0}</td>
+                  <td className="px-6 py-4">
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-success"
+                      checked={Boolean(row.notification_enabled)}
+                      disabled={togglingGroupId === row.id}
+                      aria-label={`Toggle Slack notifications for ${row.name}`}
+                      onChange={(e) =>
+                        handleNotificationToggle(row, e.target.checked)
+                      }
+                    />
+                  </td>
                   <td className="flex items-center px-6 py-4 space-x-3">
                     <button
                       type="button"

@@ -407,6 +407,7 @@ export const updateTask = async (
           where: { id: updatedTask.group_id },
           select: {
             name: true,
+            notification_enabled: true,
             _count: {
               select: {
                 tasks: { where: { state: "transcribing" } },
@@ -415,28 +416,31 @@ export const updateTask = async (
           },
         });
 
-        const remainingTasks = group?._count.tasks ?? 0;
-        if (group && [100, 0].includes(remainingTasks)) {
-          const recipients = await prisma.user.findMany({
-            where: {
-              role: "FINAL_REVIEWER",
-              slack_user_id: { not: null },
-            },
-            select: { slack_user_id: true },
-          });
+        // [Reason] Skip Slack milestones entirely when the group has notifications disabled
+        if (group?.notification_enabled) {
+          const remainingTasks = group._count.tasks ?? 0;
+          if ([100, 0].includes(remainingTasks)) {
+            const recipients = await prisma.user.findMany({
+              where: {
+                role: "FINAL_REVIEWER",
+                slack_user_id: { not: null },
+              },
+              select: { slack_user_id: true },
+            });
 
-          const message =
-            `📢 Group Queue Update\n\n` +
-            `Group: ${group.name}\n\n` +
-            `There are now ${remainingTasks} transcription tasks remaining in this group.`;
+            const message =
+              `📢 Group Queue Update\n\n` +
+              `Group: ${group.name}\n\n` +
+              `There are now ${remainingTasks} transcription tasks remaining in this group.`;
 
-          for (const recipient of recipients) {
-            const slackUserId = recipient.slack_user_id?.trim();
-            if (!slackUserId) continue;
-            try {
-              await sendSlackMessage(slackUserId, message);
-            } catch (error) {
-              console.error("Failed to send Slack queue notification:", error);
+            for (const recipient of recipients) {
+              const slackUserId = recipient.slack_user_id?.trim();
+              if (!slackUserId) continue;
+              try {
+                await sendSlackMessage(slackUserId, message);
+              } catch (error) {
+                console.error("Failed to send Slack queue notification:", error);
+              }
             }
           }
         }
