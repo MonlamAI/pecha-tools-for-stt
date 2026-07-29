@@ -157,6 +157,32 @@ export const editGroup = async (id, formData) => {
   }
 };
 
+// [Reason] Persist per-group Slack notification toggle from the Groups admin table
+export const setGroupNotificationEnabled = async (id, enabled) => {
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
+
+  const groupId = typeof id === "string" ? parseInt(id) : Number(id);
+  if (!groupId || Number.isNaN(groupId)) return { error: "Invalid group id" };
+
+  try {
+    const group = await prisma.group.update({
+      where: { id: groupId },
+      data: { notification_enabled: Boolean(enabled) },
+    });
+    revalidatePath("/dashboard/group");
+    return {
+      success: enabled
+        ? "Slack notifications enabled"
+        : "Slack notifications disabled",
+      group,
+    };
+  } catch (error) {
+    console.error("Error updating group notification setting:", error);
+    return { error: "Failed to update notification setting. Please try again." };
+  }
+};
+
 export const getAllGroupTaskStats = async (groupList) => {
   // make a array of diff list of group  with diff department_id
   const groupStatsList = [];
