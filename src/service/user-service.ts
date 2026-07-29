@@ -21,6 +21,8 @@ type UserRecord = {
   email: string;
   group_id: number;
   role: Role;
+  // [Reason] Keep UserRecord aligned with Prisma User scalars after slack_user_id migration
+  slack_user_id: string | null;
   group: { name: string | null } | null;
 };
 
@@ -79,6 +81,8 @@ export async function getOrCreateUser({ username }: { username: string }): Promi
       email: true,
       group_id: true,
       role: true,
+      // [Reason] Include slack_user_id so UserRecord matches the Prisma User type
+      slack_user_id: true,
       group: {
         select: {
           name: true,
