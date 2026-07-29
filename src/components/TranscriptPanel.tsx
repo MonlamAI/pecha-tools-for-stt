@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useMemo } from "react";
 
 export type MarkRange = { start: number; end: number };
 
@@ -105,8 +105,10 @@ const TranscriptPanel = ({
     marksKey: "",
   });
 
-  const activeRanges =
-    marks && marks.text === value ? marks.ranges : [];
+  const activeRanges = useMemo(
+    () => (marks && marks.text === value ? marks.ranges : []),
+    [marks, value]
+  );
   const marksKey = JSON.stringify(activeRanges);
 
   // Sync external value/marks into the contenteditable when not focused.
@@ -130,8 +132,7 @@ const TranscriptPanel = ({
     }
     el.innerHTML = buildMarkedHtml(value || "", activeRanges);
     lastExternalRef.current = { value, marksKey };
-    // [Reason] `activeRanges` is derived from `marksKey`/`value`; listing marksKey avoids unstable array deps.
-  }, [value, marksKey]);
+  }, [value, marksKey, activeRanges]);
 
   const handleInput = useCallback(() => {
     const el = editorRef.current;
