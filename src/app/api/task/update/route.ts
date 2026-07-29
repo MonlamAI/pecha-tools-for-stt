@@ -14,7 +14,8 @@ export const POST = withAccessLog(async (request: Request) => {
     if ("response" in auth) return auth.response;
     const role = auth.user.role;
 
-    const { action, id, transcript, task, currentTime } = await request.json();
+    const { action, id, transcript, task, currentTime, transcript_marks } =
+      await request.json();
 
     if (!action || !id || !task) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -36,7 +37,15 @@ export const POST = withAccessLog(async (request: Request) => {
     // }
 
     // const result = await updateTask(action, id, transcript ?? "", task, role, currentTime ?? new Date().toISOString());
-    const result = await updateTask(action, id, transcript, task, role, currentTime ?? new Date().toISOString());
+    const result = await updateTask(
+      action,
+      id,
+      transcript,
+      task,
+      role,
+      currentTime ?? new Date().toISOString(),
+      transcript_marks ?? null
+    );
     if ((result as any)?.error) {
       return NextResponse.json(result, { status: 500 });
     }

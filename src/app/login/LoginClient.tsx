@@ -35,6 +35,13 @@ export default function LoginClient() {
   }, [searchParams]);
 
   const authError = searchParams.get("error");
+  // [Reason] Distinct copy when Google auth succeeds but email is not in User table.
+  const authErrorMessage =
+    authError === "not_allowed"
+      ? "You are not allowed to log in. Please contact an administrator."
+      : authError
+        ? "Sign in failed. Please try again."
+        : null;
 
   return (
     // [Reason] Full-viewport dark canvas matching the Stitch Monlam Tools login mockup.
@@ -61,9 +68,9 @@ export default function LoginClient() {
           Sign in to continue
         </p>
 
-        {authError ? (
+        {authErrorMessage ? (
           <p className="mt-6 text-sm font-medium text-[#ffb4ab]">
-            Sign in failed. Please try again.
+            {authErrorMessage}
           </p>
         ) : null}
 

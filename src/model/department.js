@@ -16,6 +16,7 @@ export const getAllDepartment = async () => {
           select: {
             id: true,
             name: true,
+            pay_category: true,
           },
         },
       },

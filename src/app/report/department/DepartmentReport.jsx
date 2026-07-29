@@ -363,7 +363,7 @@ const DepartmentReport = ({ departments }) => {
                 </h3>
                 <TranscriberReportTable
                   usersStatistic={usersStatistic[activeGroup.id] || []}
-                  selectGroup={activeGroup.id}
+                  payCategory={activeGroup.pay_category}
                 />
               </section>
 

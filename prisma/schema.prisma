@@ -10,9 +10,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PayCategory {
+  AB
+  MV
+  TT
+  GR
+}
+
 model Group {
   id            Int         @id @default(autoincrement())
   name          String      @db.VarChar(255)
+  pay_category  PayCategory @default(MV)
   users         User[]
   tasks         Task[]
   Department    Department? @relation(fields: [department_id], references: [id])
@@ -49,6 +57,10 @@ model Task {
   transcript             String?   @db.VarChar(500)
   reviewed_transcript    String?   @db.VarChar(500)
   final_transcript       String?   @db.VarChar(500)
+  // Reject feedback: { by, text, ranges: [{ start, end }] }
+  transcript_marks       Json?
+  // True when task was rejected and then submitted again
+  is_resubmission        Boolean   @default(false)
   file_name              String    @unique @db.VarChar(255)
   url                    String    @unique @db.Text
   transcriber_id         Int?

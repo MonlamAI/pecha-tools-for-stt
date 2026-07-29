@@ -1,6 +1,7 @@
-// [Reason] Signed session token helpers (edge-safe via `jose`) so both middleware
-// and route handlers can create/verify the HTTP-only session cookie consistently.
-import { SignJWT, jwtVerify } from "jose";
+// [Reason] Signed session helpers for middleware + route handlers. Use jose
+// subpaths (not the barrel) so Edge middleware does not pull JWE/CompressionStream.
+import { SignJWT } from "jose/jwt/sign";
+import { jwtVerify } from "jose/jwt/verify";
 import { SESSION_MAX_AGE_SECONDS } from "./config";
 
 export type SessionPayload = {

@@ -6,6 +6,7 @@ import { AiOutlinePlus } from "react-icons/ai";
 import AddGroupModal from "./AddGroupModal";
 import EditGroupModal from "./EditGroupModal";
 import { deleteGroup } from "@/model/group";
+import { PAY_CATEGORY_LABELS } from "@/constants/payCategories";
 
 const GroupDashboard = ({ groupList, departments, onDone }) => {
   // console.log({ groupList, departments });
@@ -45,6 +46,7 @@ const GroupDashboard = ({ groupList, departments, onDone }) => {
               <tr>
                 <th className="px-6 py-3">Id</th>
                 <th className="px-6 py-3">Group name</th>
+                <th className="px-6 py-3">Pay category</th>
                 <th className="px-6 py-3">Department name</th>
                 <th className="px-6 py-3">No. Users</th>
                 <th className="px-6 py-3">No. Tasks</th>
@@ -56,6 +58,9 @@ const GroupDashboard = ({ groupList, departments, onDone }) => {
                 <tr className="text-sm md:text-base" key={row.id}>
                   <th className="px-6 py-4">{row.id}</th>
                   <td className="px-6 py-4">{row.name}</td>
+                  <td className="px-6 py-4">
+                    {PAY_CATEGORY_LABELS[row.pay_category] || row.pay_category || "—"}
+                  </td>
                   <td className="px-6 py-4">{row.Department?.name}</td>
                   <td className="px-6 py-4">{row._count.users || 0}</td>
                   <td className="px-6 py-4">{row._count.tasks || 0}</td>

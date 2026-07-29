@@ -167,7 +167,10 @@ const GroupReport = ({ groups }) => {
                 </h3>
                 <TranscriberReportTable
                   usersStatistic={data.users}
-                  selectGroup={selectGroup}
+                  payCategory={
+                    groups.find((g) => String(g.id) === String(selectGroup))
+                      ?.pay_category
+                  }
                 />
               </section>
 

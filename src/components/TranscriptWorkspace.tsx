@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import ActionButtons from "./ActionButtons";
+import TranscriptPanel, { type TranscriptMarksState } from "./TranscriptPanel";
 
 // [Reason] Owning the font-size list here keeps all transcript-editor UI state
 // colocated in this component so typing does not re-render AudioTranscript.
@@ -29,6 +30,35 @@ const TranscriptWorkspace = ({
 }: TranscriptWorkspaceType) => {
   const [transcript, setTranscript] = useState("");
   const [fontSizeIndex, setFontSizeIndex] = useState(2); // default to text-2xl
+  const [transcriptMarks, setTranscriptMarks] =
+    useState<TranscriptMarksState>(null);
+  const canMark = role === "REVIEWER" || role === "FINAL_REVIEWER";
+  const markRole =
+    role === "REVIEWER" || role === "FINAL_REVIEWER" ? role : null;
+
+  function marksVisibleToRole(
+    marks: any,
+    currentRole: string,
+    currentTranscript: string
+  ): TranscriptMarksState {
+    if (!marks || !Array.isArray(marks.ranges) || !marks.ranges.length) {
+      return null;
+    }
+    if (marks.text !== currentTranscript) return null;
+    if (currentRole === "TRANSCRIBER" && marks.by === "REVIEWER") {
+      return marks as TranscriptMarksState;
+    }
+    if (currentRole === "REVIEWER" && marks.by === "FINAL_REVIEWER") {
+      return marks as TranscriptMarksState;
+    }
+    if (
+      (currentRole === "REVIEWER" || currentRole === "FINAL_REVIEWER") &&
+      marks.by === currentRole
+    ) {
+      return marks as TranscriptMarksState;
+    }
+    return null;
+  }
 
   // [Reason] Preserve existing font-size persistence: load saved index on mount.
   useEffect(() => {
@@ -51,17 +81,22 @@ const TranscriptWorkspace = ({
   // dependency for "active task changed".
   useEffect(() => {
     if (!task) return;
+    let nextTranscript = "";
     switch (role) {
       case "TRANSCRIBER":
-        setTranscript(task?.transcript || task?.inference_transcript);
+        nextTranscript = task?.transcript || task?.inference_transcript || "";
         break;
       case "REVIEWER":
-        setTranscript(task?.reviewed_transcript || task?.transcript);
+        nextTranscript = task?.reviewed_transcript || task?.transcript || "";
         break;
       case "FINAL_REVIEWER":
-        setTranscript(task?.reviewed_transcript);
+        nextTranscript = task?.reviewed_transcript || "";
         break;
     }
+    setTranscript(nextTranscript);
+    setTranscriptMarks(
+      marksVisibleToRole(task?.transcript_marks, role, nextTranscript)
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id, role]);
 
@@ -75,20 +110,15 @@ const TranscriptWorkspace = ({
       {/* TRANSCRIPT CARD */}
       <div className="relative rounded-xl bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-lg p-2">
 
-        <textarea
-          value={transcript}
-          onChange={(e) => setTranscript(e.target.value)}
-          rows={5}
-          className={`
-            w-full resize-none rounded-xl
-            bg-white dark:bg-neutral-800   
-            border border-neutral-300 dark:border-neutral-700
-            p-6 md:p-9
-            ${fontSizes[fontSizeIndex].class} ${fontSizes[fontSizeIndex].leading}
-            text-neutral-900 dark:text-neutral-100
-            focus:outline-none focus:ring-2 focus:ring-#222426
-            antialiased
-          `}
+        <TranscriptPanel
+          value={transcript || ""}
+          onChange={setTranscript}
+          marks={transcriptMarks}
+          onMarksChange={setTranscriptMarks}
+          canMark={canMark}
+          markRole={markRole}
+          fontClass={fontSizes[fontSizeIndex].class}
+          leadingClass={fontSizes[fontSizeIndex].leading}
         />
 
 
@@ -137,6 +167,7 @@ const TranscriptWorkspace = ({
         updateTaskAndIndex={updateTaskAndIndex}
         tasks={tasks}
         transcript={transcript}
+        transcriptMarks={transcriptMarks}
         role={role}
       />
     </>

@@ -28,13 +28,56 @@ async function fetchUserProgress({ userId, groupId, role }: any) {
   return res.json();
 }
 
-async function fetchTaskList({ userId, groupId, role }: any) {
-  const res = await fetch(
-    `/api/task/list?userId=${userId}&groupId=${groupId}&role=${role}`,
-    { cache: "no-store" }
-  );
+async function fetchTaskList({
+  userId,
+  groupId,
+  role,
+  sourceUserId,
+  limit,
+}: {
+  userId: number;
+  groupId: number;
+  role: string;
+  sourceUserId?: number | null;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (sourceUserId != null) params.set("sourceUserId", String(sourceUserId));
+  if (limit != null) params.set("limit", String(limit));
+  const qs = params.toString();
+  const res = await fetch(`/api/task/list${qs ? `?${qs}` : ""}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch tasks");
   return res.json();
+}
+
+type AssignOption = { id: number; name: string; availableCount: number };
+
+async function fetchAssignOptions(): Promise<AssignOption[]> {
+  // Bust caches so dropdown counts always match the DB
+  const res = await fetch(`/api/task/assign-options?t=${Date.now()}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Failed to fetch assign options");
+  return res.json();
+}
+
+async function postAssignTasks({
+  sourceUserId,
+  limit,
+}: {
+  sourceUserId: number | null;
+  limit: number;
+}) {
+  const res = await fetch("/api/task/assign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourceUserId, limit }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || "Failed to assign tasks");
+  return data;
 }
 
 async function postTaskUpdate(body: any) {
@@ -81,6 +124,47 @@ const AudioTranscript = ({
   // across renders (deps are only the primitives it actually captures). This
   // lets the useEffect below safely list it as a dependency without causing
   // the effect to re-run on every render.
+  const canPickSource = role === "REVIEWER" || role === "FINAL_REVIEWER";
+
+  const [sourceUserId, setSourceUserId] = useState<number | null>(null);
+  const [assignLimit, setAssignLimit] = useState(20);
+  const [assignOptions, setAssignOptions] = useState<AssignOption[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false);
+  // Batch progress for dropdown Load (done / total)
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchDone, setBatchDone] = useState(0);
+  const sourceUserIdRef = useRef<number | null>(null);
+  const assignLimitRef = useRef(20);
+  const batchTotalRef = useRef(0);
+  const batchDoneRef = useRef(0);
+
+  useEffect(() => {
+    sourceUserIdRef.current = sourceUserId;
+  }, [sourceUserId]);
+  useEffect(() => {
+    assignLimitRef.current = assignLimit;
+  }, [assignLimit]);
+  useEffect(() => {
+    batchTotalRef.current = batchTotal;
+  }, [batchTotal]);
+  useEffect(() => {
+    batchDoneRef.current = batchDone;
+  }, [batchDone]);
+
+  const refreshAssignOptions = useCallback(async () => {
+    if (!canPickSource) return;
+    try {
+      const options = await fetchAssignOptions();
+      setAssignOptions(options);
+    } catch {
+      /* ignore */
+    }
+  }, [canPickSource]);
+
+  useEffect(() => {
+    refreshAssignOptions();
+  }, [refreshAssignOptions]);
+
   const setUserProgress = useCallback(async () => {
     try {
       const data = await fetchUserProgress({ userId, role, groupId });
@@ -107,7 +191,12 @@ const AudioTranscript = ({
     }
   }, [taskList, setUserProgress]);
 
-  const updateTaskAndIndex = async ({ action, transcript, task }: any) => {
+  const updateTaskAndIndex = async ({
+    action,
+    transcript,
+    task,
+    transcript_marks,
+  }: any) => {
     try {
       const res = await postTaskUpdate({
         action,
@@ -116,6 +205,8 @@ const AudioTranscript = ({
         task,
         role,
         currentTime: currentTimeRef.current,
+        transcript_marks:
+          action === "reject" ? transcript_marks ?? null : null,
       });
 
       const result = await res.json();
@@ -149,23 +240,260 @@ const AudioTranscript = ({
     }
   };
 
+  const bumpBatchDone = (action: string) => {
+    if (!canPickSource) return;
+    if (action !== "submit" && action !== "reject" && action !== "trash") return;
+    if (batchTotalRef.current <= 0) return;
+    const next = Math.min(batchDoneRef.current + 1, batchTotalRef.current);
+    setBatchDone(next);
+    if (next >= batchTotalRef.current) {
+      toast.success(`Batch complete (${batchTotalRef.current}/${batchTotalRef.current})`);
+    }
+  };
+
+  const refillTaskQueue = async () => {
+    const limit = assignLimitRef.current;
+    const selectedSourceId = sourceUserIdRef.current;
+
+    let tasks = await fetchTaskList({
+      groupId,
+      userId,
+      role,
+      sourceUserId: selectedSourceId,
+      limit,
+    });
+
+    // Selected user's pool exhausted → fall back to normal (all users) flow
+    if (
+      (!Array.isArray(tasks) || tasks.length === 0) &&
+      selectedSourceId != null
+    ) {
+      const fallbackTasks = await fetchTaskList({
+        groupId,
+        userId,
+        role,
+        sourceUserId: null,
+        limit,
+      });
+      if (Array.isArray(fallbackTasks) && fallbackTasks.length > 0) {
+        setSourceUserId(null);
+        sourceUserIdRef.current = null;
+        setBatchTotal(0);
+        setBatchDone(0);
+        toast.success(
+          "Selected user's tasks finished — loading from all users"
+        );
+        tasks = fallbackTasks;
+      }
+    } else if (
+      canPickSource &&
+      Array.isArray(tasks) &&
+      tasks.length > 0 &&
+      selectedSourceId != null &&
+      batchDoneRef.current >= batchTotalRef.current &&
+      batchTotalRef.current > 0
+    ) {
+      // Same user still has tasks — start a new batch cycle
+      setBatchTotal(tasks.length);
+      setBatchDone(0);
+    }
+
+    return tasks;
+  };
+
   const handleTaskListUpdate = async (action: any, id: number) => {
     if (action === "submit") {
       currentTimeRef.current = new Date().toISOString();
     }
 
+    bumpBatchDone(action);
+
     if (taskList.length > 1) {
       setTaskList((prev: any) => prev.filter((t: Task) => t.id !== id));
+      // Keep dropdown counts in sync after each completed task
+      if (
+        action === "submit" ||
+        action === "reject" ||
+        action === "trash"
+      ) {
+        refreshAssignOptions();
+      }
       return;
     }
 
     try {
-      const moreTask = await fetchTaskList({ groupId, userId, role });
-      setTaskList(moreTask);
+      const moreTask = await refillTaskQueue();
+      setTaskList(Array.isArray(moreTask) ? moreTask : []);
+      refreshAssignOptions();
     } catch {
       toast.error("Failed to load more tasks");
     }
   };
+
+  const handleLoadTasks = async () => {
+    const limit = Math.floor(Number(assignLimit));
+    if (!Number.isFinite(limit) || limit < 1) {
+      toast.error("Enter a task limit of at least 1");
+      return;
+    }
+    setIsAssigning(true);
+    try {
+      const result = await postAssignTasks({
+        sourceUserId,
+        limit,
+      });
+      if (result?.error && (!result.tasks || result.tasks.length === 0)) {
+        toast.error(result.error);
+        setTaskList([]);
+        setBatchTotal(0);
+        setBatchDone(0);
+      } else {
+        const tasks = Array.isArray(result)
+          ? result
+          : result.tasks || [];
+        const assignedCount =
+          typeof result?.assignedCount === "number"
+            ? result.assignedCount
+            : tasks.length;
+        setTaskList(tasks);
+        if (assignedCount === 0 && tasks.length === 0) {
+          toast.error("No tasks available");
+          setBatchTotal(0);
+          setBatchDone(0);
+        } else if (assignedCount === 0) {
+          toast.error(
+            "No new tasks available for that selection (showing your current queue)"
+          );
+        } else {
+          setBatchTotal(assignedCount);
+          setBatchDone(0);
+          toast.success(`Loaded ${assignedCount} task(s)`);
+        }
+      }
+      await refreshAssignOptions();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to load tasks");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const pickerControls = (
+    <>
+      <select
+        className="select select-sm select-bordered max-w-[12rem] bg-white/80 dark:bg-neutral-900/80"
+        value={sourceUserId ?? ""}
+        onFocus={() => refreshAssignOptions()}
+        onClick={() => refreshAssignOptions()}
+        onChange={(e) => {
+          const v = e.target.value;
+          setSourceUserId(v === "" ? null : Number(v));
+        }}
+      >
+        <option value="">All users</option>
+        {assignOptions.map((opt) => (
+          <option key={opt.id} value={opt.id}>
+            {opt.name} ({opt.availableCount})
+          </option>
+        ))}
+      </select>
+      <input
+        type="number"
+        min={1}
+        className="input input-sm input-bordered w-20 bg-white/80 dark:bg-neutral-900/80"
+        value={assignLimit}
+        onChange={(e) => setAssignLimit(Number(e.target.value))}
+        title="Task limit"
+      />
+      <button
+        type="button"
+        className="btn btn-sm btn-neutral"
+        onClick={handleLoadTasks}
+        disabled={isAssigning}
+      >
+        {isAssigning ? "…" : "Load"}
+      </button>
+    </>
+  );
+
+  const taskHeader = (
+    <div
+      className="
+        flex flex-wrap md:flex-nowrap items-center justify-center gap-4 md:gap-8
+        rounded-xl
+        bg-white/70 dark:bg-neutral-800/60
+        backdrop-blur-md
+        border border-white/40 dark:border-white/10
+        px-6 py-3
+        shadow-lg
+      "
+    >
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-2 text-base font-semibold">
+          <span className="opacity-60">{lang.transcriber}:</span>
+          <span className="font-bold">
+            {taskList[0]?.transcriber?.name || "-"}
+          </span>
+          {(role === "REVIEWER" || role === "FINAL_REVIEWER") &&
+            taskList[0]?.is_resubmission && (
+              <span className="text-amber-500 font-bold">(Re-submitted)</span>
+            )}
+        </div>
+        {role === "REVIEWER" && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="opacity-60">Load from</span>
+            {pickerControls}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden md:block h-5 w-px bg-neutral-300 dark:bg-neutral-600" />
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-2 text-base font-semibold">
+          <span className="opacity-60">{lang.reviewer}:</span>
+          <span className="font-bold">
+            {taskList[0]?.reviewer?.name || "-"}
+          </span>
+          {role === "TRANSCRIBER" && taskList[0]?.reviewer && (
+            <span className="text-red-500 font-bold">(Rejected)</span>
+          )}
+        </div>
+        {role === "FINAL_REVIEWER" && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="opacity-60">Load from</span>
+            {pickerControls}
+          </div>
+        )}
+      </div>
+
+      {canPickSource && batchTotal > 0 && (
+        <>
+          <div className="hidden md:block h-5 w-px bg-neutral-300 dark:bg-neutral-600" />
+          <div
+            className={`text-sm font-semibold tabular-nums ${
+              batchDone >= batchTotal
+                ? "text-emerald-500"
+                : "text-neutral-700 dark:text-neutral-200"
+            }`}
+            title="Progress for the last Load batch"
+          >
+            {batchDone >= batchTotal ? (
+              <>Batch complete ({batchDone}/{batchTotal})</>
+            ) : (
+              <>
+                {batchDone}/{batchTotal} done
+                <span className="opacity-60 font-normal">
+                  {" "}
+                  · {Math.max(0, batchTotal - batchDone)} left
+                </span>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <AppContext.Provider value={{ languageSelected, setLanguageSelected, lang }}>
@@ -189,65 +517,38 @@ const AudioTranscript = ({
           <div className="flex justify-center items-center min-h-[60vh]">
             <span className="loading loading-spinner loading-lg" />
           </div>
-        ) : taskList?.length ? (
+        ) : (
           <div className="w-full px-4 py-5">
             <div className="mx-auto max-w-4xl space-y-5">
+              {taskHeader}
 
-              {/* HEADER – ALIGNED */}
-              <div
-                className="
-                  flex flex-wrap md:flex-nowrap items-center justify-center gap-4 md:gap-8
-                  rounded-xl
-                  bg-white/70 dark:bg-neutral-800/60
-                  backdrop-blur-md
-                  border border-white/40 dark:border-white/10
-                  px-6 py-3 
-                  shadow-lg
-                "
-              >
-                <div className="text-base font-semibold">
-                  <span className="opacity-60">{lang.transcriber}:</span>{" "}
-                  <span className="font-bold">
-                    {taskList[0]?.transcriber?.name || "-"}
-                  </span>
+              {taskList?.length ? (
+                <>
+                  {/* AUDIO CARD */}
+                  <div className="relative rounded-xl bg-white/70 dark:bg-neutral-800/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-lg p-2">
+                    <div className="rounded-xl bg-white/80 dark:bg-neutral-900/60 p-4">
+                      <AudioPlayer tasks={taskList} audioRef={audioRef} />
+                    </div>
+                  </div>
+
+                  {/* TRANSCRIPT EDITOR + ACTION BUTTONS */}
+                  <TranscriptWorkspace
+                    task={taskList[0]}
+                    tasks={taskList}
+                    role={role}
+                    updateTaskAndIndex={updateTaskAndIndex}
+                  />
+                </>
+              ) : (
+                <div className="flex justify-center items-center min-h-[40vh]">
+                  <h1 className="text-xl font-semibold text-neutral-500">
+                    {canPickSource
+                      ? "No task found. Select a user and Load."
+                      : "No task found. Will allocate soon."}
+                  </h1>
                 </div>
-
-                <div className="hidden md:block h-5 w-px bg-neutral-300 dark:bg-neutral-600" />
-
-                <div className="text-base font-semibold">
-                  <span className="opacity-60">{lang.reviewer}:</span>{" "}
-                  <span className="font-bold">
-                    {taskList[0]?.reviewer?.name || "-"}
-                  </span>
-                  {role === "TRANSCRIBER" && taskList[0]?.reviewer && (
-                    <span className="ml-2 text-red-500 font-bold">(Rejected)</span>
-                  )}
-                </div>
-              </div>
-
-              {/* AUDIO CARD */}
-              <div className="relative rounded-xl bg-white/70 dark:bg-neutral-800/60 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-lg p-2">
-                <div className="rounded-xl bg-white/80 dark:bg-neutral-900/60 p-4">
-                  <AudioPlayer tasks={taskList} audioRef={audioRef} />
-                </div>
-              </div>
-
-              {/* TRANSCRIPT EDITOR + ACTION BUTTONS */}
-              {/* [Reason] Transcript editing UI is isolated in TranscriptWorkspace so
-                  keystrokes only re-render this subtree, not the surrounding page. */}
-              <TranscriptWorkspace
-                task={taskList[0]}
-                tasks={taskList}
-                role={role}
-                updateTaskAndIndex={updateTaskAndIndex}
-              />
+              )}
             </div>
-          </div>
-        ) : (
-          <div className="flex justify-center items-center min-h-[60vh]">
-            <h1 className="text-xl font-semibold text-neutral-500">
-              No task found. Will allocate soon.
-            </h1>
           </div>
         )}
       </Sidebar>
