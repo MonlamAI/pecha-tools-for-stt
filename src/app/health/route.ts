@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/service/db";
 
+// [Reason] Health must hit the DB at request time, never during `next build` prerender
+export const dynamic = "force-dynamic";
+
 let cachedHealth: any = null;
 let cachedAt = 0;
 
