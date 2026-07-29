@@ -43,6 +43,10 @@ export const createUser = async (_prevState, formData) => {
   const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
   const role = formData.get("role");
+  // [Reason] Optional Slack Member ID for queue-empty DMs; blank clears to NULL
+  const slackRaw = formData.get("slack_user_id");
+  const slack_user_id =
+    typeof slackRaw === "string" && slackRaw.trim() ? slackRaw.trim() : null;
 
   if ((!name || name === email) && email) {
     name = email.split("@")[0];
@@ -65,6 +69,7 @@ export const createUser = async (_prevState, formData) => {
         email,
         group_id: parseInt(groupId),
         role,
+        slack_user_id,
       },
     });
 
@@ -129,6 +134,10 @@ export const editUser = async (id, formData) => {
   const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
   const role = formData.get("role");
+  // [Reason] Optional Slack Member ID for queue-empty DMs; blank clears to NULL
+  const slackRaw = formData.get("slack_user_id");
+  const slack_user_id =
+    typeof slackRaw === "string" && slackRaw.trim() ? slackRaw.trim() : null;
   const userId = parseInt(id);
 
   try {
@@ -143,7 +152,7 @@ export const editUser = async (id, formData) => {
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { name, email, group_id: parseInt(groupId), role },
+      data: { name, email, group_id: parseInt(groupId), role, slack_user_id },
     });
 
     revalidatePath("/dashboard/user");

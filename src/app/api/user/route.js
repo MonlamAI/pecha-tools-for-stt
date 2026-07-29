@@ -24,7 +24,10 @@ export const PUT = withAccessLog(async (request) => {
   if ("response" in auth) return auth.response;
   try {
     const body = await request.json();
-    const { id, name, email, group_id, role } = body;
+    const { id, name, email, group_id, role, slack_user_id: slackRaw } = body;
+    // [Reason] Optional Slack Member ID for queue notifications; blank clears to NULL
+    const slack_user_id =
+      typeof slackRaw === "string" && slackRaw.trim() ? slackRaw.trim() : null;
 
     // Validate required fields
     if (!id || !name || !email || !group_id || !role) {
@@ -73,7 +76,8 @@ export const PUT = withAccessLog(async (request) => {
         name: name.trim(),
         email: email.trim(),
         group_id: parseInt(group_id),
-        role: role
+        role: role,
+        slack_user_id,
       }
     });
 

@@ -93,6 +93,7 @@ const UserDashboard = ({ users, groups, searchParams, onDone }) => {
                 <th className="px-6 py-3 bg-base-200 dark:bg-[#222426]">Name</th>
                 <th className="px-6 py-3 bg-base-200 dark:bg-[#222426]">Email</th>
                 <th className="px-6 py-3 bg-base-200 dark:bg-[#222426]">Role</th>
+                <th className="px-6 py-3 bg-base-200 dark:bg-[#222426]">Slack ID</th>
                 <th className="px-6 py-3 bg-base-200 dark:bg-[#222426]">Action</th>
               </tr>
             </thead>
@@ -106,6 +107,9 @@ const UserDashboard = ({ users, groups, searchParams, onDone }) => {
                     <td className="px-6 py-4">{user.name}</td>
                     <td className="px-6 py-4">{user.email}</td>
                     <td className="px-6 py-4">{user.role}</td>
+                    <td className="px-6 py-4 font-mono text-sm">
+                      {user.slack_user_id || "—"}
+                    </td>
                     <td className="flex items-center px-6 py-4 space-x-3">
                       <button
                         type="button"
@@ -120,7 +124,7 @@ const UserDashboard = ({ users, groups, searchParams, onDone }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-10 opacity-50">
+                  <td colSpan="8" className="text-center py-10 opacity-50">
                     No users found
                   </td>
                 </tr>
