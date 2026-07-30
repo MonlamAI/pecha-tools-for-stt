@@ -138,6 +138,27 @@ const AddUserModal = ({ groups, onDone }) => {
               selectedOption={role}
               handleOptionChange={handleRoleChange}
             />
+            <div className="sm:col-span-2">
+              <label className="label" htmlFor="slack_user_id">
+                <span className="label-text text-base font-semibold">
+                  Slack Member ID
+                </span>
+              </label>
+              <input
+                id="slack_user_id"
+                type="text"
+                name="slack_user_id"
+                placeholder="e.g. U0AN39ECNH3"
+                maxLength={20}
+                className="input input-bordered w-full"
+              />
+              <label className="label">
+                <span className="label-text-alt opacity-70">
+                  Optional. Final Reviewers with a Slack ID receive group
+                  queue-empty notifications.
+                </span>
+              </label>
+            </div>
           </div>
           <button
             type="submit"

@@ -3,7 +3,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { calculatePay } from "@/lib/calculatePay";
 import { calculatePercent } from "@/lib/calculatePercent";
-const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
+const TranscriberReportTable = ({ usersStatistic, payCategory }) => {
   const glideGreentoRed = (num1, num2) => {
     // Calculate the percentage
     const percentage = calculatePercent(num1, num2);
@@ -151,7 +151,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
               <td>{user.syllableCount}</td>
               <td>
                 {calculatePay(
-                  selectGroup,
+                  payCategory,
                   user.reviewedInMin,
                   user.trashedInMin,
                   user.syllableCount,
@@ -259,11 +259,15 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
             <td>
               <b>
                 {calculatePay(
-                  selectGroup,
+                  payCategory,
                   usersStatistic?.reduce((a, b) => a + b.reviewedInMin, 0),
                   usersStatistic?.reduce((a, b) => a + b.trashedInMin, 0),
                   usersStatistic?.reduce((a, b) => a + b.syllableCount, 0),
-                  usersStatistic?.reduce((a, b) => a + (b.noReviewed || 0), 0)
+                  usersStatistic?.reduce((a, b) => a + (b.noReviewed || 0), 0),
+                  usersStatistic?.reduce(
+                    (a, b) => a + b.transcriberSyllableCount,
+                    0
+                  )
                 )}
               </b>
             </td>
@@ -276,7 +280,7 @@ const TranscriberReportTable = ({ usersStatistic, selectGroup }) => {
 
 TranscriberReportTable.propTypes = {
   usersStatistic: PropTypes.arrayOf(PropTypes.object),
-  selectGroup: PropTypes.any,
+  payCategory: PropTypes.string,
 };
 
 export default TranscriberReportTable;

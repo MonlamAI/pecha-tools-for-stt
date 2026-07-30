@@ -11,23 +11,18 @@ import {
   getUserSubmittedAndReviewedSecs,
 } from "./task";
 import { buildDateFilter } from "@/lib/reportDateRange";
+// [Reason] Admin authorization source for user-management mutations.
+import { getSessionUser } from "@/lib/auth/requireUser";
 
 const levenshtein = require("fast-levenshtein");
 
 /* -------------------- USERS -------------------- */
 
-// Get all users with counts and group info
+// Get all users with group info (task counts omitted — unused by callers and expensive)
 export const getAllUser = async () => {
   try {
     const users = await prisma.user.findMany({
       include: {
-        _count: {
-          select: {
-            transcriber_task: true,
-            reviewer_task: true,
-            final_reviewer_task: true,
-          },
-        },
         group: true,
       },
       orderBy: { id: "asc" },
@@ -41,10 +36,17 @@ export const getAllUser = async () => {
 
 // Create new user
 export const createUser = async (_prevState, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may create users.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   let name = formData.get("name")?.trim();
   const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
   const role = formData.get("role");
+  // [Reason] Optional Slack Member ID for queue-empty DMs; blank clears to NULL
+  const slackRaw = formData.get("slack_user_id");
+  const slack_user_id =
+    typeof slackRaw === "string" && slackRaw.trim() ? slackRaw.trim() : null;
 
   if ((!name || name === email) && email) {
     name = email.split("@")[0];
@@ -67,6 +69,7 @@ export const createUser = async (_prevState, formData) => {
         email,
         group_id: parseInt(groupId),
         role,
+        slack_user_id,
       },
     });
 
@@ -85,6 +88,9 @@ export const createUser = async (_prevState, formData) => {
 
 // Delete user
 export const deleteUser = async (id) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may delete users.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   try {
     const taskCount = await prisma.task.count({
       where: {
@@ -121,10 +127,17 @@ export const deleteUserByForm = async (_prevState, formData) => {
 
 // Edit user
 export const editUser = async (id, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may edit users.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const name = formData.get("name")?.trim();
   const email = formData.get("email")?.trim();
   const groupId = formData.get("group_id");
   const role = formData.get("role");
+  // [Reason] Optional Slack Member ID for queue-empty DMs; blank clears to NULL
+  const slackRaw = formData.get("slack_user_id");
+  const slack_user_id =
+    typeof slackRaw === "string" && slackRaw.trim() ? slackRaw.trim() : null;
   const userId = parseInt(id);
 
   try {
@@ -139,7 +152,7 @@ export const editUser = async (id, formData) => {
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { name, email, group_id: parseInt(groupId), role },
+      data: { name, email, group_id: parseInt(groupId), role, slack_user_id },
     });
 
     revalidatePath("/dashboard/user");

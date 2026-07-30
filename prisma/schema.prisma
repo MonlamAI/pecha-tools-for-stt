@@ -10,13 +10,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PayCategory {
+  AB
+  MV
+  TT
+  GR
+}
+
 model Group {
-  id            Int         @id @default(autoincrement())
-  name          String      @db.VarChar(255)
-  users         User[]
-  tasks         Task[]
-  Department    Department? @relation(fields: [department_id], references: [id])
-  department_id Int?
+  id                   Int         @id @default(autoincrement())
+  name                 String      @db.VarChar(255)
+  pay_category         PayCategory @default(MV)
+  // [Reason] Per-group flag for Slack queue milestone DMs (default off for existing groups)
+  notification_enabled Boolean     @default(false)
+  users                User[]
+  tasks                Task[]
+  Department           Department? @relation(fields: [department_id], references: [id])
+  department_id        Int?
 }
 
 model Department {
@@ -45,11 +55,14 @@ model Task {
   group_id               Int
   group                  Group     @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   state                  State     @default(transcribing)
-  // [Reason] Raise limit so longer STT transcripts can be saved on submit
-  inference_transcript   String?   @db.VarChar(2500)
-  transcript             String?   @db.VarChar(2500)
-  reviewed_transcript    String?   @db.VarChar(2500)
-  final_transcript       String?   @db.VarChar(2500)
+  inference_transcript   String?   @db.VarChar(500)
+  transcript             String?   @db.VarChar(500)
+  reviewed_transcript    String?   @db.VarChar(500)
+  final_transcript       String?   @db.VarChar(500)
+  // Reject feedback: { by, text, ranges: [{ start, end }] }
+  transcript_marks       Json?
+  // True when task was rejected and then submitted again
+  is_resubmission        Boolean   @default(false)
   file_name              String    @unique @db.VarChar(255)
   url                    String    @unique @db.Text
   transcriber_id         Int?
@@ -86,15 +99,17 @@ model Task {
 }
 
 model User {
-  id                  Int    @id @default(autoincrement())
-  name                String @unique @db.VarChar(255)
-  email               String @unique @db.VarChar(255)
+  id                  Int     @id @default(autoincrement())
+  name                String  @unique @db.VarChar(255)
+  email               String  @unique @db.VarChar(255)
   group_id            Int
-  role                Role   @default(TRANSCRIBER)
-  transcriber_task    Task[] @relation("TranscriberTasks")
-  reviewer_task       Task[] @relation("ReviewerTasks")
-  final_reviewer_task Task[] @relation("FinalReviewerTasks")
-  group               Group  @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  role                Role    @default(TRANSCRIBER)
+  // [Reason] Optional Slack Member ID for DM notifications (most users leave NULL)
+  slack_user_id       String? @db.VarChar(20)
+  transcriber_task    Task[]  @relation("TranscriberTasks")
+  reviewer_task       Task[]  @relation("ReviewerTasks")
+  final_reviewer_task Task[]  @relation("FinalReviewerTasks")
+  group               Group   @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   // Speed up fetching users by group and role
   @@index([group_id, role])

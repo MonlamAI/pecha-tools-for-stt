@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import { updateTask, getTasks } from "@/service/task-service";
+import { requireApiUser } from "@/lib/auth/requireUser";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 // import { getTranscribingCount } from "@/service/group-service";
 // import { sendDiscordAlert } from "@/lib/webhookutils";
 // import { TASK_ASSIGN } from "@/constants/config";
 
-export async function POST(request: Request) {
+export const POST = withAccessLog(async (request: Request) => {
   try {
-    const { action, id, transcript, task, role, currentTime } = await request.json();
+    // [Reason] The acting role is taken from the authenticated session, not the
+    // request body, so a user cannot escalate by spoofing `role`.
+    const auth = await requireApiUser();
+    if ("response" in auth) return auth.response;
+    const role = auth.user.role;
 
-    if (!action || !id || !task || !role) {
+    const { action, id, transcript, task, currentTime, transcript_marks } =
+      await request.json();
+
+    if (!action || !id || !task) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -28,7 +37,15 @@ export async function POST(request: Request) {
     // }
 
     // const result = await updateTask(action, id, transcript ?? "", task, role, currentTime ?? new Date().toISOString());
-    const result = await updateTask(action, id, transcript, task, role, currentTime ?? new Date().toISOString());
+    const result = await updateTask(
+      action,
+      id,
+      transcript,
+      task,
+      role,
+      currentTime ?? new Date().toISOString(),
+      transcript_marks ?? null
+    );
     if ((result as any)?.error) {
       return NextResponse.json(result, { status: 500 });
     }
@@ -37,4 +54,4 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Internal error" }, { status: 500 });
   }
-}
+});

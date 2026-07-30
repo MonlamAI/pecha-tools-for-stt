@@ -1,46 +1,13 @@
-"use client";
+import GroupClient from "./GroupClient";
+import { logPageAccess } from "@/lib/logger";
 
-import React, { useState, useEffect, Suspense } from "react";
-import { getAllGroup } from "@/model/group";
-import GroupReport from "./GroupReport";
-
-const Group = () => {
-    const [groups, setGroups] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        async function fetchGroups() {
-            try {
-                const data = await getAllGroup();
-                if (data && !data.error) {
-                    setGroups(data);
-                }
-            } catch (error) {
-                console.error("Error fetching groups:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchGroups();
-    }, []);
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <span className="loading loading-spinner loading-lg text-primary"></span>
-            </div>
-        );
-    }
-
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <span className="loading loading-spinner loading-lg text-primary"></span>
-            </div>
-        }>
-            <GroupReport groups={groups} />
-        </Suspense>
-    );
-};
-
-export default Group;
+// [Reason] Server wrapper so page-access logging works with staging's client report UI
+export default async function Group() {
+  const startedAt = performance.now();
+  await logPageAccess({
+    path: "/report/group",
+    statusCode: 200,
+    durationMs: Math.round(performance.now() - startedAt),
+  });
+  return <GroupClient />;
+}

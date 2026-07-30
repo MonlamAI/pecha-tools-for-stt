@@ -1,7 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getUserSpecificTasksCount } from "@/model/task";
+import { requireFinalReviewerApi } from "@/lib/auth/requireUser";
+import { withAccessLog } from "@/lib/logger/with-access-log";
 
-export async function GET(req: NextRequest) {
+export const GET = withAccessLog(async (req: Request) => {
+  // [Reason] Reports are admin-only (FINAL_REVIEWER).
+  const auth = await requireFinalReviewerApi();
+  if ("response" in auth) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -23,6 +28,4 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-
+});

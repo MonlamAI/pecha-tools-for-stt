@@ -1,6 +1,7 @@
 "use client";
+// [Reason] Keep useEffect (used for open-once latch); drop useSearchParams — auth uses session cookie, not ?session=.
 import { useState, useEffect, Suspense } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import BurgerIcon from "./BurgerIcon";
 import ThemeToggle from "./ThemeToggle";
 
@@ -10,11 +11,11 @@ function SidebarContent({ children }) {
   // the first open, then keep them mounted so reopen does not reload Sheets.
   const [hasOpenedOnce, setHasOpenedOnce] = useState(false);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
-  const session = searchParams.get("session");
-  // Hide toggle if on dashboard OR if session param exists
-  const isSessionPage = pathname?.includes("/dashboard") || !!session;
+  // [Reason] Auth now uses a session cookie, not a `?session=` param. Show the
+  // burger toggle on the worker (/stt) and dashboard pages instead.
+  const isSessionPage =
+    pathname?.includes("/dashboard") || pathname?.includes("/stt");
 
   // [Reason] Latch open-once without nesting setState inside the toggle updater.
   // Guard with !hasOpenedOnce so reopening the sidebar does not call setState again.

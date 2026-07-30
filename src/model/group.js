@@ -2,6 +2,8 @@
 
 import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
+// [Reason] Admin authorization source for group-management mutations.
+import { getSessionUser } from "@/lib/auth/requireUser";
 export const getTranscribingcount = async (group_id) => {
   try {
     const taskCount = await prisma.group.findUnique({
@@ -53,8 +55,16 @@ export const getAllGroup = async () => {
 };
 
 export const createGroup = async (prevState, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may create groups.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
+  const payCategory = formData.get("pay_category");
+  const validCategories = ["AB", "MV", "TT", "GR"];
+  if (!validCategories.includes(payCategory)) {
+    return { error: "Please select a valid pay category (AB, MV, TT, or GR)" };
+  }
   try {
     // guard: prevent duplicate group names within the same department
     const exists = await prisma.group.findFirst({
@@ -67,6 +77,7 @@ export const createGroup = async (prevState, formData) => {
       data: {
         name: groupName,
         department_id: parseInt(departmentId),
+        pay_category: payCategory,
       },
     });
     revalidatePath("/dashboard/group");
@@ -81,6 +92,9 @@ export const createGroup = async (prevState, formData) => {
 };
 
 export const deleteGroup = async (id) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may delete groups.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   try {
     const group = await prisma.group.delete({
       where: {
@@ -98,8 +112,16 @@ export const deleteGroup = async (id) => {
 };
 
 export const editGroup = async (id, formData) => {
+  // [Reason] Admin-only: only FINAL_REVIEWER may edit groups.
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
+  const payCategory = formData.get("pay_category");
+  const validCategories = ["AB", "MV", "TT", "GR"];
+  if (!validCategories.includes(payCategory)) {
+    return { error: "Please select a valid pay category (AB, MV, TT, or GR)" };
+  }
   try {
     // guard: prevent duplicate on rename/move
     const exists = await prisma.group.findFirst({
@@ -119,6 +141,7 @@ export const editGroup = async (id, formData) => {
       data: {
         name: groupName,
         department_id: parseInt(departmentId),
+        pay_category: payCategory,
       },
     });
     revalidatePath("/dashboard/group");
@@ -131,6 +154,32 @@ export const editGroup = async (id, formData) => {
       return { error: "Group with this name already exists in the department" };
     }
     return { error: "Failed to update group. Please try again." };
+  }
+};
+
+// [Reason] Persist per-group Slack notification toggle from the Groups admin table
+export const setGroupNotificationEnabled = async (id, enabled) => {
+  const _admin = await getSessionUser();
+  if (!_admin || _admin.role !== "FINAL_REVIEWER") return { error: "Forbidden" };
+
+  const groupId = typeof id === "string" ? parseInt(id) : Number(id);
+  if (!groupId || Number.isNaN(groupId)) return { error: "Invalid group id" };
+
+  try {
+    const group = await prisma.group.update({
+      where: { id: groupId },
+      data: { notification_enabled: Boolean(enabled) },
+    });
+    revalidatePath("/dashboard/group");
+    return {
+      success: enabled
+        ? "Slack notifications enabled"
+        : "Slack notifications disabled",
+      group,
+    };
+  } catch (error) {
+    console.error("Error updating group notification setting:", error);
+    return { error: "Failed to update notification setting. Please try again." };
   }
 };
 

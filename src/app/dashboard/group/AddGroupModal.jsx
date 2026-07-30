@@ -1,37 +1,32 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useFormState } from "react-dom";
 import { createGroup } from "@/model/group";
 import Select from "@/components/Select";
 import toast from "react-hot-toast";
+import { PAY_CATEGORIES } from "@/constants/payCategories";
 
 const AddGroupModal = ({ departments, onDone }) => {
   const [departmentId, setDepartmentId] = useState("");
+  const [payCategory, setPayCategory] = useState("");
   const ref = useRef(null);
-  const router = useRouter();
 
-  // Initialize useFormState with createGroup
   const [state, formAction] = useFormState(createGroup, null);
 
-  // Handle Server Action results
   useEffect(() => {
     if (state?.error) {
       toast.error(state.error);
     } else if (state?.success) {
       toast.success(state.success);
-      // Reset form and close modal
       ref.current?.reset();
       setDepartmentId("");
+      setPayCategory("");
       onDone?.();
       window.add_modal.close();
     }
-  }, [state]);
+  }, [state, onDone]);
 
-  const handleDepartmentChange = async (event) => {
-    setDepartmentId(event.target.value);
-  };
   return (
     <>
       <dialog id="add_modal" className="modal">
@@ -43,6 +38,8 @@ const AddGroupModal = ({ departments, onDone }) => {
               onClick={(e) => {
                 e.preventDefault();
                 ref.current?.reset();
+                setDepartmentId("");
+                setPayCategory("");
                 window.add_modal.close();
               }}
             >
@@ -70,9 +67,24 @@ const AddGroupModal = ({ departments, onDone }) => {
               label="Department"
               options={departments}
               selectedOption={departmentId}
-              handleOptionChange={handleDepartmentChange}
+              handleOptionChange={(e) => setDepartmentId(e.target.value)}
+            />
+            <Select
+              title="pay_category"
+              label="Pay Category"
+              options={PAY_CATEGORIES}
+              selectedOption={payCategory}
+              handleOptionChange={(e) => setPayCategory(e.target.value)}
             />
           </div>
+          {payCategory && (
+            <p className="text-sm text-base-content/70 -mt-2 mb-2">
+              {
+                PAY_CATEGORIES.find((c) => c.id === payCategory)
+                  ?.description
+              }
+            </p>
+          )}
           <button
             type="submit"
             className="btn btn-accent w-full sm:w-1/5 my-4 py-1 px-6 capitalize"
