@@ -7,12 +7,15 @@ export const dynamic = "force-dynamic";
 let cachedHealth: any = null;
 let cachedAt = 0;
 
-const CACHE_TTL_MS = 10_000;
+// [Reason] Longer TTL reduces load and false failures from transient DB latency
+const CACHE_TTL_MS = 60_000;
+// [Reason] Allow up to 3s for DB probe so brief latency spikes don't flip health to DOWN
+const DB_TIMEOUT_MS = 3_000;
 
 export async function GET() {
   const now = Date.now();
 
-  // Return cached result if still valid
+  // Return cached result if still valid (60s TTL)
   if (cachedHealth && now - cachedAt < CACHE_TTL_MS) {
     return NextResponse.json(cachedHealth, {
       status: cachedHealth.status === "UP" ? 200 : 503,
@@ -26,7 +29,7 @@ export async function GET() {
     const timeout = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error("Database health check timeout")),
-        1000
+        DB_TIMEOUT_MS
       )
     );
 
@@ -52,7 +55,7 @@ export async function GET() {
     },
   };
 
-  // Cache result for 10 seconds
+  // Cache result for 60 seconds
   cachedHealth = payload;
   cachedAt = now;
 
