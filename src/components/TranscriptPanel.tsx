@@ -19,6 +19,7 @@ type TranscriptPanelProps = {
   markRole: "REVIEWER" | "FINAL_REVIEWER" | null;
   fontClass: string;
   leadingClass: string;
+  lang: any;
 };
 
 function escapeHtml(text: string) {
@@ -98,6 +99,7 @@ const TranscriptPanel = ({
   markRole,
   fontClass,
   leadingClass,
+  lang,
 }: TranscriptPanelProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastExternalRef = useRef<{ value: string; marksKey: string }>({
@@ -215,7 +217,7 @@ const TranscriptPanel = ({
             onClick={handleUnderline}
             className="text-xs px-3 py-1 rounded-full border border-red-400/50 text-red-600 dark:text-red-400 bg-white/70 dark:bg-neutral-800/60 hover:bg-red-50 dark:hover:bg-red-950/30"
           >
-            Underline selection
+            {lang.underline_selection}
           </button>
           <button
             type="button"
@@ -223,7 +225,7 @@ const TranscriptPanel = ({
             disabled={!marks?.ranges?.length}
             className="text-xs px-3 py-1 rounded-full border border-neutral-300 dark:border-neutral-600 opacity-80 hover:opacity-100 disabled:opacity-40"
           >
-            Clear marks
+            {lang.clear_marks}
           </button>
         </div>
       )}

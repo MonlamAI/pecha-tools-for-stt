@@ -24,6 +24,11 @@
       language: "Language",
       theme: "Theme",
       history: "History",
+      load_from: "Load from",
+      load: "Load",
+      underline_selection: "Underline selection",
+      clear_marks: "Clear marks",
+      size: "Size",
     },
     bo: {
         title: "འབྲི་ཀློག་རིག་ནུས་ཡོ་ཆས།",
@@ -48,7 +53,12 @@
         speed: "མྱུར་ཚད།",
         language: "སྐད་ཡིག།",
         theme: "རྣམ་པ།",
-        history: "མིག་སྔའི་ལས་བསྡོམས།",
+        history: "ཉེ་བའི་ལས་བསྡོམས།",
+        load_from: "ནང་འདྲེན་བྱ་ཡུལ།",
+        load: "ནང་འདྲེན།",
+        underline_selection: "བསལ་འདེམས་ལ་འོག་ཐིག་རྒྱག་པ།",
+        clear_marks: "རྟགས་རྣམས་གཙང་སེལ།",
+        size: "ཆེ་ཆུང་།",
     },
   };
   

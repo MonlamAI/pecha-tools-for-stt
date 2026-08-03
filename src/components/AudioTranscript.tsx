@@ -411,7 +411,7 @@ const AudioTranscript = ({
         onClick={handleLoadTasks}
         disabled={isAssigning}
       >
-        {isAssigning ? "…" : "Load"}
+        {isAssigning ? "…" : lang.load}
       </button>
     </>
   );
@@ -441,7 +441,7 @@ const AudioTranscript = ({
         </div>
         {role === "REVIEWER" && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="opacity-60">Load from</span>
+            <span className="opacity-60">{lang.load_from}</span>
             {pickerControls}
           </div>
         )}
@@ -461,7 +461,7 @@ const AudioTranscript = ({
         </div>
         {role === "FINAL_REVIEWER" && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="opacity-60">Load from</span>
+            <span className="opacity-60">{lang.load_from}</span>
             {pickerControls}
           </div>
         )}
@@ -537,6 +537,7 @@ const AudioTranscript = ({
                     tasks={taskList}
                     role={role}
                     updateTaskAndIndex={updateTaskAndIndex}
+                    lang={lang}
                   />
                 </>
               ) : (
