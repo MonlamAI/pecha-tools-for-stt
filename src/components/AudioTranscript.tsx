@@ -97,6 +97,12 @@ async function fetchUserHistoryApi({ userId, groupId, role }: any) {
   return res.json();
 }
 
+async function fetchMoreHistoryApi(skip: number, filter: string) {
+  const res = await fetch(`/api/user/history?skip=${skip}&filter=${filter}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch more user history");
+  return res.json();
+}
+
 const AudioTranscript = ({
   tasks,
   userDetail,
@@ -471,11 +477,10 @@ const AudioTranscript = ({
         <>
           <div className="hidden md:block h-5 w-px bg-neutral-300 dark:bg-neutral-600" />
           <div
-            className={`text-sm font-semibold tabular-nums ${
-              batchDone >= batchTotal
+            className={`text-sm font-semibold tabular-nums ${batchDone >= batchTotal
                 ? "text-emerald-500"
                 : "text-neutral-700 dark:text-neutral-200"
-            }`}
+              }`}
             title="Progress for the last Load batch"
           >
             {batchDone >= batchTotal ? (
@@ -511,6 +516,15 @@ const AudioTranscript = ({
             role,
           });
           setHistoryList(latestHistory);
+        }}
+        onLoadMoreHistory={async (skip: number, filter: string) => {
+          const newItems = await fetchMoreHistoryApi(skip, filter);
+          setHistoryList((prev) => {
+            const existingIds = new Set(prev.map((t) => t.id));
+            const itemsToAdd = newItems.filter((t: any) => !existingIds.has(t.id));
+            return [...prev, ...itemsToAdd];
+          });
+          return newItems.length;
         }}
       >
         {isLoading ? (

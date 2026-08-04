@@ -6,8 +6,9 @@ import { NextResponse } from "next/server";
 import { getUserHistory } from "@/service/user-service";
 import { requireApiUser } from "@/lib/auth/requireUser";
 import { withAccessLog } from "@/lib/logger/with-access-log";
+import { TASK_RULES } from "@/constants/taskRules";
 
-export const GET = withAccessLog(async () => {
+export const GET = withAccessLog(async (req: Request) => {
   try {
     const auth = await requireApiUser();
     if ("response" in auth) return auth.response;
@@ -17,7 +18,21 @@ export const GET = withAccessLog(async () => {
       return NextResponse.json({ error: "No group assigned" }, { status: 400 });
     }
 
-    const result = await getUserHistory({ userId, groupId, role });
+    const url = new URL(req.url);
+    const filter = url.searchParams.get("filter");
+    const skip = parseInt(url.searchParams.get("skip") || "0");
+    
+    const rules = TASK_RULES[role];
+    let states;
+    if (filter === "completed") {
+      states = Array.isArray(rules.historyStates) 
+        ? rules.historyStates.filter(s => s !== "trashed") 
+        : rules.historyStates;
+    } else if (filter === "trashed") {
+      states = "trashed";
+    }
+
+    const result = await getUserHistory({ userId, groupId, role, skip, states });
     return NextResponse.json(result ?? []);
   } catch (error: any) {
     return NextResponse.json(

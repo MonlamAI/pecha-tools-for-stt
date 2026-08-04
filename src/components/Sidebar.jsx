@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import AppContext from "./AppContext";
 import LanguageToggle from "./LanguageToggle";
 import ThemeToggle from "./ThemeToggle";
@@ -15,9 +15,31 @@ const Sidebar = ({
   setTaskList,
   userHistory,
   onHistoryChanged,
+  onLoadMoreHistory,
 }) => {
   const { completedTaskCount, totalTaskCount, totalTaskPassed } = userTaskStats;
   const { lang } = useContext(AppContext);
+
+  const [historyFilter, setHistoryFilter] = useState("completed");
+  const filteredHistory = userHistory.filter((task) => {
+    if (historyFilter === "completed") return task.state !== "trashed";
+    if (historyFilter === "trashed") return task.state === "trashed";
+    return true;
+  });
+
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const handleLoadMore = async () => {
+    if (!onLoadMoreHistory) return;
+    setIsLoadingMore(true);
+    try {
+      await onLoadMoreHistory(filteredHistory.length, historyFilter);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   const handleHistoryClick = async (task) => {
     try {
@@ -131,9 +153,26 @@ const Sidebar = ({
           </section>
 
           {/* HISTORY */}
-          <Section title={lang.history} grow>
+          <Section
+            title={
+              <div className="flex items-center justify-between w-full pr-1">
+                <span>{historyFilter === "trashed" ? lang.trashed : lang.history}</span>
+                <button
+                  onClick={() => setHistoryFilter((prev) => (prev === "completed" ? "trashed" : "completed"))}
+                  className={`text-[1rem] p-1 rounded-md transition-all ${historyFilter === "trashed"
+                      ? "text-red-500 bg-red-50 dark:bg-red-900/20"
+                      : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    }`}
+                  title={lang.trashed}
+                >
+                  <BsTrash />
+                </button>
+              </div>
+            }
+            grow
+          >
             <div className="space-y-2">
-              {userHistory.map((task) => (
+              {filteredHistory.map((task) => (
                 <div
                   key={task.id}
                   onClick={() => handleHistoryClick(task)}
@@ -150,10 +189,10 @@ const Sidebar = ({
                 >
                   <p className="leading-relaxed line-clamp-2.2">
                     {role === "TRANSCRIBER"
-                      ? task.transcript ?? task.inference_transcript
+                      ? task.transcript ?? task.inference_transcript ?? "(No transcript text available)"
                       : role === "REVIEWER"
-                        ? task.reviewed_transcript ?? task.transcript
-                        : task.final_transcript ?? task.reviewed_transcript}
+                        ? task.reviewed_transcript ?? task.transcript ?? "(No transcript text available)"
+                        : task.final_transcript ?? task.reviewed_transcript ?? "(No transcript text available)"}
                   </p>
 
                   <div className="mt-2 flex justify-end text-neutral-500">
@@ -168,6 +207,13 @@ const Sidebar = ({
                   </div>
                 </div>
               ))}
+              <button
+                className="btn btn-sm btn-outline w-full mt-2"
+                disabled={isLoadingMore}
+                onClick={handleLoadMore}
+              >
+                {isLoadingMore ? "Loading..." : lang.load_more}
+              </button>
             </div>
           </Section>
         </aside>

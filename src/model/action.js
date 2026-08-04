@@ -5,8 +5,7 @@ import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { createUser } from "./user";
 import { getOrCreateUser } from "@/service/user-service";
-const ASSIGN_TASKS = 20;
-const MAX_HISTORY = 10;
+import { ASSIGN_TASKS, MAX_HISTORY } from "@/constants/config";
 //get user detail if exist
 export const getUserDetails = async (username) => {
   try {
@@ -475,7 +474,7 @@ export const getUserHistory = async (userId, groupId, role) => {
           ? { in: ["submitted", "trashed"] }
           : role === "REVIEWER"
           ? { in: ["accepted", "trashed"] }
-          : "finalised",
+          : { in: ["finalised", "trashed"] },
       group_id: parseInt(groupId),
     };
 

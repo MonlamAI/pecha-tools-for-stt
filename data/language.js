@@ -29,6 +29,9 @@
       underline_selection: "Underline selection",
       clear_marks: "Clear marks",
       size: "Size",
+      completed: "Completed",
+      trashed: "Trashed",
+      load_more: "Load More",
     },
     bo: {
         title: "འབྲི་ཀློག་རིག་ནུས་ཡོ་ཆས།",
@@ -59,6 +62,9 @@
         underline_selection: "བསལ་འདེམས་ལ་འོག་ཐིག་རྒྱག་པ།",
         clear_marks: "རྟགས་རྣམས་གཙང་སེལ།",
         size: "ཆེ་ཆུང་།",
+        completed: "ལེགས་གྲུབ་བྱུང་བ།",
+        trashed: "ཟུར་འཇོག་བྱས་པ།",
+        load_more: "མང་ཙམ་འཇུག་རོགས།",
     },
   };
   

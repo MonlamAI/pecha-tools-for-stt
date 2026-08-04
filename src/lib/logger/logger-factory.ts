@@ -281,15 +281,15 @@ export function createLogger(options: CreateLoggerOptions): Logger {
   const isDev = process.env.NODE_ENV !== "production";
   const streams = isDev
     ? [
-        { stream: fileStream },
-        { stream: lokiStream },
-        {
-          stream: pino.transport({
-            target: "pino-pretty",
-            options: { colorize: true, translateTime: "SYS:standard" },
-          }),
-        },
-      ]
+      { stream: fileStream },
+      { stream: lokiStream },
+      {
+        stream: pino.transport({
+          target: "pino-pretty",
+          options: { colorize: true, translateTime: "SYS:standard" },
+        }),
+      },
+    ]
     : [{ stream: fileStream }, { stream: lokiStream }];
 
   return pino(

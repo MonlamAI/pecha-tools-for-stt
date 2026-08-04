@@ -199,7 +199,7 @@ const TranscriptPanel = ({
         onInput={handleInput}
         onPaste={handlePaste}
         className={`
-          w-full min-h-[8rem] resize-none rounded-xl
+          w-full h-[35vh] min-h-[10rem] max-h-[80vh] overflow-y-auto rounded-xl
           bg-white dark:bg-neutral-800
           border border-neutral-300 dark:border-neutral-700
           p-6 md:p-9

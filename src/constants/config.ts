@@ -7,7 +7,7 @@ export const USER_FETCH_TASKS = 20;
 export const ASSIGN_TASKS = 20;
 
 // How many completed tasks to show in user history
-export const MAX_HISTORY = 10;
+export const MAX_HISTORY = 40;
 
 // Default role if a user is created without one
 export const DEFAULT_ROLE = "TRANSCRIBER";
