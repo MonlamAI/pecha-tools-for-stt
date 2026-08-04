@@ -1,8 +1,11 @@
 import { calculatePercent } from "@/lib/calculatePercent";
+import { calculateReviewerPay } from "@/lib/calculatePay";
 import Link from "next/link";
 import React from "react";
 
-const ReviewerReportTable = ({ reviewersStatistic }) => {
+const ReviewerReportTable = ({ reviewersStatistic, teamEarnings }) => {
+  const reviewerPay = calculateReviewerPay(teamEarnings || 0);
+
   const glideGreentoRed = (num1, num2) => {
     // Calculate the percentage
     const percentage = calculatePercent(num1, num2);
@@ -72,6 +75,9 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
             <th>Finalised %</th>
             <th>Task Corrected %</th>
             <th>Character Error %</th>
+            <th>Team Earnings</th>
+            <th>Admin Pay (AP)</th>
+            <th>Total Salary</th>
           </tr>
         </thead>
         <tbody classsName="tabular-nums">
@@ -116,6 +122,9 @@ const ReviewerReportTable = ({ reviewersStatistic }) => {
               >
                 {calculatePercent(r.totalCer, r.characterCount)}
               </td>
+              <td>{reviewerPay.teamEarnings}</td>
+              <td>{reviewerPay.ap}</td>
+              <td>{reviewerPay.totalSalary}</td>
             </tr>
           ))}
         </tbody>

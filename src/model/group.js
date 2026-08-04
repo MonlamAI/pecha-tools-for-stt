@@ -61,9 +61,9 @@ export const createGroup = async (prevState, formData) => {
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   const payCategory = formData.get("pay_category");
-  const validCategories = ["AB", "MV", "TT", "GR"];
+  const validCategories = ["AB", "MV", "TT", "GR", "UK"];
   if (!validCategories.includes(payCategory)) {
-    return { error: "Please select a valid pay category (AB, MV, TT, or GR)" };
+    return { error: "Please select a valid pay category (AB, MV, TT, GR, or UK)" };
   }
   try {
     // guard: prevent duplicate group names within the same department
@@ -118,9 +118,9 @@ export const editGroup = async (id, formData) => {
   const groupName = formData.get("name")?.trim();
   const departmentId = formData.get("department_id");
   const payCategory = formData.get("pay_category");
-  const validCategories = ["AB", "MV", "TT", "GR"];
+  const validCategories = ["AB", "MV", "TT", "GR", "UK"];
   if (!validCategories.includes(payCategory)) {
-    return { error: "Please select a valid pay category (AB, MV, TT, or GR)" };
+    return { error: "Please select a valid pay category (AB, MV, TT, GR, or UK)" };
   }
   try {
     // guard: prevent duplicate on rename/move

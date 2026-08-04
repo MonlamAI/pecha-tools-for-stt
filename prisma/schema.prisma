@@ -15,6 +15,7 @@ enum PayCategory {
   MV
   TT
   GR
+  UK
 }
 
 model Group {

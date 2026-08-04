@@ -10,6 +10,7 @@ import TranscriberReportTable from "./TranscriberReportTable";
 import ReviewerReportTable from "./ReviewerReportTable";
 import FinalReviewerTable from "./FinalReviewerTable";
 import { getCurrentReportCycle, getSiblingReportCycle } from "@/utils/report-date-utils";
+import { calculatePay } from "@/lib/calculatePay";
 
 const GroupReport = ({ groups }) => {
   const [data, setData] = useState({
@@ -180,6 +181,16 @@ const GroupReport = ({ groups }) => {
                 </h3>
                 <ReviewerReportTable
                   reviewersStatistic={data.reviewers}
+                  teamEarnings={
+                    selectGroup && data.users ? calculatePay(
+                      groups.find((g) => String(g.id) === String(selectGroup))?.pay_category,
+                      data.users?.reduce((a, b) => a + b.reviewedInMin, 0) || 0,
+                      data.users?.reduce((a, b) => a + b.trashedInMin, 0) || 0,
+                      data.users?.reduce((a, b) => a + b.syllableCount, 0) || 0,
+                      data.users?.reduce((a, b) => a + (b.noReviewed || 0), 0) || 0,
+                      data.users?.reduce((a, b) => a + b.transcriberSyllableCount, 0) || 0
+                    ) : 0
+                  }
                 />
               </section>
 
