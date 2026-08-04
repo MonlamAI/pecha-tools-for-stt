@@ -215,6 +215,14 @@ const AudioTranscript = ({
           action === "reject" ? transcript_marks ?? null : null,
       });
 
+      if (res.status === 401) {
+        toast.error("Session expired. Redirecting to login...");
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 1500);
+        return;
+      }
+
       const result = await res.json();
       if (!res.ok || result?.error) {
         toast.error(result?.error || "Failed");
@@ -374,6 +382,8 @@ const AudioTranscript = ({
           setBatchTotal(assignedCount);
           setBatchDone(0);
           toast.success(`Loaded ${assignedCount} task(s)`);
+          // Reset the dropdown back to "All users" upon successful load
+          setSourceUserId(null);
         }
       }
       await refreshAssignOptions();
