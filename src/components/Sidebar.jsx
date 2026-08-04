@@ -229,7 +229,7 @@ const Section = ({ title, children, horizontal = false, grow = false }) => (
     className={`
       px-5 py-4
       border-b border-neutral-200 dark:border-neutral-800
-      ${grow ? "flex-1 overflow-y-auto" : ""}
+      ${grow ? "flex-1 overflow-y-auto min-h-0" : ""}
     `}
   >
     <h3 className="uppercase text-[0.75rem] font-bold tracking-wide mb-3 opacity-70">
