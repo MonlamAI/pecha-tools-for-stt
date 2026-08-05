@@ -200,10 +200,11 @@ export const getTasks = async ({
   const { workingState, idField } = TASK_RULES[role];
   // Respect explicit Load limit (was hard-capped at USER_FETCH_TASKS=20).
   const fetchTake = Math.max(USER_FETCH_TASKS, limit ?? 0);
+  const sourceFilter = sourceUserFilter(role, sourceUserId);
 
   // Fetch existing tasks; if none, assign and refetch.
   let tasks = (await prisma.task.findMany({
-    where: { group_id: groupId, state: workingState, [idField]: userId },
+    where: { group_id: groupId, state: workingState, [idField]: userId, ...sourceFilter },
     orderBy: { id: "asc" },
     take: fetchTake,
     select: taskListSelect,
@@ -212,7 +213,7 @@ export const getTasks = async ({
   if (tasks.length === 0) {
     await assignTasksToUser({ groupId, userId, role, sourceUserId, limit });
     tasks = (await prisma.task.findMany({
-      where: { group_id: groupId, state: workingState, [idField]: userId },
+      where: { group_id: groupId, state: workingState, [idField]: userId, ...sourceFilter },
       orderBy: { id: "asc" },
       take: fetchTake,
       select: taskListSelect,

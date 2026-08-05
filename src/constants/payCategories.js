@@ -20,6 +20,11 @@ export const PAY_CATEGORIES = [
     name: "GR",
     description: "transcriber syllables × 0.5",
   },
+  {
+    id: "UK",
+    name: "Uke team",
+    description: "(reviewed + trashed) min × 5 + reviewed syllables × 0.3",
+  },
 ];
 
 export const PAY_CATEGORY_LABELS = Object.fromEntries(

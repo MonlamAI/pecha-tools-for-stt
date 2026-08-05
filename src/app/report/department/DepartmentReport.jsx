@@ -11,6 +11,7 @@ import ReviewerReportTable from "../group/ReviewerReportTable";
 import FinalReviewerTable from "../group/FinalReviewerTable";
 import { getCurrentReportCycle, getSiblingReportCycle } from "@/utils/report-date-utils";
 import DepartmentTotal from "./DepartmentTotal";
+import { calculatePay } from "@/lib/calculatePay";
 
 /* =====================================================
    SAFE MERGE HELPER
@@ -374,6 +375,16 @@ const DepartmentReport = ({ departments }) => {
                 <ReviewerReportTable
                   reviewersStatistic={
                     reviewersStatistic[activeGroup.id] || []
+                  }
+                  teamEarnings={
+                    activeGroup && usersStatistic[activeGroup.id] ? calculatePay(
+                      activeGroup.pay_category,
+                      usersStatistic[activeGroup.id]?.reduce((a, b) => a + b.reviewedInMin, 0) || 0,
+                      usersStatistic[activeGroup.id]?.reduce((a, b) => a + b.trashedInMin, 0) || 0,
+                      usersStatistic[activeGroup.id]?.reduce((a, b) => a + b.syllableCount, 0) || 0,
+                      usersStatistic[activeGroup.id]?.reduce((a, b) => a + (b.noReviewed || 0), 0) || 0,
+                      usersStatistic[activeGroup.id]?.reduce((a, b) => a + b.transcriberSyllableCount, 0) || 0
+                    ) : 0
                   }
                 />
               </section>

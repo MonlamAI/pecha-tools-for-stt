@@ -102,19 +102,24 @@ export const getUserHistory = async ({
   userId,
   groupId,
   role,
+  skip = 0,
+  states,
 }: {
   userId: number;
   groupId: number;
   role: Role;
+  skip?: number;
+  states?: string | string[];
 }) => {
   const rules = TASK_RULES[role];
+  const queryStates = states || rules.historyStates;
 
   return await prisma.task.findMany({
     where: {
       [rules.idField]: userId,
-      state: Array.isArray(rules.historyStates)
-        ? { in: rules.historyStates }
-        : rules.historyStates,
+      state: Array.isArray(queryStates)
+        ? { in: queryStates as any }
+        : (queryStates as any),
       group_id: groupId,
     },
     orderBy: [
@@ -123,6 +128,7 @@ export const getUserHistory = async ({
       { submitted_at: "desc" },
     ],
     take: MAX_HISTORY,
+    skip: skip,
     select: {
       id: true,
       group_id: true,

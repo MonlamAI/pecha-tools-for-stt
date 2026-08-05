@@ -18,6 +18,7 @@ type TranscriptWorkspaceType = {
   tasks: any;
   role: string;
   updateTaskAndIndex: (args: any) => void;
+  lang: any;
 };
 
 // [Reason] Isolate transcript state to this subtree so each keystroke only
@@ -27,6 +28,7 @@ const TranscriptWorkspace = ({
   tasks,
   role,
   updateTaskAndIndex,
+  lang,
 }: TranscriptWorkspaceType) => {
   const [transcript, setTranscript] = useState("");
   const [fontSizeIndex, setFontSizeIndex] = useState(2); // default to text-2xl
@@ -119,6 +121,7 @@ const TranscriptWorkspace = ({
           markRole={markRole}
           fontClass={fontSizes[fontSizeIndex].class}
           leadingClass={fontSizes[fontSizeIndex].leading}
+          lang={lang}
         />
 
 
@@ -126,7 +129,7 @@ const TranscriptWorkspace = ({
         <div className="mt-1 flex flex-wrap justify-between items-center gap-2 px-2 pb-1">
           {/* Font Size Adjuster */}
           <div className="flex items-center gap-1.5 bg-white/70 dark:bg-neutral-800/60 border border-white/40 dark:border-white/10 px-3 py-1 rounded-full backdrop-blur shadow-sm select-none">
-            <span className="text-xs opacity-65 mr-1 font-semibold">Size:</span>
+            <span className="text-xs opacity-65 mr-1 font-semibold">{lang.size}:</span>
             {fontSizes.map((size, index) => (
               <button
                 key={size.label}
