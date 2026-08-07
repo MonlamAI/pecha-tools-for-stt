@@ -87,6 +87,17 @@ export const createGroup = async (prevState, formData) => {
     if (error?.code === "P2002") {
       return { error: "Group with this name already exists in the department" };
     }
+    if (
+      error?.code === "P2007" ||
+      error?.code === "P2010" ||
+      /invalid input value for enum/i.test(String(error?.message || "")) ||
+      /PayCategory/i.test(String(error?.message || ""))
+    ) {
+      return {
+        error:
+          "Pay category is not supported by the database yet. Run migrations (add UK to PayCategory) and try again.",
+      };
+    }
     return { error: "Failed to create group. Please try again." };
   }
 };
@@ -152,6 +163,18 @@ export const editGroup = async (id, formData) => {
     console.error("Error updating a group:", error);
     if (error?.code === "P2002") {
       return { error: "Group with this name already exists in the department" };
+    }
+    // Prisma invalid enum / missing DB enum value (e.g. UK not migrated on staging)
+    if (
+      error?.code === "P2007" ||
+      error?.code === "P2010" ||
+      /invalid input value for enum/i.test(String(error?.message || "")) ||
+      /PayCategory/i.test(String(error?.message || ""))
+    ) {
+      return {
+        error:
+          "Pay category is not supported by the database yet. Run migrations (add UK to PayCategory) and try again.",
+      };
     }
     return { error: "Failed to update group. Please try again." };
   }
