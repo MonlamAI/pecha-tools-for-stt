@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const auth = await requireApiUser();
     if ("response" in auth) return auth.response;
-    const { group_id: groupId, role } = auth.user;
+    const { id: userId, group_id: groupId, role } = auth.user;
 
     if (!groupId) {
       return NextResponse.json({ error: "No group assigned" }, { status: 400 });
@@ -19,7 +19,7 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const options = await getAssignOptions({ groupId, role });
+    const options = await getAssignOptions({ groupId, role, userId });
     return NextResponse.json(options);
   } catch (error: any) {
     return NextResponse.json(

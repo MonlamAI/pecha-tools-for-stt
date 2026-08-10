@@ -262,6 +262,12 @@ const AudioTranscript = ({
     setBatchDone(next);
     if (next >= batchTotalRef.current) {
       toast.success(`Batch complete (${batchTotalRef.current}/${batchTotalRef.current})`);
+      setSourceUserId(null);
+      sourceUserIdRef.current = null;
+      setBatchTotal(0);
+      setBatchDone(0);
+      batchTotalRef.current = 0;
+      batchDoneRef.current = 0;
     }
   };
 
@@ -365,25 +371,15 @@ const AudioTranscript = ({
         const tasks = Array.isArray(result)
           ? result
           : result.tasks || [];
-        const assignedCount =
-          typeof result?.assignedCount === "number"
-            ? result.assignedCount
-            : tasks.length;
         setTaskList(tasks);
-        if (assignedCount === 0 && tasks.length === 0) {
+        if (tasks.length === 0) {
           toast.error("No tasks available");
           setBatchTotal(0);
           setBatchDone(0);
-        } else if (assignedCount === 0) {
-          toast.error(
-            "No new tasks available for that selection (showing your current queue)"
-          );
         } else {
-          setBatchTotal(assignedCount);
+          setBatchTotal(tasks.length);
           setBatchDone(0);
-          toast.success(`Loaded ${assignedCount} task(s)`);
-          // Reset the dropdown back to "All users" upon successful load
-          setSourceUserId(null);
+          toast.success(`Loaded ${tasks.length} task(s)`);
         }
       }
       await refreshAssignOptions();
