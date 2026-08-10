@@ -206,7 +206,7 @@ export const getTasks = async ({
 }): Promise<TaskListItem[]> => {
   const { workingState, idField } = TASK_RULES[role];
   // Respect explicit Load limit (was hard-capped at USER_FETCH_TASKS=20).
-  const fetchTake = Math.max(USER_FETCH_TASKS, limit ?? 0);
+  const fetchTake = limit !== undefined && limit > 0 ? limit : USER_FETCH_TASKS;
   const sourceFilter = sourceUserFilter(role, sourceUserId);
 
   // Fetch existing tasks; if none, assign and refetch.
