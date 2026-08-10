@@ -146,9 +146,11 @@ export type AssignOption = {
 export const getAssignOptions = async ({
   groupId,
   role,
+  userId,
 }: {
   groupId: number;
   role: Role;
+  userId: number;
 }): Promise<AssignOption[]> => {
   if (role !== "REVIEWER" && role !== "FINAL_REVIEWER") return [];
 
@@ -169,18 +171,23 @@ export const getAssignOptions = async ({
         where: {
           group_id: groupId,
           state: workingState,
-          [idField]: null,
+          OR: [
+            { [idField]: null },
+            { [idField]: userId }
+          ],
           [upstreamField]: u.id,
         },
       })
     )
   );
 
-  return users.map((u, i) => ({
-    id: u.id,
-    name: u.name,
-    availableCount: counts[i],
-  }));
+  return users
+    .map((u, i) => ({
+      id: u.id,
+      name: u.name,
+      availableCount: counts[i],
+    }))
+    .filter((opt) => opt.availableCount > 0);
 };
 
 // fetch tasks
