@@ -6,7 +6,6 @@ import { getAudioMimeTypeFromUrl } from "@/utils/audio-utils";
 
 const UserReportTable = ({
   userTaskRecord,
-  secretAccess,
   setUserTaskRecord,
 }) => {
   function formattedDate(date) {
@@ -30,8 +29,7 @@ const UserReportTable = ({
   const countRef = useRef(0);
 
   const handleRevertState = async (id, state) => {
-    //console.log(id, state);
-    if (disabledButtons[id]) return; // If the button is already disabled, do nothing
+    if (disabledButtons[id]) return;
 
     try {
       const updatedTask = await revertTaskState(id, state);
@@ -39,10 +37,10 @@ const UserReportTable = ({
       if (updatedTask?.error) {
         toast.error(updatedTask.error);
       } else {
-        toast.success(updatedTask.success);
+        toast.success(updatedTask.success || "Task state reverted successfully");
 
-        // Disable the button after success
-        setDisabledButtons({ ...disabledButtons, [id]: true });
+        // Update UI immediately
+        setUserTaskRecord((prev) => prev.filter(t => t.id !== id));
       }
     } catch (error) {
       throw new Error(error);
@@ -73,7 +71,7 @@ const UserReportTable = ({
               <th className="pr-80">Transcript</th>
               <th>Audio</th>
               <th>State</th>
-              {secretAccess && <th>Revert State</th>}
+              <th>Revert State</th>
               <th>Transcriber</th>
               <th>Reviewer</th>
               <th>Final Reviewer</th>
@@ -108,7 +106,7 @@ const UserReportTable = ({
                 >
                   <div className="grid gap-2 mb-2">
                     <strong>Submitted:</strong>
-                    {task.transcript}
+                    {task.transcript ? task.transcript : <span className="italic text-gray-500">No transcript saved</span>}
                   </div>
                   {task.reviewed_transcript !== null && (
                     <div className="grid gap-2 mb-2">
@@ -138,17 +136,16 @@ const UserReportTable = ({
                   </audio>
                 </td>
                 <td>{task.state}</td>
-                {secretAccess && (
                   <td>
                     <button
                       className="btn"
                       disabled={disabledButtons[task.id]}
                       onClick={() => handleRevertState(task.id, task.state)}
+                      title={task.state === "trashed" ? "Restore Task" : "Revert Task"}
                     >
-                      ❌
+                      {task.state === "trashed" ? "♻️" : "❌"}
                     </button>
                   </td>
-                )}
                 <td>
                   {task.transcriber?.name || ""}
                 </td>

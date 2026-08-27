@@ -14,12 +14,13 @@ export const GET = withAccessLog(async (req: Request) => {
     const skip = parseInt(searchParams.get("skip") || "0", 10);
     const from = searchParams.get("from") || "";
     const to = searchParams.get("to") || "";
+    const isTrashed = searchParams.get("trashed") === "true";
 
     if (!id) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
-    const data = await getUserSpecificTasks(id, limit, skip, { from, to });
+    const data = await getUserSpecificTasks(id, limit, skip, { from, to }, isTrashed);
     if ((data as any)?.error) {
       return NextResponse.json(data, { status: 500 });
     }

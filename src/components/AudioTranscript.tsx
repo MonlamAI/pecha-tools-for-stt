@@ -446,6 +446,9 @@ const AudioTranscript = ({
           <span className="font-bold">
             {taskList[0]?.transcriber?.name || "-"}
           </span>
+          {(taskList[0]?.transcript_marks as any)?.is_reverted && (
+            <span className="text-blue-500 font-bold">(Reverted)</span>
+          )}
           {(role === "REVIEWER" || role === "FINAL_REVIEWER") &&
             taskList[0]?.is_resubmission && (
               <span className="text-amber-500 font-bold">(Re-submitted)</span>

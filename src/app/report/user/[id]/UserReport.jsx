@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useRef, useState, useTransition } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import PaginationControls from "@/components/PaginationControls";
 import UserReportTable from "./UserReportTable";
 import Select from "@/components/Select";
 import DateInput from "@/components/DateInput";
-import { useQueryState, parseAsString, parseAsInteger } from "nuqs";
+import { useQueryState, parseAsString, parseAsInteger, parseAsBoolean } from "nuqs";
 import { useRouter, usePathname } from "next/navigation";
 import useDebounce from "@/hooks/useDebounceState";
 import { getCurrentReportCycle, getSiblingReportCycle } from "@/utils/report-date-utils";
@@ -14,7 +14,7 @@ const UserReport = ({ id, users }) => {
   const [userTaskRecord, setUserTaskRecord] = useState([]);
   const [totalTasks, setTotalTasks] = useState(0);
   const [selectedOption, setSelectedOption] = useState(id ? id : "");
-  const [secretAccess, setSecretAccess] = useState(false);
+  const [showTrashed, setShowTrashed] = useQueryState("trashed", parseAsBoolean.withDefault(false));
 
   const [fromDate, setFromDate] = useQueryState("from", parseAsString.withDefault(""));
   const [toDate, setToDate] = useQueryState("to", parseAsString.withDefault(""));
@@ -62,6 +62,7 @@ const UserReport = ({ id, users }) => {
           skip: String(skip),
           from: fromDate || "",
           to: toDate || "",
+          trashed: String(showTrashed),
         });
         const [tasksRes, countRes] = await Promise.all([
           fetch(`/api/report/user/tasks?${qs.toString()}`, {
@@ -73,6 +74,7 @@ const UserReport = ({ id, users }) => {
               id: String(selectedOption || ""),
               from: fromDate || "",
               to: toDate || "",
+              trashed: String(showTrashed),
             }).toString()}`,
             {
               cache: "no-store",
@@ -101,7 +103,7 @@ const UserReport = ({ id, users }) => {
     }
     getUserReportByGroup();
     return () => controller.abort();
-  }, [selectedOption, skip, limit, fromDate, toDate]);
+  }, [selectedOption, skip, limit, fromDate, toDate, showTrashed]);
 
   const handleOptionChange = async (event) => {
     setSelectedOption(event.target.value);
@@ -116,14 +118,6 @@ const UserReport = ({ id, users }) => {
 
   const totalTasksCount = totalTasks;
   const pageCount = Math.ceil(totalTasksCount / limit);
-
-  const handlePassword = (event) => {
-    if (event.target.value === process.env.NEXT_PUBLIC_PASSWORD) {
-      setSecretAccess(true);
-    } else {
-      setSecretAccess(false);
-    }
-  };
 
   const handleFilter = (event) => {
     setTranscript(event.target.value);
@@ -163,16 +157,17 @@ const UserReport = ({ id, users }) => {
             value={transcript}
             onChange={handleFilter}
           />
-          <input
-            name="password"
-            placeholder="Password"
-            type="password"
-            className="input input-bordered input-sm max-w-[120px]"
-            onChange={handlePassword}
-          />
         </div>
 
         <div className="flex items-end gap-2">
+          <button
+            type="button"
+            className={`btn btn-sm ${showTrashed ? "btn-error" : "btn-ghost"}`}
+            onClick={() => setShowTrashed(showTrashed ? null : true)}
+            title="Toggle Trashed Tasks"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
           <DateInput
             label="from"
             selectedDate={dates.from}
@@ -227,7 +222,6 @@ const UserReport = ({ id, users }) => {
             <section className="card bg-base-100 dark:bg-[#222426] border dark:border-none rounded-2xl p-2 w-full">
               <UserReportTable
                 userTaskRecord={userTaskRecord}
-                secretAccess={secretAccess}
                 setUserTaskRecord={setUserTaskRecord}
               />
             </section>

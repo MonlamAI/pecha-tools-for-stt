@@ -78,7 +78,7 @@ export async function createTasksFromCSV(formData) {
 /* --------------------- USER SPECIFIC TASKS --------------------- */
 
 // Get user-specific task count (optimized)
-export const getUserSpecificTasksCount = async (id, dates, groupId) => {
+export const getUserSpecificTasksCount = async (id, dates, groupId, isTrashed = false) => {
   const { from: fromDate, to: toDate } = dates;
   const userId = parseInt(id);
 
@@ -89,8 +89,9 @@ export const getUserSpecificTasksCount = async (id, dates, groupId) => {
   if (!user) return { error: `User with ID ${id} not found.` };
 
   const role = user.role.toLowerCase();
-  const stateFilter =
-    role === "transcriber"
+  const stateFilter = isTrashed
+    ? ["trashed"]
+    : role === "transcriber"
       ? ["submitted", "accepted", "finalised"]
       : role === "reviewer"
         ? ["accepted", "finalised"]
@@ -118,7 +119,7 @@ export const getUserSpecificTasksCount = async (id, dates, groupId) => {
 };
 
 // Get user-specific tasks (with syllable counts, optimized)
-export const getUserSpecificTasks = async (id, limit, skip, dates) => {
+export const getUserSpecificTasks = async (id, limit, skip, dates, isTrashed = false) => {
   const { from: fromDate, to: toDate } = dates;
   const userId = parseInt(id);
 
@@ -129,8 +130,9 @@ export const getUserSpecificTasks = async (id, limit, skip, dates) => {
   if (!user) return { error: `User with ID ${id} not found.` };
 
   const role = user.role.toLowerCase();
-  const stateFilter =
-    role === "transcriber"
+  const stateFilter = isTrashed
+    ? ["trashed"]
+    : role === "transcriber"
       ? ["submitted", "accepted", "finalised"]
       : role === "reviewer"
         ? ["accepted", "finalised"]

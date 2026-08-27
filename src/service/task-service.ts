@@ -337,7 +337,7 @@ export const updateTask = async (
         action === "submit" && Boolean(existing?.reviewer_id);
       data = {
         ...data,
-        transcript: changedState.state === rules.trashState ? null : transcript,
+        transcript: transcript,
         reviewed_transcript: null,
         final_transcript: null,
         transcript_marks: null,
@@ -360,9 +360,7 @@ export const updateTask = async (
           changedState.state === rules.rejectState
             ? transcript
             : task.transcript,
-        reviewed_transcript: [rules.trashState, rules.rejectState].includes(
-          changedState.state
-        )
+        reviewed_transcript: changedState.state === rules.rejectState
           ? null
           : transcript,
         transcript_marks: isReject
@@ -384,9 +382,7 @@ export const updateTask = async (
           changedState.state === rules.rejectState
             ? transcript
             : task.reviewed_transcript,
-        final_transcript: [rules.trashState, rules.rejectState].includes(
-          changedState.state
-        )
+        final_transcript: changedState.state === rules.rejectState
           ? null
           : transcript,
         transcript_marks: isReject
@@ -408,6 +404,12 @@ export const updateTask = async (
 
   // console.log('updateTask', { updatedTask, data, id })
   if (updatedTask) {
+    // [Fix] Invalidate the user progress cache so UI updates instantly
+    const userId = updatedTask[rules.idField as keyof Task];
+    if (userId) {
+      setCache(`user_progress:${userId}:${updatedTask.group_id}:${role}`, null, 0);
+    }
+
     // [Reason] Alert managers when any group's transcription queue hits exactly 100 or 0
     if (action === "submit" && role === "TRANSCRIBER") {
       try {
