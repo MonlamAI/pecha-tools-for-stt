@@ -17,7 +17,7 @@ const Sidebar = ({
   onHistoryChanged,
   onLoadMoreHistory,
 }) => {
-  const { completedTaskCount, totalTaskCount, totalTaskPassed } = userTaskStats;
+  const { completedTaskCount, totalTaskCount, totalTaskPassed, rejectedTaskCount = 0 } = userTaskStats;
   const { lang } = useContext(AppContext);
 
   const [historyFilter, setHistoryFilter] = useState("completed");
@@ -119,6 +119,13 @@ const Sidebar = ({
               }
               value={completedTaskCount}
             />
+
+            {(role === "TRANSCRIBER" || role === "REVIEWER") && (
+              <Row
+                label={lang.needs_revision || "Needs Revision"}
+                value={rejectedTaskCount}
+              />
+            )}
 
             {(role === "TRANSCRIBER" || role === "REVIEWER") && (
               <Row

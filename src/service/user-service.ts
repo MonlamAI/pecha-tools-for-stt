@@ -154,10 +154,10 @@ export const getUserProgressStats = async ({
 
   try {
     const cacheKey = `user_progress:${userId}:${groupId}:${role}`;
-    const cached = getCache<{ completedTaskCount: number; totalTaskCount: number; totalTaskPassed: number }>(cacheKey);
+    const cached = getCache<{ completedTaskCount: number; totalTaskCount: number; totalTaskPassed: number; rejectedTaskCount?: number }>(cacheKey);
     if (cached) return cached;
 
-    const [completedTaskCount, totalTaskCount, totalTaskPassed] = await Promise.all([
+    const [completedTaskCount, totalTaskCount, totalTaskPassed, rejectedTaskCount] = await Promise.all([
       getCompletedTaskCount({ userId, role, groupId }),
       prisma.task.count({
         where: {
@@ -172,9 +172,17 @@ export const getUserProgressStats = async ({
           state: { in: Array.isArray(rule.passedStates) ? rule.passedStates : [rule.passedStates] },
         },
       }),
+      role === "FINAL_REVIEWER" ? Promise.resolve(0) : prisma.task.count({
+        where: {
+          group_id: groupId,
+          [rule.idField]: userId,
+          state: rule.workingState,
+          ...(role === "TRANSCRIBER" ? { reviewer_id: { not: null } } : { final_reviewer_id: { not: null } }),
+        },
+      }),
     ]);
 
-    const result = { completedTaskCount, totalTaskCount, totalTaskPassed };
+    const result = { completedTaskCount, totalTaskCount, totalTaskPassed, rejectedTaskCount };
     // 10–20s TTL: choose 15s
     setCache(cacheKey, result, 15000);
     return result;
