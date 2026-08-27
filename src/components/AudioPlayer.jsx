@@ -91,7 +91,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     if (audioRef.current) {
       audioRef.current.load();
     }
-  }, [taskId, audioUrl]);
+  }, [taskId, audioUrl, audioRef]);
 
   useEffect(() => {
     const audio = audioRef.current;
