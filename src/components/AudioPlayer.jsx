@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { BsFillPlayFill, BsFillPauseFill } from "react-icons/bs";
 import { ImLoop } from "react-icons/im";
 import toast from "react-hot-toast";
@@ -11,9 +11,31 @@ import {
   safeAudioPlay,
 } from "@/utils/audio-utils";
 
+const PLAYBACK_RATE_STORAGE_KEY = "pecha_stt_playback_rate";
+const RATES = [0.5, 0.75, 1, 1.25, 1.5];
+
+function readSavedPlaybackRate() {
+  if (typeof window === "undefined") return 1;
+  try {
+    const saved = Number(localStorage.getItem(PLAYBACK_RATE_STORAGE_KEY));
+    return RATES.includes(saved) ? saved : 1;
+  } catch {
+    return 1;
+  }
+}
+
+// [Reason] load() copies defaultPlaybackRate onto playbackRate, so both must be
+// set or a new task's audio snaps back to 1x even if the UI still shows 1.5x.
+function applyPlaybackRate(audio, rate) {
+  if (!audio) return;
+  audio.defaultPlaybackRate = rate;
+  audio.playbackRate = rate;
+}
+
 export const AudioPlayer = ({ tasks, audioRef }) => {
   const { lang } = useContext(AppContext);
-  const [playbackRate, setPlaybackRate] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(readSavedPlaybackRate);
+  const playbackRateRef = useRef(playbackRate);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
   const [playbackError, setPlaybackError] = useState(null);
@@ -78,8 +100,26 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
   }, [handleKeyPress]);
 
   useEffect(() => {
+    playbackRateRef.current = playbackRate;
+  }, [playbackRate]);
+
+  const persistPlaybackRate = useCallback(
+    (rate) => {
+      playbackRateRef.current = rate;
+      setPlaybackRate(rate);
+      applyPlaybackRate(audioRef.current, rate);
+      try {
+        localStorage.setItem(PLAYBACK_RATE_STORAGE_KEY, String(rate));
+      } catch {
+        // ignore quota / private-mode failures
+      }
+    },
+    [audioRef]
+  );
+
+  useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.playbackRate = playbackRate;
+      applyPlaybackRate(audioRef.current, playbackRate);
       // [Reason] Re-apply loop preference when a new task/audio element loads.
       audioRef.current.loop = isLoopEnabled;
     }
@@ -90,6 +130,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     setPlaybackError(null);
     if (audioRef.current) {
       audioRef.current.load();
+      applyPlaybackRate(audioRef.current, playbackRateRef.current);
     }
   }, [taskId, audioUrl, audioRef]);
 
@@ -105,10 +146,12 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     });
 
     const onLoadStart = () => {
+      applyPlaybackRate(audio, playbackRateRef.current);
       logAudioDiagnostic("loadstart", { url: audioUrl, taskId });
     };
 
     const onLoadedMetadata = () => {
+      applyPlaybackRate(audio, playbackRateRef.current);
       logAudioDiagnostic("loadedmetadata", {
         url: audioUrl,
         taskId,
@@ -117,6 +160,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     };
 
     const onCanPlay = () => {
+      applyPlaybackRate(audio, playbackRateRef.current);
       logAudioDiagnostic("canplay", {
         url: audioUrl,
         taskId,
@@ -125,6 +169,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     };
 
     const onPlay = () => {
+      applyPlaybackRate(audio, playbackRateRef.current);
       setIsPlaying(true);
       setPlaybackError(null);
       logAudioDiagnostic("play", { url: audioUrl, taskId });
@@ -173,8 +218,6 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
       audio.removeEventListener("error", onError);
     };
   }, [audioRef, audioUrl, taskId, detectedMimeType]);
-
-  const rates = [0.5, 0.75, 1, 1.25, 1.5];
 
   // [Reason] Preserve theme-aware control styling from the current branch UI refresh.
   const baseBtn =
@@ -237,16 +280,11 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
             </span>
 
             <div className="flex items-center gap-1">
-              {rates.map((rate) => (
+              {RATES.map((rate) => (
                 <button
                   key={rate}
                   type="button"
-                  onClick={() => {
-                    if (audioRef.current) {
-                      audioRef.current.playbackRate = rate;
-                    }
-                    setPlaybackRate(rate);
-                  }}
+                  onClick={() => persistPlaybackRate(rate)}
                   // [Reason] Use main's larger speed buttons to match the branch UI refresh sizing.
                   className={`w-10 h-8 text-xs md:text-sm font-medium rounded-md transition-colors ${
                     playbackRate === rate
