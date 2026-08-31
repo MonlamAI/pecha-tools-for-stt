@@ -298,7 +298,7 @@ export const updateTask = async (
           },
           data: {
             state: changeState.state,
-            transcript: changeState.state === "trashed" ? null : transcript,
+            transcript: transcript,
             reviewed_transcript: null,
             final_transcript: null,
             transcript_marks: null,
@@ -336,7 +336,6 @@ export const updateTask = async (
                 ? transcript
                 : task.transcript,
             reviewed_transcript:
-              changeState.state === "trashed" ||
               changeState.state === "transcribing"
                 ? null
                 : transcript,
@@ -375,7 +374,6 @@ export const updateTask = async (
                 ? transcript
                 : task.reviewed_transcript,
             final_transcript:
-              changeState.state === "trashed" ||
               changeState.state === "submitted"
                 ? null
                 : transcript,
@@ -433,12 +431,28 @@ export const taskToastMsg = async (action) => {
 
 // admin level to revert the state of a task based on state send from frontend
 export const revertTaskState = async (id, state) => {
-  const newState =
-    state === "submitted"
-      ? "transcribing"
-      : state === "accepted"
-      ? "submitted"
-      : "accepted";
+  let newState;
+
+  if (state === "trashed") {
+    const task = await prisma.Task.findUnique({
+      where: { id },
+      select: { reviewer_id: true, final_reviewer_id: true },
+    });
+    if (task?.final_reviewer_id) {
+      newState = "accepted";
+    } else if (task?.reviewer_id) {
+      newState = "submitted";
+    } else {
+      newState = "transcribing";
+    }
+  } else {
+    newState =
+      state === "submitted"
+        ? "transcribing"
+        : state === "accepted"
+        ? "submitted"
+        : "accepted";
+  }
 
   try {
     const updatedTask = await prisma.Task.update({
@@ -447,6 +461,7 @@ export const revertTaskState = async (id, state) => {
       },
       data: {
         state: newState,
+        transcript_marks: state === "trashed" ? { is_reverted: true } : undefined,
       },
     });
     if (updatedTask) {

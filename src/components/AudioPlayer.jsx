@@ -88,7 +88,10 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
   useEffect(() => {
     setIsPlaying(false);
     setPlaybackError(null);
-  }, [taskId, audioUrl]);
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
+  }, [taskId, audioUrl, audioRef]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -199,15 +202,8 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
         preload="auto"
         playsInline
         autoPlay
-      >
-        {audioUrl ? (
-          detectedMimeType ? (
-            <source src={audioUrl} type={detectedMimeType} />
-          ) : (
-            <source src={audioUrl} />
-          )
-        ) : null}
-      </audio>
+        src={audioUrl || undefined}
+      />
       {playbackError ? (
         <p className="text-sm text-error w-full" role="alert">
           {playbackError}

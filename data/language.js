@@ -17,6 +17,7 @@
       final_reviewer: "Final Reviewer",
       submit: "Submit",
       reject: "Reject",
+      needs_revision: "Needs Revision",
       save: "Save",
       trash: "Trash",
       file: "File",
@@ -32,6 +33,7 @@
       completed: "Completed",
       trashed: "Trashed",
       load_more: "Load More",
+      reverted: "Reverted",
     },
     bo: {
         title: "འབྲི་ཀློག་རིག་ནུས་ཡོ་ཆས།",
@@ -50,6 +52,7 @@
         final_reviewer: "མཐའ་མའི་བསྐྱར་ཞིབ་མཁན།",
         submit: "དང་ལེན།",
         reject: " ངོས་ལེན་མེད་པ།",
+        needs_revision: "བསྐྱར་བཅོས་དགོས་པ།",
         save: "ཉར་ཚགས།",
         trash: "གད་སྙིགས།",
         file: "ཡིག་ཆ།",
@@ -65,6 +68,7 @@
         completed: "ལེགས་གྲུབ་བྱུང་བ།",
         trashed: "ཟུར་འཇོག་བྱས་པ།",
         load_more: "མང་ཙམ་འཇུག་རོགས།",
+        reverted: "ཕྱིར་ལེན།",
     },
   };
   
