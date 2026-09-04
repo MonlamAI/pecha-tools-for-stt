@@ -165,27 +165,35 @@ export const getAssignOptions = async ({
     orderBy: { name: "asc" },
   });
 
-  const counts = await Promise.all(
-    users.map((u) =>
-      prisma.task.count({
-        where: {
-          group_id: groupId,
-          state: workingState,
-          OR: [
-            { [idField]: null },
-            { [idField]: userId }
-          ],
-          [upstreamField]: u.id,
-        },
-      })
-    )
-  );
+  const userIds = users.map((u) => u.id);
+  if (userIds.length === 0) return [];
+
+  const groupCounts = await prisma.task.groupBy({
+    by: [upstreamField as 'transcriber_id' | 'reviewer_id'],
+    where: {
+      group_id: groupId,
+      state: workingState,
+      OR: [
+        { [idField]: null },
+        { [idField]: userId }
+      ],
+      [upstreamField]: { in: userIds },
+    },
+    _count: { _all: true },
+  });
+
+  const countMap = new Map();
+  groupCounts.forEach((g: any) => {
+    if (g[upstreamField]) {
+      countMap.set(g[upstreamField], g._count._all);
+    }
+  });
 
   return users
-    .map((u, i) => ({
+    .map((u) => ({
       id: u.id,
       name: u.name,
-      availableCount: counts[i],
+      availableCount: countMap.get(u.id) || 0,
     }))
     .filter((opt) => opt.availableCount > 0);
 };

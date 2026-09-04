@@ -195,7 +195,8 @@ const AudioTranscript = ({
     } else {
       setIsLoading(false);
     }
-  }, [taskList, setUserProgress]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setUserProgress]);
 
   const updateTaskAndIndex = async ({
     action,
