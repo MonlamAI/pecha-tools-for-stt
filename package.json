@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "tsx --test src/lib/user-progress-cache.test.ts",
     "cleanup-logs": "ts-node --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\"}' scripts/cleanup-logs.ts",
     "cleanup-logs:dry-run": "ts-node --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\"}' scripts/cleanup-logs.ts -- --dry-run"
   },
@@ -53,6 +54,7 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^3.3.3",
     "ts-node": "^10.9.1",
+    "tsx": "^4.23.13",
     "typescript": "^5.5.4"
   },
   "keywords": [],

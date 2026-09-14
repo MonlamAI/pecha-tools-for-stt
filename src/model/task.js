@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache";
 import { splitIntoSyllables } from "./user";
 import { buildDateFilter } from "@/lib/reportDateRange";
 import { getCache, setCache } from "@/lib/cache";
+import {
+  applyTaskTransitionToProgressCache,
+  toTaskProgressSnapshot,
+} from "@/lib/user-progress-cache";
 // [Reason] Admin authorization source for CSV task import.
 import { getSessionUser } from "@/lib/auth/requireUser";
 
@@ -392,6 +396,18 @@ export const getTaskWithRevertedState = async (task, role) => {
     if (task.state === "accepted" || (role === "REVIEWER" && task.state === "trashed")) newState = "submitted";
     if (task.state === "finalised" || (role === "FINAL_REVIEWER" && task.state === "trashed")) newState = "accepted";
 
+    // [Reason] Capture pre-revert snapshot so cached progress counts can be delta-updated
+    const beforeTask = await prisma.task.findUnique({
+      where: { id: parseInt(task.id) },
+      select: {
+        state: true,
+        group_id: true,
+        transcriber_id: true,
+        reviewer_id: true,
+        final_reviewer_id: true,
+      },
+    });
+
     const updatedTask = await prisma.task.update({
       where: { id: parseInt(task.id) },
       data: { state: newState },
@@ -400,6 +416,13 @@ export const getTaskWithRevertedState = async (task, role) => {
         reviewer: { select: { name: true } },
       },
     });
+
+    if (beforeTask) {
+      applyTaskTransitionToProgressCache(
+        toTaskProgressSnapshot(beforeTask),
+        toTaskProgressSnapshot(updatedTask)
+      );
+    }
 
     revalidatePath("/");
     return updatedTask;
