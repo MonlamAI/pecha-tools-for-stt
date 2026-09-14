@@ -5,6 +5,10 @@ import prisma from "@/service/db";
 import { revalidatePath } from "next/cache";
 import { createUser } from "./user";
 import { getOrCreateUser } from "@/service/user-service";
+import {
+  applyTaskTransitionToProgressCache,
+  toTaskProgressSnapshot,
+} from "@/lib/user-progress-cache";
 import { ASSIGN_TASKS, MAX_HISTORY } from "@/constants/config";
 //get user detail if exist
 export const getUserDetails = async (username) => {
@@ -433,11 +437,20 @@ export const taskToastMsg = async (action) => {
 export const revertTaskState = async (id, state) => {
   let newState;
 
+  // [Reason] Load full pre-revert task snapshot for targeted progress cache updates
+  const beforeTask = await prisma.Task.findUnique({
+    where: { id },
+    select: {
+      state: true,
+      group_id: true,
+      transcriber_id: true,
+      reviewer_id: true,
+      final_reviewer_id: true,
+    },
+  });
+
   if (state === "trashed") {
-    const task = await prisma.Task.findUnique({
-      where: { id },
-      select: { reviewer_id: true, final_reviewer_id: true },
-    });
+    const task = beforeTask;
     if (task?.final_reviewer_id) {
       newState = "accepted";
     } else if (task?.reviewer_id) {
@@ -465,6 +478,12 @@ export const revertTaskState = async (id, state) => {
       },
     });
     if (updatedTask) {
+      if (beforeTask) {
+        applyTaskTransitionToProgressCache(
+          toTaskProgressSnapshot(beforeTask),
+          toTaskProgressSnapshot(updatedTask)
+        );
+      }
       return {
         success: "Task state reverted successfully",
       };

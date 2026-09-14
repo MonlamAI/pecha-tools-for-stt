@@ -5,14 +5,13 @@ import { TASK_RULES } from "@/constants/taskRules";
 import { Prisma, type Role, type State } from "@prisma/client";
 import { MAX_HISTORY } from "@/constants/config";
 import { getTasks } from "./task-service";
-import { getCache, setCache } from "@/lib/cache";
-
-type UserProgressStats = {
-  completedTaskCount: number;
-  totalTaskCount: number;
-  totalTaskPassed: number;
-  rejectedTaskCount: number;
-};
+import { getCacheWriteVersion } from "@/lib/cache";
+import {
+  buildUserProgressCacheKey,
+  getCachedUserProgressStats,
+  setUserProgressCacheIfFresh,
+  type UserProgressStats,
+} from "@/lib/user-progress-cache";
 
 type ProgressStatsRow = {
   completedTaskCount: number | bigint;
@@ -236,14 +235,19 @@ export const getUserProgressStats = async ({
   groupId: number;
 }) => {
   try {
-    const cacheKey = `user_progress:${userId}:${groupId}:${role}`;
-    const cached = getCache<{ completedTaskCount: number; totalTaskCount: number; totalTaskPassed: number; rejectedTaskCount?: number }>(cacheKey);
+    const cacheKey = buildUserProgressCacheKey(userId, groupId, role);
+    const cached = getCachedUserProgressStats(cacheKey);
     if (cached) return cached;
 
+    const versionAtStart = getCacheWriteVersion(cacheKey);
     const result = await fetchProgressStatsGrouped({ userId, role, groupId });
-    // 10–20s TTL: choose 15s
-    setCache(cacheKey, result, 15000);
-    return result;
+
+    // [Reason] Task deltas may have refreshed cache while this miss was querying the DB
+    const existingAfterFetch = getCachedUserProgressStats(cacheKey);
+    if (existingAfterFetch) return existingAfterFetch;
+
+    setUserProgressCacheIfFresh(cacheKey, result, versionAtStart);
+    return getCachedUserProgressStats(cacheKey) ?? result;
   } catch (error) {
     console.error(`Failed to fetch progress stats for user ${userId}:`, error);
     return { error: `Failed to fetch progress stats for role ${role}. Please try again.` };
