@@ -2,10 +2,95 @@
 
 import prisma from "@/service/db";
 import { TASK_RULES } from "@/constants/taskRules";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role, type State } from "@prisma/client";
 import { MAX_HISTORY } from "@/constants/config";
-import { getCompletedTaskCount, getTasks } from "./task-service";
+import { getTasks } from "./task-service";
 import { getCache, setCache } from "@/lib/cache";
+
+type UserProgressStats = {
+  completedTaskCount: number;
+  totalTaskCount: number;
+  totalTaskPassed: number;
+  rejectedTaskCount: number;
+};
+
+type ProgressStatsRow = {
+  completedTaskCount: number | bigint;
+  totalTaskCount: number | bigint;
+  totalTaskPassed: number | bigint;
+  rejectedTaskCount: number | bigint;
+};
+
+// [Reason] Normalize raw COUNT aggregates (Prisma may return bigint) for JSON responses
+function normalizeProgressRow(row: ProgressStatsRow | undefined): UserProgressStats {
+  return {
+    completedTaskCount: Number(row?.completedTaskCount ?? 0),
+    totalTaskCount: Number(row?.totalTaskCount ?? 0),
+    totalTaskPassed: Number(row?.totalTaskPassed ?? 0),
+    rejectedTaskCount: Number(row?.rejectedTaskCount ?? 0),
+  };
+}
+
+function toStateList(states: State | State[]): State[] {
+  return Array.isArray(states) ? states : [states];
+}
+
+// [Reason] Build a safe IN (...) fragment for PostgreSQL State enum literals
+function stateInFragment(states: State[]) {
+  return Prisma.join(states.map((state) => Prisma.sql`${state}::"State"`), ", ");
+}
+
+// [Reason] One DB round trip with conditional aggregates replaces four sequential COUNT queries
+async function fetchProgressStatsGrouped({
+  userId,
+  role,
+  groupId,
+}: {
+  userId: number;
+  role: Role;
+  groupId: number;
+}): Promise<UserProgressStats> {
+  const rule = TASK_RULES[role];
+  const completedIn = stateInFragment(toStateList(rule.completedStates));
+  const passedIn = stateInFragment(toStateList(rule.passedStates));
+
+  if (role === "TRANSCRIBER") {
+    const rows = await prisma.$queryRaw<ProgressStatsRow[]>`
+      SELECT
+        COUNT(*) FILTER (WHERE state IN (${completedIn}))::int AS "completedTaskCount",
+        COUNT(*)::int AS "totalTaskCount",
+        COUNT(*) FILTER (WHERE state IN (${passedIn}))::int AS "totalTaskPassed",
+        COUNT(*) FILTER (WHERE state = ${rule.workingState}::"State" AND reviewer_id IS NOT NULL)::int AS "rejectedTaskCount"
+      FROM "Task"
+      WHERE transcriber_id = ${userId} AND group_id = ${groupId}
+    `;
+    return normalizeProgressRow(rows[0]);
+  }
+
+  if (role === "REVIEWER") {
+    const rows = await prisma.$queryRaw<ProgressStatsRow[]>`
+      SELECT
+        COUNT(*) FILTER (WHERE state IN (${completedIn}))::int AS "completedTaskCount",
+        COUNT(*)::int AS "totalTaskCount",
+        COUNT(*) FILTER (WHERE state IN (${passedIn}))::int AS "totalTaskPassed",
+        COUNT(*) FILTER (WHERE state = ${rule.workingState}::"State" AND final_reviewer_id IS NOT NULL)::int AS "rejectedTaskCount"
+      FROM "Task"
+      WHERE reviewer_id = ${userId} AND group_id = ${groupId}
+    `;
+    return normalizeProgressRow(rows[0]);
+  }
+
+  const rows = await prisma.$queryRaw<ProgressStatsRow[]>`
+    SELECT
+      COUNT(*) FILTER (WHERE state IN (${completedIn}))::int AS "completedTaskCount",
+      COUNT(*)::int AS "totalTaskCount",
+      COUNT(*) FILTER (WHERE state IN (${passedIn}))::int AS "totalTaskPassed",
+      0::int AS "rejectedTaskCount"
+    FROM "Task"
+    WHERE final_reviewer_id = ${userId} AND group_id = ${groupId}
+  `;
+  return normalizeProgressRow(rows[0]);
+}
 
 export type FetchUserDataResult =
   | { error: string }
@@ -150,37 +235,12 @@ export const getUserProgressStats = async ({
   role: Role;
   groupId: number;
 }) => {
-  const rule = TASK_RULES[role];
-
   try {
     const cacheKey = `user_progress:${userId}:${groupId}:${role}`;
     const cached = getCache<{ completedTaskCount: number; totalTaskCount: number; totalTaskPassed: number; rejectedTaskCount?: number }>(cacheKey);
     if (cached) return cached;
 
-    const completedTaskCount = await getCompletedTaskCount({ userId, role, groupId });
-    const totalTaskCount = await prisma.task.count({
-      where: {
-        group_id: groupId,
-        [rule.idField]: userId,
-      },
-    });
-    const totalTaskPassed = await prisma.task.count({
-      where: {
-        group_id: groupId,
-        [rule.idField]: userId,
-        state: { in: Array.isArray(rule.passedStates) ? rule.passedStates : [rule.passedStates] },
-      },
-    });
-    const rejectedTaskCount = role === "FINAL_REVIEWER" ? 0 : await prisma.task.count({
-      where: {
-        group_id: groupId,
-        [rule.idField]: userId,
-        state: rule.workingState,
-        ...(role === "TRANSCRIBER" ? { reviewer_id: { not: null } } : { final_reviewer_id: { not: null } }),
-      },
-    });
-
-    const result = { completedTaskCount, totalTaskCount, totalTaskPassed, rejectedTaskCount };
+    const result = await fetchProgressStatsGrouped({ userId, role, groupId });
     // 10–20s TTL: choose 15s
     setCache(cacheKey, result, 15000);
     return result;
