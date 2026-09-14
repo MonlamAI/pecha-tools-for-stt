@@ -6,7 +6,10 @@ import { TASK_RULES } from "@/constants/taskRules";
 import type { Prisma, Role, Task, State } from "@prisma/client";
 import { ASSIGN_TASKS, USER_FETCH_TASKS } from "@/constants/config";
 import { getNumberOfAssignedTask } from "@/model/action";
-import { getCache, setCache } from "@/lib/cache";
+import {
+  applyTaskTransitionToProgressCache,
+  toTaskProgressSnapshot,
+} from "@/lib/user-progress-cache";
 import { sendSlackMessage } from "@/lib/slack";
 
 export type TranscriptMarks = {
@@ -27,6 +30,9 @@ type TaskListItem = {
   is_resubmission: boolean;
   file_name: string;
   url: string;
+  transcriber_id?: number | null;
+  reviewer_id?: number | null;
+  final_reviewer_id?: number | null;
   transcriber: { name: string } | null;
   reviewer: { name: string } | null;
 };
@@ -266,7 +272,12 @@ export const assignTasksToUser = async ({
       },
       orderBy: { id: "asc" },
       take,
-      select: taskListSelect,
+      select: {
+        ...taskListSelect,
+        transcriber_id: true,
+        reviewer_id: true,
+        final_reviewer_id: true,
+      },
     }) as unknown as TaskListItem[];
 
     if (unassignedTasks.length > 0) {
@@ -274,6 +285,28 @@ export const assignTasksToUser = async ({
         where: { id: { in: unassignedTasks.map((t) => t.id) } },
         data: { [idField]: userId },
       });
+
+      // [Reason] Assignment changes total assigned counts for reviewer/final reviewer caches
+      for (const task of unassignedTasks) {
+        applyTaskTransitionToProgressCache(
+          toTaskProgressSnapshot({
+            state: task.state,
+            group_id: task.group_id,
+            transcriber_id: task.transcriber_id ?? null,
+            reviewer_id: task.reviewer_id ?? null,
+            final_reviewer_id: task.final_reviewer_id ?? null,
+            [idField]: null,
+          }),
+          toTaskProgressSnapshot({
+            state: task.state,
+            group_id: task.group_id,
+            transcriber_id: task.transcriber_id ?? null,
+            reviewer_id: task.reviewer_id ?? null,
+            final_reviewer_id: task.final_reviewer_id ?? null,
+            [idField]: userId,
+          })
+        );
+      }
     }
 
     return unassignedTasks;
@@ -329,11 +362,20 @@ export const updateTask = async (
     duration = formatTime(endTime - startTime);
   }
 
-  // Use DB ids — client task payloads may omit reviewer_id / final_reviewer_id
-  const existing = await prisma.task.findUnique({
+  // [Reason] Load authoritative pre-update snapshot for progress cache deltas
+  const beforeTask = await prisma.task.findUnique({
     where: { id },
-    select: { reviewer_id: true, final_reviewer_id: true },
+    select: {
+      state: true,
+      group_id: true,
+      transcriber_id: true,
+      reviewer_id: true,
+      final_reviewer_id: true,
+    },
   });
+
+  // Use DB ids — client task payloads may omit reviewer_id / final_reviewer_id
+  const existing = beforeTask;
 
   // decide which fields to update
   let data: any = { state: changedState.state };
@@ -412,10 +454,12 @@ export const updateTask = async (
 
   // console.log('updateTask', { updatedTask, data, id })
   if (updatedTask) {
-    // [Fix] Invalidate the user progress cache so UI updates instantly
-    const userId = updatedTask[rules.idField as keyof Task];
-    if (userId) {
-      setCache(`user_progress:${userId}:${updatedTask.group_id}:${role}`, null, 0);
+    // [Reason] Adjust cached sidebar counts immediately without forcing a DB recount
+    if (beforeTask) {
+      applyTaskTransitionToProgressCache(
+        toTaskProgressSnapshot(beforeTask),
+        toTaskProgressSnapshot(updatedTask)
+      );
     }
 
     // [Reason] Alert managers when any group's transcription queue hits exactly 100 or 0

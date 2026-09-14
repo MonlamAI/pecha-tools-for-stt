@@ -10,6 +10,34 @@ type CacheEntry = {
 };
 
 const store: Map<string, CacheEntry> = new Map();
+// [Reason] Per-key generation counters prevent stale cache-miss writes from overwriting delta updates
+const writeVersions: Map<string, number> = new Map();
+
+export function getCacheWriteVersion(key: string): number {
+  try {
+    return writeVersions.get(key) ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function bumpCacheWriteVersion(key: string): void {
+  try {
+    writeVersions.set(key, (writeVersions.get(key) ?? 0) + 1);
+  } catch {
+    // Never throw from cache helpers
+  }
+}
+
+// [Reason] Test helper to reset in-memory cache state between unit tests
+export function resetCacheStoreForTests(): void {
+  try {
+    store.clear();
+    writeVersions.clear();
+  } catch {
+    // Never throw from cache helpers
+  }
+}
 
 export function getCache<T = unknown>(key: string): T | undefined {
   try {
