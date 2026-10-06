@@ -11,10 +11,62 @@ import {
   getUserSubmittedAndReviewedSecs,
 } from "./task";
 import { buildDateFilter } from "@/lib/reportDateRange";
+// [Reason] Keep cached progress counts accurate after assignee cleanup during user edits.
+import {
+  applyTaskTransitionToProgressCache,
+  toTaskProgressSnapshot,
+} from "@/lib/user-progress-cache";
 // [Reason] Admin authorization source for user-management mutations.
 import { getSessionUser } from "@/lib/auth/requireUser";
 
 const levenshtein = require("fast-levenshtein");
+
+// [Reason] Single source of truth for the assignment field that each role is allowed to own.
+const ASSIGNEE_FIELD_RULES = [
+  { field: "transcriber_id", expectedRole: "TRANSCRIBER" },
+  { field: "reviewer_id", expectedRole: "REVIEWER" },
+  { field: "final_reviewer_id", expectedRole: "FINAL_REVIEWER" },
+];
+
+// [Reason] Ensure tasks stay assigned only when user still matches both role and group ownership rules.
+const clearInvalidTaskAssignmentsForUser = async (
+  tx,
+  { userId, targetGroupId, targetRole }
+) => {
+  for (const { field, expectedRole } of ASSIGNEE_FIELD_RULES) {
+    const shouldKeepAssignmentsForRole = targetRole === expectedRole;
+    const invalidAssignmentWhere = shouldKeepAssignmentsForRole
+      ? { [field]: userId, group_id: { not: targetGroupId } }
+      : { [field]: userId };
+
+    const invalidTasks = await tx.task.findMany({
+      where: invalidAssignmentWhere,
+      select: {
+        id: true,
+        state: true,
+        group_id: true,
+        transcriber_id: true,
+        reviewer_id: true,
+        final_reviewer_id: true,
+      },
+    });
+
+    if (invalidTasks.length === 0) continue;
+
+    await tx.task.updateMany({
+      where: { id: { in: invalidTasks.map((task) => task.id) } },
+      data: { [field]: null },
+    });
+
+    // [Reason] Reflect ownership removals instantly in any warm progress cache entry.
+    for (const task of invalidTasks) {
+      applyTaskTransitionToProgressCache(
+        toTaskProgressSnapshot(task),
+        toTaskProgressSnapshot({ ...task, [field]: null })
+      );
+    }
+  }
+};
 
 /* -------------------- USERS -------------------- */
 
@@ -139,8 +191,12 @@ export const editUser = async (id, formData) => {
   const slack_user_id =
     typeof slackRaw === "string" && slackRaw.trim() ? slackRaw.trim() : null;
   const userId = parseInt(id);
+  // [Reason] Parse once and validate so assignment cleanup uses a trusted group id.
+  const targetGroupId = parseInt(groupId);
 
   try {
+    if (Number.isNaN(targetGroupId)) return { error: "Invalid group id" };
+
     const [userByName, userByEmail] = await Promise.all([
       prisma.user.findFirst({ where: { name, NOT: { id: userId } } }),
       prisma.user.findFirst({ where: { email, NOT: { id: userId } } }),
@@ -150,9 +206,21 @@ export const editUser = async (id, formData) => {
     if (userByName) return { error: "User already exists with the same username" };
     if (userByEmail) return { error: "User already exists with the same email" };
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: { name, email, group_id: parseInt(groupId), role, slack_user_id },
+    // [Reason] Keep user identity update and stale assignment cleanup in one atomic transaction.
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { name, email, group_id: targetGroupId, role, slack_user_id },
+      });
+
+      // [Reason] Preserve task assignments only when user still belongs to matching role and group.
+      await clearInvalidTaskAssignmentsForUser(tx, {
+        userId,
+        targetGroupId,
+        targetRole: role,
+      });
+
+      return user;
     });
 
     revalidatePath("/dashboard/user");
