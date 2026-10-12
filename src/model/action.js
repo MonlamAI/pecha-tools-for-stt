@@ -9,7 +9,7 @@ import {
   applyTaskTransitionToProgressCache,
   toTaskProgressSnapshot,
 } from "@/lib/user-progress-cache";
-import { ASSIGN_TASKS, MAX_HISTORY } from "@/constants/config";
+import { ASSIGN_TASKS, HISTORY_PAGE_SIZE } from "@/constants/config";
 //get user detail if exist
 export const getUserDetails = async (username) => {
   try {
@@ -534,7 +534,8 @@ export const getUserHistory = async (userId, groupId, role) => {
         reviewed_transcript: true,
         final_transcript: true,
       },
-      take: MAX_HISTORY,
+      // [Reason] Match sidebar pagination: latest 5 history tasks per fetch
+      take: HISTORY_PAGE_SIZE,
     });
     return userHistory;
   } catch (error) {

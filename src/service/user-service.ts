@@ -3,7 +3,7 @@
 import prisma from "@/service/db";
 import { TASK_RULES } from "@/constants/taskRules";
 import { Prisma, type Role, type State } from "@prisma/client";
-import { MAX_HISTORY } from "@/constants/config";
+import { HISTORY_PAGE_SIZE } from "@/constants/config";
 import { getTasks } from "./task-service";
 import { getCacheWriteVersion } from "@/lib/cache";
 import {
@@ -188,12 +188,14 @@ export const getUserHistory = async ({
   role,
   skip = 0,
   states,
+  take = HISTORY_PAGE_SIZE,
 }: {
   userId: number;
   groupId: number;
   role: Role;
   skip?: number;
   states?: string | string[];
+  take?: number;
 }) => {
   const rules = TASK_RULES[role];
   const queryStates = states || rules.historyStates;
@@ -211,7 +213,8 @@ export const getUserHistory = async ({
       { reviewed_at: "desc" },
       { submitted_at: "desc" },
     ],
-    take: MAX_HISTORY,
+    // [Reason] Paginate history so the sidebar shows 5 latest tasks, then 5 more per load
+    take,
     skip: skip,
     select: {
       id: true,

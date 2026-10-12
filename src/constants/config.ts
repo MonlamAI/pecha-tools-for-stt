@@ -6,8 +6,11 @@
 export const USER_FETCH_TASKS = 20;
 export const ASSIGN_TASKS = 20;
 
-// How many completed tasks to show in user history
-export const MAX_HISTORY = 40;
+// How many history tasks to fetch per page (initial load and each "Load more")
+export const HISTORY_PAGE_SIZE = 5;
+
+// Legacy cap kept for any callers that still reference it
+export const MAX_HISTORY = HISTORY_PAGE_SIZE;
 
 // Default role if a user is created without one
 export const DEFAULT_ROLE = "TRANSCRIBER";
