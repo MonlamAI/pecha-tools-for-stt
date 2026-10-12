@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
+import { HISTORY_PAGE_SIZE } from "@/constants/config";
 import AppContext from "./AppContext";
 import LanguageToggle from "./LanguageToggle";
 import ThemeToggle from "./ThemeToggle";
@@ -28,12 +29,24 @@ const Sidebar = ({
   });
 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  // [Reason] Hide "Load more" when the server returned fewer than a full page
+  const [hasMoreHistory, setHasMoreHistory] = useState(
+    (userHistory?.length ?? 0) === HISTORY_PAGE_SIZE
+  );
+
+  useEffect(() => {
+    // [Reason] Full history refresh (e.g. revert) replaces the list with one page again
+    if (userHistory.length <= HISTORY_PAGE_SIZE) {
+      setHasMoreHistory(userHistory.length === HISTORY_PAGE_SIZE);
+    }
+  }, [userHistory]);
 
   const handleLoadMore = async () => {
     if (!onLoadMoreHistory) return;
     setIsLoadingMore(true);
     try {
-      await onLoadMoreHistory(filteredHistory.length, historyFilter);
+      const fetchedCount = await onLoadMoreHistory(filteredHistory.length, historyFilter);
+      setHasMoreHistory(fetchedCount === HISTORY_PAGE_SIZE);
     } catch (e) {
       console.error(e);
     } finally {
@@ -214,13 +227,15 @@ const Sidebar = ({
                   </div>
                 </div>
               ))}
-              <button
-                className="btn btn-sm btn-outline w-full mt-2"
-                disabled={isLoadingMore}
-                onClick={handleLoadMore}
-              >
-                {isLoadingMore ? "Loading..." : lang.load_more}
-              </button>
+              {hasMoreHistory && onLoadMoreHistory && (
+                <button
+                  className="btn btn-sm btn-outline w-full mt-2"
+                  disabled={isLoadingMore}
+                  onClick={handleLoadMore}
+                >
+                  {isLoadingMore ? "Loading..." : lang.load_more}
+                </button>
+              )}
             </div>
           </Section>
         </aside>
