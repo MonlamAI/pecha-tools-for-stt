@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test src/lib/user-progress-cache.test.ts",
+    "test": "tsx --test src/lib/user-progress-cache.test.ts src/utils/audio-utils.test.ts",
     "cleanup-logs": "ts-node --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\"}' scripts/cleanup-logs.ts",
     "cleanup-logs:dry-run": "ts-node --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\"}' scripts/cleanup-logs.ts -- --dry-run"
   },

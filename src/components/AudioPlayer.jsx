@@ -8,6 +8,7 @@ import {
   getAudioErrorMessage,
   getAudioMimeTypeFromUrl,
   logAudioDiagnostic,
+  normalizeAudioUrl,
   safeAudioPlay,
 } from "@/utils/audio-utils";
 
@@ -40,9 +41,11 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
   const [playbackError, setPlaybackError] = useState(null);
 
-  const audioUrl = tasks[0]?.url ?? "";
+  const audioUrl = normalizeAudioUrl(tasks[0]?.url);
   const taskId = tasks[0]?.id;
   const detectedMimeType = getAudioMimeTypeFromUrl(audioUrl);
+  const autoPlayAttemptedRef = useRef(false);
+  const decodeRetryRef = useRef(0);
 
   const notifyPlaybackFailure = useCallback((message) => {
     setPlaybackError(message);
@@ -128,8 +131,10 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
   useEffect(() => {
     setIsPlaying(false);
     setPlaybackError(null);
+    autoPlayAttemptedRef.current = false;
+    decodeRetryRef.current = 0;
+    // [Reason] key={taskId} remounts the element with a fresh src; extra load() raced autoPlay and caused false decode errors.
     if (audioRef.current) {
-      audioRef.current.load();
       applyPlaybackRate(audioRef.current, playbackRateRef.current);
     }
   }, [taskId, audioUrl, audioRef]);
@@ -168,6 +173,24 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
       });
     };
 
+    const onCanPlayThrough = () => {
+      applyPlaybackRate(audio, playbackRateRef.current);
+      logAudioDiagnostic("canplaythrough", {
+        url: audioUrl,
+        taskId,
+        readyState: audio.readyState,
+      });
+
+      // [Reason] Wait until enough audio is buffered so Chrome does not report spurious MEDIA_ERR_DECODE.
+      if (!autoPlayAttemptedRef.current && audioUrl) {
+        autoPlayAttemptedRef.current = true;
+        void safeAudioPlay(audio, "task-autoplay", {
+          showToastOnFailure: false,
+          onFailure: notifyPlaybackFailure,
+        });
+      }
+    };
+
     const onPlay = () => {
       applyPlaybackRate(audio, playbackRateRef.current);
       setIsPlaying(true);
@@ -186,6 +209,27 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     };
 
     const onError = () => {
+      const errorCode = audio.error?.code;
+
+      // [Reason] Chrome sometimes reports MEDIA_ERR_DECODE when load/play was interrupted; one reload usually fixes it.
+      if (
+        errorCode === MediaError.MEDIA_ERR_DECODE &&
+        decodeRetryRef.current < 2 &&
+        audioUrl
+      ) {
+        decodeRetryRef.current += 1;
+        autoPlayAttemptedRef.current = false;
+        setPlaybackError(null);
+        logAudioDiagnostic("decode-retry", {
+          url: audioUrl,
+          taskId,
+          attempt: decodeRetryRef.current,
+        });
+        applyPlaybackRate(audio, playbackRateRef.current);
+        audio.load();
+        return;
+      }
+
       const message = getAudioErrorMessage(audio.error);
       setIsPlaying(false);
       setPlaybackError(message);
@@ -193,7 +237,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
         url: audioUrl,
         taskId,
         message,
-        code: audio.error?.code,
+        code: errorCode,
         networkState: audio.networkState,
         readyState: audio.readyState,
       });
@@ -203,6 +247,7 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     audio.addEventListener("loadstart", onLoadStart);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("canplay", onCanPlay);
+    audio.addEventListener("canplaythrough", onCanPlayThrough);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
@@ -212,12 +257,13 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
       audio.removeEventListener("loadstart", onLoadStart);
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("canplay", onCanPlay);
+      audio.removeEventListener("canplaythrough", onCanPlayThrough);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("error", onError);
     };
-  }, [audioRef, audioUrl, taskId, detectedMimeType]);
+  }, [audioRef, audioUrl, taskId, detectedMimeType, notifyPlaybackFailure]);
 
   // [Reason] Preserve theme-aware control styling from the current branch UI refresh.
   const baseBtn =
@@ -244,7 +290,6 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
         key={taskId}
         preload="auto"
         playsInline
-        autoPlay
         src={audioUrl || undefined}
       />
       {playbackError ? (
