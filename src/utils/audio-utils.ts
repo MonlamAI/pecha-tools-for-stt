@@ -2,6 +2,12 @@
 
 export const AUDIO_LOG_PREFIX = "[AudioPlayer]";
 
+/** Trim whitespace from stored URLs so the media element requests the correct object. */
+export function normalizeAudioUrl(url: string | null | undefined): string {
+  if (!url) return "";
+  return url.trim();
+}
+
 const AUDIO_MIME_BY_EXTENSION: Record<string, string> = {
   wav: "audio/wav",
   wave: "audio/wav",
@@ -19,9 +25,10 @@ const AUDIO_MIME_BY_EXTENSION: Record<string, string> = {
 export function getAudioMimeTypeFromUrl(
   url: string | null | undefined
 ): string | undefined {
-  if (!url) return undefined;
+  const normalized = normalizeAudioUrl(url);
+  if (!normalized) return undefined;
 
-  const path = url.split("?")[0]?.split("#")[0] ?? "";
+  const path = normalized.split("?")[0]?.split("#")[0] ?? "";
   const extension = path.split(".").pop()?.toLowerCase();
   if (!extension) return undefined;
 
