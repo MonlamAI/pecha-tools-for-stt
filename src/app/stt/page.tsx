@@ -7,7 +7,7 @@ import AudioTranscript from "@/components/AudioTranscript";
 import RightSidebar from "@/components/RightSidebar";
 import languagesObject from "../../../data/language";
 import {
-  fetchUserDataBySession,
+  fetchUserDataForSessionUser,
   type FetchUserDataResult,
 } from "@/service/user-service";
 import { getSessionUser } from "@/lib/auth/requireUser";
@@ -19,8 +19,8 @@ export default async function SttPage() {
   if (!user) redirect("/login");
 
   const language = languagesObject;
-  // [Reason] Identity comes from the verified session (user.email), never the URL.
-  const result: FetchUserDataResult = await fetchUserDataBySession(user.email);
+  // [Reason] Identity comes from the verified session, never the URL.
+  const result: FetchUserDataResult = await fetchUserDataForSessionUser(user);
 
   return (
     <div className="flex flex-col justify-center items-center overflow-y-auto">

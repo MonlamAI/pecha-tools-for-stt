@@ -3,12 +3,14 @@
 import prisma from "@/service/db";
 import { formatTime } from "@/lib/formatTime";
 import { TASK_RULES } from "@/constants/taskRules";
-import type { Prisma, Role, Task, State } from "@prisma/client";
+import { Prisma, type Role, type Task, type State } from "@prisma/client";
 import { ASSIGN_TASKS, USER_FETCH_TASKS } from "@/constants/config";
 import { getNumberOfAssignedTask } from "@/model/action";
 import {
   applyTaskTransitionToProgressCache,
+  computeTaskProgressContribution,
   toTaskProgressSnapshot,
+  type UserProgressStats,
 } from "@/lib/user-progress-cache";
 import { sendSlackMessage } from "@/lib/slack";
 
@@ -244,6 +246,15 @@ export const getTasks = async ({
   return tasks;
 };
 
+type AssignedTaskRow = {
+  id: number;
+  state: State;
+  group_id: number;
+  transcriber_id: number | null;
+  reviewer_id: number | null;
+  final_reviewer_id: number | null;
+};
+
 export const assignTasksToUser = async ({
   userId,
   groupId,
@@ -256,61 +267,54 @@ export const assignTasksToUser = async ({
   role: Role;
   sourceUserId?: number | null;
   limit?: number;
-}): Promise<TaskListItem[]> => {
+}): Promise<AssignedTaskRow[]> => {
   const { workingState, idField } = TASK_RULES[role];
   const take = Math.max(1, limit ?? ASSIGN_TASKS);
   const sourceFilter = sourceUserFilter(role, sourceUserId);
+  const [sourceColumn, sourceId] = Object.entries(sourceFilter)[0] ?? [];
 
-  return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // find unassigned tasks *inside the transaction*
-    const unassignedTasks = await tx.task.findMany({
-      where: {
-        group_id: groupId,
-        state: workingState,
-        [idField]: null,
-        ...sourceFilter,
-      },
-      orderBy: { id: "asc" },
-      take,
-      select: {
-        ...taskListSelect,
-        transcriber_id: true,
-        reviewer_id: true,
-        final_reviewer_id: true,
-      },
-    }) as unknown as TaskListItem[];
+  // Column names and the state come from TASK_RULES, never from the request.
+  // The state must be inlined as a literal: the partial "unassigned queue"
+  // indexes only match when the planner can see the state value.
+  const idColumn = Prisma.raw(`"${idField}"`);
+  const stateLiteral = Prisma.raw(`'${workingState}'::"State"`);
+  const sourceClause =
+    sourceColumn && sourceId != null
+      ? Prisma.sql`AND ${Prisma.raw(`"${sourceColumn}"`)} = ${sourceId}`
+      : Prisma.empty;
+  const unassigned = Prisma.sql`
+    group_id = ${groupId}
+    AND state = ${stateLiteral}
+    AND ${idColumn} IS NULL
+    ${sourceClause}`;
 
-    if (unassignedTasks.length > 0) {
-      await tx.task.updateMany({
-        where: { id: { in: unassignedTasks.map((t) => t.id) } },
-        data: { [idField]: userId },
-      });
+  // One statement: SKIP LOCKED lets concurrent refills in the same group take
+  // disjoint tasks instead of overwriting each other's assignment.
+  // The `id >=` bound keeps this fast even if the planner walks Task_pkey:
+  // unassigned rows sit near the end of the table, and without the bound that
+  // scan filters hundreds of thousands of rows to find the first one.
+  const assigned = await prisma.$queryRaw<AssignedTaskRow[]>`
+    UPDATE "Task" SET ${idColumn} = ${userId}
+    WHERE id IN (
+      SELECT id FROM "Task"
+      WHERE ${unassigned}
+        AND id >= (SELECT min(id) FROM "Task" WHERE ${unassigned})
+      ORDER BY id
+      LIMIT ${take}
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id, state, group_id, transcriber_id, reviewer_id, final_reviewer_id
+  `;
 
-      // [Reason] Assignment changes total assigned counts for reviewer/final reviewer caches
-      for (const task of unassignedTasks) {
-        applyTaskTransitionToProgressCache(
-          toTaskProgressSnapshot({
-            state: task.state,
-            group_id: task.group_id,
-            transcriber_id: task.transcriber_id ?? null,
-            reviewer_id: task.reviewer_id ?? null,
-            final_reviewer_id: task.final_reviewer_id ?? null,
-            [idField]: null,
-          }),
-          toTaskProgressSnapshot({
-            state: task.state,
-            group_id: task.group_id,
-            transcriber_id: task.transcriber_id ?? null,
-            reviewer_id: task.reviewer_id ?? null,
-            final_reviewer_id: task.final_reviewer_id ?? null,
-            [idField]: userId,
-          })
-        );
-      }
-    }
+  // [Reason] Assignment changes total assigned counts for reviewer/final reviewer caches
+  for (const task of assigned) {
+    applyTaskTransitionToProgressCache(
+      toTaskProgressSnapshot({ ...task, [idField]: null }),
+      toTaskProgressSnapshot(task)
+    );
+  }
 
-    return unassignedTasks;
-  });
+  return assigned;
 };
 
 // state change (data-driven)
@@ -349,7 +353,8 @@ export const updateTask = async (
   task: Task,
   role: Role,
   currentTime: string,
-  transcriptMarks?: TranscriptMarks | null
+  transcriptMarks?: TranscriptMarks | null,
+  actor?: { id: number; groupId: number }
 ) => {
   const rules = TASK_RULES[role];
   const changedState = await changeTaskState({ task, role, action });
@@ -462,59 +467,105 @@ export const updateTask = async (
       );
     }
 
-    // [Reason] Alert managers when any group's transcription queue hits exactly 100 or 0
     if (action === "submit" && role === "TRANSCRIBER") {
-      try {
-        const group = await prisma.group.findUnique({
-          where: { id: updatedTask.group_id },
-          select: {
-            name: true,
-            notification_enabled: true,
-            _count: {
-              select: {
-                tasks: { where: { state: "transcribing" } },
-              },
-            },
-          },
-        });
+      void notifyTranscriptionQueueMilestone(updatedTask.group_id);
+    }
 
-        // [Reason] Skip Slack milestones entirely when the group has notifications disabled
-        if (group?.notification_enabled) {
-          const remainingTasks = group._count.tasks ?? 0;
-          if ([100, 0].includes(remainingTasks)) {
-            const recipients = await prisma.user.findMany({
-              where: {
-                role: "FINAL_REVIEWER",
-                slack_user_id: { not: null },
-              },
-              select: { slack_user_id: true },
-            });
-
-            const message =
-              `📢 Group Queue Update\n\n` +
-              `Group: ${group.name}\n\n` +
-              `There are now ${remainingTasks} transcription tasks remaining in this group.`;
-
-            for (const recipient of recipients) {
-              const slackUserId = recipient.slack_user_id?.trim();
-              if (!slackUserId) continue;
-              try {
-                await sendSlackMessage(slackUserId, message);
-              } catch (error) {
-                console.error("Failed to send Slack queue notification:", error);
-              }
-            }
-          }
+    // The client applies progressDelta to its own counters and prepends
+    // historyItem, so it doesn't have to re-query progress and history.
+    const progressDelta =
+      beforeTask && actor
+        ? diffProgress(
+            computeTaskProgressContribution(
+              toTaskProgressSnapshot(beforeTask),
+              role,
+              actor.id,
+              actor.groupId
+            ),
+            computeTaskProgressContribution(
+              toTaskProgressSnapshot(updatedTask),
+              role,
+              actor.id,
+              actor.groupId
+            )
+          )
+        : null;
+    const historyStates = toStateArray(rules.historyStates);
+    const historyItem = historyStates.includes(updatedTask.state)
+      ? {
+          id: updatedTask.id,
+          group_id: updatedTask.group_id,
+          state: updatedTask.state,
+          inference_transcript: updatedTask.inference_transcript,
+          transcript: updatedTask.transcript,
+          reviewed_transcript: updatedTask.reviewed_transcript,
+          final_transcript: updatedTask.final_transcript,
         }
+      : null;
+
+    return { msg: taskToastMsg(action), updatedTask, progressDelta, historyItem };
+  }
+  return { error: "Error updating task" };
+};
+
+function toStateArray(states: State | State[]): State[] {
+  return Array.isArray(states) ? states : [states];
+}
+
+function diffProgress(
+  before: UserProgressStats,
+  after: UserProgressStats
+): UserProgressStats {
+  return {
+    completedTaskCount: after.completedTaskCount - before.completedTaskCount,
+    totalTaskCount: after.totalTaskCount - before.totalTaskCount,
+    totalTaskPassed: after.totalTaskPassed - before.totalTaskPassed,
+    rejectedTaskCount: after.rejectedTaskCount - before.rejectedTaskCount,
+  };
+}
+
+// [Reason] Alert managers when any group's transcription queue hits exactly 100 or 0.
+// Runs after the response is sent; never throws.
+async function notifyTranscriptionQueueMilestone(groupId: number) {
+  try {
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      select: { name: true, notification_enabled: true },
+    });
+    // [Reason] Skip Slack milestones entirely when the group has notifications disabled
+    if (!group?.notification_enabled) return;
+
+    const remainingTasks = await prisma.task.count({
+      where: { group_id: groupId, state: "transcribing" },
+    });
+    if (![100, 0].includes(remainingTasks)) return;
+
+    const recipients = await prisma.user.findMany({
+      where: {
+        role: "FINAL_REVIEWER",
+        slack_user_id: { not: null },
+      },
+      select: { slack_user_id: true },
+    });
+
+    const message =
+      `📢 Group Queue Update\n\n` +
+      `Group: ${group.name}\n\n` +
+      `There are now ${remainingTasks} transcription tasks remaining in this group.`;
+
+    for (const recipient of recipients) {
+      const slackUserId = recipient.slack_user_id?.trim();
+      if (!slackUserId) continue;
+      try {
+        await sendSlackMessage(slackUserId, message);
       } catch (error) {
         console.error("Failed to send Slack queue notification:", error);
       }
     }
-
-    return { msg: taskToastMsg(action), updatedTask };
+  } catch (error) {
+    console.error("Failed to send Slack queue notification:", error);
   }
-  return { error: "Error updating task" };
-};
+}
 
 // toast messages
 export const taskToastMsg = (action: TaskActionType): { success: string } => {

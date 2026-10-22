@@ -9,15 +9,29 @@ import TranscriptWorkspace from "./TranscriptWorkspace";
 import Sidebar from "@/components/Sidebar";
 import toast from "react-hot-toast";
 import AppContext from "./AppContext";
-import type { Task, User } from "@prisma/client";
+import type { Task } from "@prisma/client";
+import type { SessionUser } from "@/lib/auth/requireUser";
+import { HISTORY_PAGE_SIZE } from "@/constants/config";
 
 // Types
 type AudioTranscriptType = {
   tasks: Task[];
-  userDetail: User;
+  userDetail: SessionUser;
   language: any;
   userHistory: Task[];
 };
+
+type UserTaskStats = {
+  completedTaskCount: number;
+  totalTaskCount: number;
+  totalTaskPassed: number;
+  rejectedTaskCount: number;
+};
+
+// Counters are kept up to date from each update response; this periodic
+// re-read only corrects drift (e.g. work done in another tab).
+const PROGRESS_RESYNC_MS = 5 * 60_000;
+const ASSIGN_OPTIONS_MIN_INTERVAL_MS = 3_000;
 
 async function fetchUserProgress({ userId, groupId, role }: any) {
   const res = await fetch(
@@ -115,16 +129,17 @@ const AudioTranscript = ({
   // [Reason] transcript + font-size state now live in TranscriptWorkspace so that
   // typing does not re-render this component or its non-editor children.
   const [historyList, setHistoryList] = useState<Task[]>(userHistory || []);
-  const [userTaskStats, setUserTaskStats] = useState({
+  const [userTaskStats, setUserTaskStats] = useState<UserTaskStats>({
     completedTaskCount: 0,
     totalTaskCount: 0,
     totalTaskPassed: 0,
+    rejectedTaskCount: 0,
   });
 
   const audioRef = useRef<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const { id: userId, group_id: groupId, role } = userDetail as any;
   const currentTimeRef: any = useRef(null);
+  const updateInFlightRef = useRef(false);
 
   // [Reason] Wrapped in useCallback so this function has a stable identity
   // across renders (deps are only the primitives it actually captures). This
@@ -157,8 +172,10 @@ const AudioTranscript = ({
     batchDoneRef.current = batchDone;
   }, [batchDone]);
 
+  const assignOptionsFetchedAtRef = useRef(0);
   const refreshAssignOptions = useCallback(async () => {
     if (!canPickSource) return;
+    assignOptionsFetchedAtRef.current = Date.now();
     try {
       const options = await fetchAssignOptions();
       setAssignOptions(options);
@@ -171,6 +188,16 @@ const AudioTranscript = ({
     refreshAssignOptions();
   }, [refreshAssignOptions]);
 
+  const refreshAssignOptionsOnOpen = () => {
+    if (
+      Date.now() - assignOptionsFetchedAtRef.current <
+      ASSIGN_OPTIONS_MIN_INTERVAL_MS
+    ) {
+      return;
+    }
+    refreshAssignOptions();
+  };
+
   const setUserProgress = useCallback(async () => {
     try {
       const data = await fetchUserProgress({ userId, role, groupId });
@@ -181,22 +208,49 @@ const AudioTranscript = ({
   }, [userId, role, groupId]);
 
   // [Reason] Transcript initialization moved into TranscriptWorkspace (keyed on
-  // task.id + role). This effect keeps only the progress/timer/loading behavior it
-  // previously had, unchanged. setUserProgress is now stable (useCallback), so
-  // adding it here satisfies exhaustive-deps without changing when the effect runs:
-  // it still only re-executes on mount, on taskList changes, or if user identity
-  // (userId/role/groupId) changes.
+  // task.id + role). This effect loads progress once, then re-syncs it while the
+  // tab is visible; per-task changes come from the update response instead.
   useEffect(() => {
     setUserProgress();
     currentTimeRef.current = new Date().toISOString();
 
-    if (taskList?.length) {
-      setIsLoading(false);
-    } else {
-      setIsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const resync = setInterval(() => {
+      if (document.visibilityState === "visible") setUserProgress();
+    }, PROGRESS_RESYNC_MS);
+    return () => clearInterval(resync);
   }, [setUserProgress]);
+
+  const applyProgressDelta = (delta: UserTaskStats) => {
+    setUserTaskStats((prev) => ({
+      completedTaskCount: prev.completedTaskCount + delta.completedTaskCount,
+      totalTaskCount: prev.totalTaskCount + delta.totalTaskCount,
+      totalTaskPassed: prev.totalTaskPassed + delta.totalTaskPassed,
+      rejectedTaskCount:
+        (prev.rejectedTaskCount ?? 0) + delta.rejectedTaskCount,
+    }));
+  };
+
+  // Matches the previous behaviour of re-reading the first history page after
+  // each action, without the request.
+  const prependHistoryItem = (item: Task) => {
+    setHistoryList((prev) =>
+      [item, ...prev.filter((t) => t.id !== item.id)].slice(
+        0,
+        HISTORY_PAGE_SIZE
+      )
+    );
+  };
+
+  const refreshHistory = async () => {
+    try {
+      const latestHistory = await fetchUserHistoryApi({
+        userId,
+        groupId,
+        role,
+      });
+      setHistoryList(latestHistory);
+    } catch { }
+  };
 
   const updateTaskAndIndex = async ({
     action,
@@ -204,6 +258,9 @@ const AudioTranscript = ({
     task,
     transcript_marks,
   }: any) => {
+    // Ignore repeat clicks / held shortcut keys while the update is pending.
+    if (updateInFlightRef.current) return;
+    updateInFlightRef.current = true;
     try {
       const res = await postTaskUpdate({
         action,
@@ -232,26 +289,24 @@ const AudioTranscript = ({
 
       toast.success(result?.msg?.success || "Success");
 
-      // [Reason] progress and history are independent of each other and both only
-      // depend on the completed update, so run them concurrently to cut post-submit
-      // waiting (previously awaited sequentially). Each keeps its own error handling.
-      await Promise.all([
-        setUserProgress(),
-        (async () => {
-          try {
-            const latestHistory = await fetchUserHistoryApi({
-              userId,
-              groupId,
-              role,
-            });
-            setHistoryList(latestHistory);
-          } catch { }
-        })(),
-      ]);
+      // A server from before this change (e.g. mid-deploy) doesn't send these
+      // fields, so fall back to re-reading progress and history in the background.
+      if (result?.progressDelta) {
+        applyProgressDelta(result.progressDelta);
+      } else {
+        void setUserProgress();
+      }
+      if (result?.historyItem) {
+        prependHistoryItem(result.historyItem);
+      } else if (!("historyItem" in (result ?? {}))) {
+        void refreshHistory();
+      }
 
-      handleTaskListUpdate(action, task.id);
+      await handleTaskListUpdate(action, task.id);
     } catch {
       toast.error("Failed to update task");
+    } finally {
+      updateInFlightRef.current = false;
     }
   };
 
@@ -331,14 +386,6 @@ const AudioTranscript = ({
 
     if (taskList.length > 1) {
       setTaskList((prev: any) => prev.filter((t: Task) => t.id !== id));
-      // Keep dropdown counts in sync after each completed task
-      if (
-        action === "submit" ||
-        action === "reject" ||
-        action === "trash"
-      ) {
-        refreshAssignOptions();
-      }
       return;
     }
 
@@ -396,8 +443,8 @@ const AudioTranscript = ({
       <select
         className="select select-sm select-bordered max-w-[12rem] bg-white/80 dark:bg-neutral-900/80"
         value={sourceUserId ?? ""}
-        onFocus={() => refreshAssignOptions()}
-        onClick={() => refreshAssignOptions()}
+        onFocus={refreshAssignOptionsOnOpen}
+        onMouseDown={refreshAssignOptionsOnOpen}
         onChange={(e) => {
           const v = e.target.value;
           setSourceUserId(v === "" ? null : Number(v));
@@ -520,6 +567,7 @@ const AudioTranscript = ({
         setTaskList={setTaskList}
         userHistory={historyList}
         onHistoryChanged={async () => {
+          void setUserProgress();
           const latestHistory = await fetchUserHistoryApi({
             userId,
             groupId,
@@ -537,11 +585,6 @@ const AudioTranscript = ({
           return newItems.length;
         }}
       >
-        {isLoading ? (
-          <div className="flex justify-center items-center min-h-[60vh]">
-            <span className="loading loading-spinner loading-lg" />
-          </div>
-        ) : (
           <div className="w-full px-4 py-5">
             <div className="mx-auto max-w-4xl space-y-5">
               {taskHeader}
@@ -575,7 +618,6 @@ const AudioTranscript = ({
               )}
             </div>
           </div>
-        )}
       </Sidebar>
     </AppContext.Provider>
   );
