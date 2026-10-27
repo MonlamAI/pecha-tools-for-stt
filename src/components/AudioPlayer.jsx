@@ -14,6 +14,7 @@ import {
 
 const PLAYBACK_RATE_STORAGE_KEY = "pecha_stt_playback_rate";
 const RATES = [0.5, 0.75, 1, 1.25, 1.5];
+const PREFETCH_AHEAD = 2;
 
 function readSavedPlaybackRate() {
   if (typeof window === "undefined") return 1;
@@ -35,7 +36,9 @@ function applyPlaybackRate(audio, rate) {
 
 export const AudioPlayer = ({ tasks, audioRef }) => {
   const { lang } = useContext(AppContext);
-  const [playbackRate, setPlaybackRate] = useState(readSavedPlaybackRate);
+  // Starts at 1x so the server-rendered markup matches the first client render;
+  // the saved rate is applied right after hydration.
+  const [playbackRate, setPlaybackRate] = useState(1);
   const playbackRateRef = useRef(playbackRate);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
@@ -46,6 +49,47 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
   const detectedMimeType = getAudioMimeTypeFromUrl(audioUrl);
   const autoPlayAttemptedRef = useRef(false);
   const decodeRetryRef = useRef(0);
+
+  // Hidden audio elements make the same request the player will make, so the
+  // next tasks' files are already in the browser cache when the user advances.
+  const prefetchedRef = useRef(new Map());
+  const upcomingKey = tasks
+    .slice(1, 1 + PREFETCH_AHEAD)
+    .map((t) => normalizeAudioUrl(t?.url))
+    .filter(Boolean)
+    .join("\n");
+
+  useEffect(() => {
+    const prefetched = prefetchedRef.current;
+    const wanted = new Set(upcomingKey ? upcomingKey.split("\n") : []);
+    for (const [url, el] of prefetched) {
+      if (wanted.has(url)) continue;
+      prefetched.delete(url);
+      // Don't abort a download the player is about to reuse.
+      if (url !== audioUrl) {
+        el.removeAttribute("src");
+        el.load();
+      }
+    }
+    for (const url of wanted) {
+      if (prefetched.has(url)) continue;
+      const el = new Audio();
+      el.preload = "auto";
+      el.src = url;
+      prefetched.set(url, el);
+    }
+  }, [upcomingKey, audioUrl]);
+
+  useEffect(() => {
+    const prefetched = prefetchedRef.current;
+    return () => {
+      for (const el of prefetched.values()) {
+        el.removeAttribute("src");
+        el.load();
+      }
+      prefetched.clear();
+    };
+  }, []);
 
   const notifyPlaybackFailure = useCallback((message) => {
     setPlaybackError(message);
@@ -101,6 +145,12 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [handleKeyPress]);
+
+  useEffect(() => {
+    const saved = readSavedPlaybackRate();
+    playbackRateRef.current = saved;
+    setPlaybackRate(saved);
+  }, []);
 
   useEffect(() => {
     playbackRateRef.current = playbackRate;
@@ -252,6 +302,12 @@ export const AudioPlayer = ({ tasks, audioRef }) => {
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
     audio.addEventListener("error", onError);
+
+    // The element is server-rendered, so it may have finished buffering before
+    // these listeners were attached during hydration.
+    if (audio.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      onCanPlayThrough();
+    }
 
     return () => {
       audio.removeEventListener("loadstart", onLoadStart);

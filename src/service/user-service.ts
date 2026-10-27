@@ -6,6 +6,7 @@ import { Prisma, type Role, type State } from "@prisma/client";
 import { HISTORY_PAGE_SIZE } from "@/constants/config";
 import { getTasks } from "./task-service";
 import { getCacheWriteVersion } from "@/lib/cache";
+import type { SessionUser } from "@/lib/auth/requireUser";
 import {
   buildUserProgressCacheKey,
   getCachedUserProgressStats,
@@ -94,7 +95,7 @@ async function fetchProgressStatsGrouped({
 export type FetchUserDataResult =
   | { error: string }
   | {
-    userDetail: UserRecord;
+    userDetail: SessionUser;
     userTasks: any[];
     userHistory: any[];
   };
@@ -110,39 +111,25 @@ type UserRecord = {
   group: { name: string | null } | null;
 };
 
-export async function fetchUserDataBySession(session: string): Promise<FetchUserDataResult> {
-  if (!session || session === "") {
-    return { error: "Invalid session" };
-  }
-
-  const userData = await getOrCreateUser({ username: session });
-  if (!userData || "error" in userData) {
-    return {
-      error:
-        userData?.error ??
-        "No user found. Please try again with the correct username or email..",
-    };
-  }
-
+export async function fetchUserDataForSessionUser(
+  userData: SessionUser
+): Promise<FetchUserDataResult> {
   if (userData.group_id === 0) {
     return {
       error: "No group found. Please contact admin for assigning a group",
     };
   }
 
-  // console.log("fetchUserDataBySession:", { userData });
-  const userTasks = await getTasks({
+  const scope = {
     userId: userData.id,
     groupId: userData.group_id,
     role: userData.role,
-  });
+  };
+  const [userTasks, userHistory] = await Promise.all([
+    getTasks(scope),
+    getUserHistory(scope),
+  ]);
   if (!userTasks) return { error: "No tasks found." };
-
-  const userHistory = await getUserHistory({
-    userId: userData.id,
-    groupId: userData.group_id,
-    role: userData.role,
-  });
   if (!userHistory) return { error: "No history found." };
 
 
@@ -208,11 +195,7 @@ export const getUserHistory = async ({
         : (queryStates as any),
       group_id: groupId,
     },
-    orderBy: [
-      { finalised_reviewed_at: "desc" },
-      { reviewed_at: "desc" },
-      { submitted_at: "desc" },
-    ],
+    orderBy: [{ [rules.historyOrderField]: "desc" }, { id: "desc" }],
     // [Reason] Paginate history so the sidebar shows 5 latest tasks, then 5 more per load
     take,
     skip: skip,

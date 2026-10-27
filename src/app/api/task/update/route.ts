@@ -44,7 +44,8 @@ export const POST = withAccessLog(async (request: Request) => {
       task,
       role,
       currentTime ?? new Date().toISOString(),
-      transcript_marks ?? null
+      transcript_marks ?? null,
+      { id: auth.user.id, groupId: auth.user.group_id }
     );
     if ((result as any)?.error) {
       return NextResponse.json(result, { status: 500 });

@@ -8,6 +8,8 @@ export const TASK_RULES: Record<Role, {
   rejectState: State;
   trashState: State;
   historyStates: State[] | State;
+  // Must match the (idField, <this>) index so history can be read in index order
+  historyOrderField: "submitted_at" | "reviewed_at" | "finalised_reviewed_at";
   passedStates: State[] | State;
   completedStates: State[] | State;
 }> = {
@@ -19,6 +21,7 @@ export const TASK_RULES: Record<Role, {
     rejectState: "imported",
     trashState: "trashed",
     historyStates: ["submitted", "trashed"],
+    historyOrderField: "submitted_at",
     passedStates: ["accepted", "finalised"],
     completedStates: ["submitted", "accepted", "finalised"],
   },
@@ -30,6 +33,7 @@ export const TASK_RULES: Record<Role, {
     rejectState: "transcribing",
     trashState: "trashed",
     historyStates: ["accepted", "trashed"],
+    historyOrderField: "reviewed_at",
     passedStates: ["finalised"],
     completedStates: ["accepted", "finalised"],
   },
@@ -41,6 +45,7 @@ export const TASK_RULES: Record<Role, {
     rejectState: "submitted",
     trashState: "trashed",
     historyStates: ["finalised", "trashed"],
+    historyOrderField: "finalised_reviewed_at",
     passedStates: ["finalised"],
     completedStates: ["finalised"],
   },

@@ -56,10 +56,10 @@ model Task {
   group_id               Int
   group                  Group     @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   state                  State     @default(transcribing)
-  inference_transcript   String?   @db.VarChar(500)
-  transcript             String?   @db.VarChar(500)
-  reviewed_transcript    String?   @db.VarChar(500)
-  final_transcript       String?   @db.VarChar(500)
+  inference_transcript   String?   @db.VarChar(2500)
+  transcript             String?   @db.VarChar(2500)
+  reviewed_transcript    String?   @db.VarChar(2500)
+  final_transcript       String?   @db.VarChar(2500)
   // Reject feedback: { by, text, ranges: [{ start, end }] }
   transcript_marks       Json?
   // True when task was rejected and then submitted again
@@ -81,20 +81,19 @@ model Task {
   transcriber_is_correct Boolean?
   reviewer_is_correct    Boolean?
 
-  // Indexes to optimize report queries
-  @@index([group_id])
-  @@index([state])
-  @@index([transcriber_id])
-  @@index([reviewer_id])
-  @@index([final_reviewer_id])
-  @@index([submitted_at])
-  @@index([reviewed_at])
-  @@index([finalised_reviewed_at])
-
-  // Composite indexes for common filters
+  // Matches the indexes created by migrations.
+  // The database also has three partial "unassigned queue" indexes
+  // (Task_unassigned_transcribing_idx, Task_unassigned_submitted_idx,
+  // Task_unassigned_accepted_idx) that Prisma can't express. Task assignment
+  // depends on them: if a generated migration ever drops them, remove those lines.
   @@index([group_id, state])
+  @@index([state])
+  // Task queue per role (getTasks): role id + group + state, ordered by id
+  @@index([transcriber_id, group_id, state, id])
+  @@index([reviewer_id, group_id, state, id])
+  @@index([final_reviewer_id, group_id, state, id])
+  // History per role (getUserHistory) and reports by date
   @@index([transcriber_id, submitted_at])
-  @@index([transcriber_id, reviewed_at])
   @@index([reviewer_id, reviewed_at])
   @@index([final_reviewer_id, finalised_reviewed_at])
 }
